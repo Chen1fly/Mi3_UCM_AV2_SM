@@ -1,0 +1,49 @@
+description = "making a left lane change while there is a vehicle to the right"
+
+# Get all objects of category "VEHICLE".
+# The "VEHICLE" category is a superclass including REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK, BUS, etc.
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Identify vehicles that are performing a left lane change.
+# The 'changing_lanes' function returns a dictionary of vehicle UUIDs that are changing lanes
+# and the timestamps of these events.
+left_lane_changing_vehicles = changing_lanes(
+    track_candidates=all_vehicles,
+    log_dir=log_dir,
+    direction='left'
+)
+
+# From the set of vehicles making a left lane change, we want to find those
+# that have another vehicle to their right at the time of the lane change.
+# 'has_objects_in_relative_direction' will filter 'left_lane_changing_vehicles'
+# to include only those that meet the condition of having a vehicle to their right.
+# - track_candidates: The vehicles we are checking (those making a left lane change).
+# - related_candidates: The pool of objects to look for (all vehicles).
+# - direction="right": We are looking for objects to the right of the track_candidates.
+# - min_number=1: We need at least one vehicle to the right.
+# - within_distance=7.0: The vehicle to the right must be within 7 meters. This typically covers the adjacent lane.
+#   A typical lane width is about 3-4 meters. 7 meters allows for the vehicle to be in the lane
+#   immediately to the right or slightly further if lanes are wide or there's a shoulder.
+# - lateral_thresh=10.0: This parameter constrains the longitudinal position of the vehicle to the right.
+#   It means the center of the vehicle to the right must be within a longitudinal window of +/-10 meters
+#   relative to the center of the lane-changing vehicle. This ensures the vehicle is somewhat "alongside"
+#   (not too far ahead or too far behind) to be relevant.
+vehicles_making_left_lane_change_with_vehicle_to_right = has_objects_in_relative_direction(
+    track_candidates=left_lane_changing_vehicles,
+    related_candidates=all_vehicles,
+    log_dir=log_dir,
+    direction="right",
+    min_number=1,
+    within_distance=7.0,  # Max distance to the right (meters)
+    lateral_thresh=10.0   # Max longitudinal offset from the side (meters)
+)
+
+# Output the resulting scenario.
+# This will contain the UUIDs of vehicles making a left lane change while another vehicle is to their right,
+# and the timestamps when this occurs.
+output_scenario(
+    scenario=vehicles_making_left_lane_change_with_vehicle_to_right,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

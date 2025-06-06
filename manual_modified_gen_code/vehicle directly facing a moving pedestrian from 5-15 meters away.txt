@@ -1,0 +1,57 @@
+# Define the description of the scenario
+description = 'vehicle directly facing a moving pedestrian from 5-15 meters away'
+
+# Get all vehicles in the dataset
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Get all pedestrians in the dataset
+all_pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Identify pedestrians that are currently moving
+# Using min_velocity=0.5 to filter out stationary pedestrians, accounting for potential annotation jitter.
+moving_pedestrians = has_velocity(all_pedestrians, log_dir, min_velocity=0.5)
+
+# Define the angle for "directly facing"
+# This means the pedestrian must be within +/- 15 degrees of the vehicle's forward axis (total 30 degree cone).
+angle_for_directly_facing = 15.0
+
+# --- Condition 1: Vehicle facing a moving pedestrian at a distance of 15 meters or less ---
+# This identifies vehicles that are facing a moving pedestrian within the specified angle and up to 15 meters away.
+vehicles_facing_ped_le_15m = facing_toward(
+    track_candidates=all_vehicles,
+    related_candidates=moving_pedestrians,
+    log_dir=log_dir,
+    within_angle=angle_for_directly_facing,
+    max_distance=15.0
+)
+
+# --- Condition 2: Vehicle IS NOT facing a moving pedestrian at a distance strictly less than 5 meters ---
+# This means we want to exclude instances where the pedestrian is too close (less than 5 meters).
+# We use scenario_not with facing_toward, setting max_distance to just under 5m (e.g., 4.999m)
+# to effectively achieve "distance >= 5m".
+
+# Create a wrapped version of 'facing_toward' that scenario_not can operate on.
+# scenario_not(func) returns a new function that, when called, computes 'all_tracks_of_interest - func(all_tracks_of_interest, ...)'
+not_facing_toward_func = scenario_not(facing_toward)
+
+# Apply this 'not_facing_toward_func' to find vehicles that are NOT facing pedestrians within 4.999m.
+# The result, 'vehicles_facing_ped_ge_5m', will contain (vehicle, timestamp) pairs from 'all_vehicles'
+# where the vehicle is NOT facing a moving pedestrian at a distance < 5m.
+vehicles_facing_ped_ge_5m = not_facing_toward_func(
+    all_vehicles, # These are the track_candidates for the scenario_not operation
+    moving_pedestrians, # related_candidates for the internal facing_toward call
+    log_dir,
+    within_angle=angle_for_directly_facing,
+    max_distance=4.999 # Represents distances < 5m
+)
+
+# --- Combine conditions using scenario_and ---
+# We need vehicles that satisfy both:
+# 1. Facing a moving pedestrian at distance <= 15m (from vehicles_facing_ped_le_15m)
+# AND
+# 2. NOT facing a moving pedestrian at distance < 5m (i.e., distance >= 5m, from vehicles_facing_ped_ge_5m)
+# The scenario_and function will find the intersection of these two sets of (vehicle, timestamp) pairs.
+final_scenario = scenario_and([vehicles_facing_ped_le_15m, vehicles_facing_ped_ge_5m])
+
+# Output the resulting scenario
+output_scenario(final_scenario, description, log_dir, output_dir)

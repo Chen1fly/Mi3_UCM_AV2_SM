@@ -1,0 +1,61 @@
+# Description of the scenario to be detected.
+description = "vehicle being overtaken on the right"
+
+# Get all objects of the category "VEHICLE".
+# The "VEHICLE" superclass includes passenger cars, trucks, buses, etc., but not motorcycles or bicycles.
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Filter for vehicles that are not stationary. Overtaking implies that both
+# the overtaken and overtaking vehicles are generally in motion.
+# 'stationary' identifies objects that moved very little over their observation period (e.g., parked vehicles).
+# 'scenario_not(stationary)' gives us vehicles that are considered active in traffic.
+moving_vehicles = scenario_not(stationary)(all_vehicles, log_dir)
+
+# Identify vehicles (track_candidates) that are being overtaken on their right
+# by other moving vehicles (related_candidates).
+# The `being_crossed_by` function identifies when a `track_candidate`'s midplane
+# is crossed by a `related_candidate`.
+
+# Args for `being_crossed_by`:
+# - `track_candidates=moving_vehicles`: These are the vehicles that are potentially being overtaken.
+#   The output scenario dictionary will contain these track UUIDs.
+# - `related_candidates=moving_vehicles`: These are the vehicles that are potentially doing the overtaking.
+#   We are looking for vehicle-overtaking-vehicle scenarios.
+# - `log_dir`: Path to scenario logs.
+# - `direction="right"`: Specifies that the right-side midplane of the `track_candidate` (the vehicle
+#   being overtaken) is the one being crossed.
+# - `in_direction="counterclockwise"`: Specifies the required manner of crossing the midplane.
+#   This choice is based on mirroring the 'overtaking_on_left' example provided in the problem description,
+#   which used `in_direction="clockwise"` for a left overtake. "Counterclockwise" for a right overtake
+#   is inferred to represent the overtaking vehicle moving from the rear-right of the `track_candidate`
+#   towards its front-right. This helps to precisely capture an "overtaking" maneuver
+#   and distinguish it from other types of lateral movements or crossings.
+# - `forward_thresh=4`: Defines the longitudinal extent of the interaction zone along the side of
+#   the `track_candidate` where the crossing is detected. A value of 4 meters is adopted from
+#   the 'overtaking_on_left' example, suggesting the crossing needs to occur along this length
+#   of the vehicle's side.
+# - `lateral_thresh=5`: Defines the lateral extent or "depth" of the crossing interaction zone.
+#   This is the default value for the `lateral_thresh` parameter in the `being_crossed_by` function.
+#   The 'overtaking_on_left' example did not explicitly set this parameter, implying the use of
+#   the default. A value of 5 meters means the crossing event remains active until the related
+#   candidate moves past this lateral threshold relative to the midplane.
+
+vehicles_being_overtaken_on_right = being_crossed_by(
+    track_candidates=moving_vehicles,
+    related_candidates=moving_vehicles,
+    log_dir=log_dir,
+    direction="right",
+    in_direction="counterclockwise", # Assumed based on 'overtaking_on_left' example being 'clockwise'
+    forward_thresh=4, # Based on 'overtaking_on_left' example
+    lateral_thresh=5  # Default value for the function, implied from 'overtaking_on_left' example
+)
+
+# Output the identified scenario instances.
+# This will save the UUIDs of vehicles that were found to be overtaken on their right,
+# along with the timestamps of these events, in a format suitable for evaluation or further analysis.
+output_scenario(
+    scenario=vehicles_being_overtaken_on_right,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

@@ -1,0 +1,50 @@
+# Description: pedestrian crossing ahead of ego vehicle
+
+# Get the EGO_VEHICLE.
+# Even though there's typically one ego vehicle, functions expect a scenario dictionary.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all PEDESTRIAN objects in the scenario.
+all_pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Filter these pedestrians to find those who are at a pedestrian crossing.
+# 'at_pedestrian_crossing' identifies objects within a certain distance from a pedestrian crossing.
+# The default 'within_distance=1' means the pedestrian is within 1 meter of the crossing,
+# which is suitable for identifying a pedestrian actively on or very near the crossing.
+pedestrians_on_crossing = at_pedestrian_crossing(all_pedestrians, log_dir, within_distance=1.0)
+
+# Now, we want to find pedestrians (from 'pedestrians_on_crossing')
+# who are "ahead of the ego vehicle".
+
+# We use 'has_objects_in_relative_direction' to establish the spatial relationship.
+# If called directly as:
+#   `has_objects_in_relative_direction(track_candidates=ego_vehicle, related_candidates=pedestrians_on_crossing, ...)`
+# it would return `ego_vehicle` instances that have such pedestrians ahead.
+# However, the "referred object" in the description is the "pedestrian".
+# So, we use `reverse_relationship` to make the `pedestrians_on_crossing` the primary keys in the output.
+
+# Parameters for has_objects_in_relative_direction:
+# - track_candidates: ego_vehicle (the reference object for direction)
+# - related_candidates: pedestrians_on_crossing (the objects we are looking for relative to ego)
+# - direction: 'forward' (from the ego_vehicle's point of view)
+# - min_number: 1 (we need at least one such pedestrian crossing ahead)
+# - within_distance: 50 (default, defines how far "ahead" extends, e.g., 50 meters)
+# - lateral_thresh: np.inf (default, pedestrian can be anywhere laterally in the forward half-plane)
+pedestrians_crossing_ahead_of_ego = reverse_relationship(has_objects_in_relative_direction)(
+    track_candidates=ego_vehicle,
+    related_candidates=pedestrians_on_crossing,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,  # Ensure at least one pedestrian is found ahead
+    within_distance=50, # Standard distance for "ahead"
+    lateral_thresh=np.inf # Standard lateral threshold for "ahead"
+)
+
+# Output the scenario.
+# The 'pedestrians_crossing_ahead_of_ego' dictionary will have pedestrian UUIDs (who meet all criteria) as keys.
+output_scenario(
+    pedestrians_crossing_ahead_of_ego,
+    description = 'pedestrian crossing ahead of ego vehicle',
+    log_dir=log_dir,
+    output_dir=output_dir
+)

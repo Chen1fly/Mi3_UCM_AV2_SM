@@ -1,0 +1,45 @@
+# Define the description for the scenario
+description = 'wheeled device (e.g., golf cart, segway) sharing a lane with a moving vehicle'
+
+# Step 1: Get all objects of category 'WHEELED_DEVICE'.
+# This category includes items like golf carts, segways, skateboards, non-motorized scooters, etc.,
+# as specified in the problem description's category list. These are the primary objects of interest.
+wheeled_devices = get_objects_of_category(log_dir, category='WHEELED_DEVICE')
+
+# Step 2: Get all objects belonging to the 'VEHICLE' superclass.
+# The 'VEHICLE' superclass encompasses various types of motorized vehicles like cars, trucks, buses.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Step 3: Filter the 'all_vehicles' to retain only those that are currently "moving".
+# A vehicle is considered "moving" if its speed is above a certain threshold.
+# We use min_velocity=1.0 m/s. The documentation for `has_velocity` states that
+# "Stationary objects may have a velocity up to 0.5 m/s due to annotation jitter."
+# Choosing 1.0 m/s helps ensure that the vehicle is genuinely in motion at the time of the event,
+# rather than being stationary or only jittering, aiming for precision.
+moving_vehicles = has_velocity(
+    track_candidates=all_vehicles,
+    log_dir=log_dir,
+    min_velocity=1.0,  # Minimum velocity in m/s
+    max_velocity=float('inf') # No upper limit on velocity
+)
+
+# Step 4: Identify instances where a wheeled device is sharing a lane with one of these moving vehicles.
+# The `in_same_lane` function is used here. It takes `wheeled_devices` as `track_candidates`
+# (the objects we want to identify) and `moving_vehicles` as `related_candidates`.
+# It will return a scenario dictionary keyed by the UUIDs of the `wheeled_devices`
+# that are found to be in the same lane as one or more `moving_vehicles` at specific timestamps.
+# This directly addresses the "sharing a lane" part of the requirement.
+wheeled_device_sharing_lane_with_moving_vehicle = in_same_lane(
+    track_candidates=wheeled_devices,
+    related_candidates=moving_vehicles,
+    log_dir=log_dir
+)
+
+# Step 5: Output the identified scenario.
+# This function will save the results in the specified evaluation-ready format.
+output_scenario(
+    scenario=wheeled_device_sharing_lane_with_moving_vehicle,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

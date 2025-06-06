@@ -1,0 +1,68 @@
+# Define the description for the scenario
+description = 'vehicle two vehicles ahead is braking'
+
+# Get all vehicle objects from the logs
+# The 'VEHICLE' superclass includes REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, BOX_TRUCK, BUS, etc.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter for vehicles that are actively moving (not stationary for long periods).
+# The `stationary` function identifies objects that moved very little over their observation time.
+# This helps ensure that "braking" is meaningful (i.e., deceleration from a non-zero speed)
+# and avoids potential noise in acceleration data for objects that are effectively parked.
+active_vehicles = scenario_not(stationary)(all_vehicles, log_dir)
+
+# Identify vehicles that are currently braking.
+# The `accelerating` function identifies objects with forward acceleration.
+# Braking is negative acceleration. "Values under -1 reliably indicates braking."
+# So, we set max_accel to -1.0 m/s^2.
+braking_vehicles = accelerating(
+    track_candidates=active_vehicles,
+    log_dir=log_dir,
+    min_accel=-np.inf,  # No lower bound for braking acceleration (any deceleration counts)
+    max_accel=-1.0      # Object's acceleration must be -1.0 m/s^2 or less (more negative)
+)
+
+# Identify intermediate vehicles (let's call this V1_ahead).
+# These are active vehicles that have one of the `braking_vehicles` (let's call this V2_ahead_braking)
+# directly in front of them.
+# `has_objects_in_relative_direction` will return V1_ahead if V2_ahead_braking is in its 'forward' direction.
+# - `min_number=1`, `max_number=1`: Ensures it's exactly one vehicle, and the closest one.
+# - `within_distance=30.0`: A reasonable following distance (e.g., up to 30 meters).
+# - `lateral_thresh=0.8`: Aims to ensure V2_ahead_braking is in roughly the same lane as V1_ahead.
+#   This means the lateral offset of their centers is at most 0.8 meters.
+#   Given typical vehicle widths (around 1.8-2.0m), this ensures significant overlap.
+v1_ahead_of_target = has_objects_in_relative_direction(
+    track_candidates=active_vehicles,             # The potential V1_ahead vehicles
+    related_candidates=braking_vehicles,          # The V2_ahead_braking vehicles (must be in front of V1_ahead)
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=1,
+    within_distance=30.0,
+    lateral_thresh=0.8
+)
+
+# Identify the target vehicles (V_target).
+# These are active vehicles that have one of the `v1_ahead_of_target` vehicles
+# directly in front of them.
+# So, V_target has V1_ahead in front, and V1_ahead has V2_ahead_braking in front.
+# This means V2_ahead_braking is two vehicles ahead of V_target.
+target_vehicles_with_braking_two_ahead = has_objects_in_relative_direction(
+    track_candidates=active_vehicles,             # The potential V_target vehicles
+    related_candidates=v1_ahead_of_target,        # The V1_ahead vehicles (must be in front of V_target)
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=1,
+    within_distance=30.0,
+    lateral_thresh=0.8
+)
+
+# Output the scenario, which contains the UUIDs of V_target vehicles and the timestamps
+# when the condition "vehicle two vehicles ahead is braking" is met.
+output_scenario(
+    scenario=target_vehicles_with_braking_two_ahead,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

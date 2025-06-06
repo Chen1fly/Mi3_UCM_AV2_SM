@@ -1,0 +1,54 @@
+description = 'vehicle approaching stopped vehicle at intersection'
+
+# Get all objects of category VEHICLE from the logs.
+# These will be used as the base for identifying both approaching and stopped vehicles.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are effectively stopped.
+# According to has_velocity documentation, stationary objects may have a velocity up to 0.5 m/s due to jitter.
+# So, we define "stopped" as having a velocity between 0.0 m/s and 0.5 m/s, inclusive.
+stopped_vehicle_candidates = has_velocity(
+    track_candidates=all_vehicles,
+    log_dir=log_dir,
+    min_velocity=0.0,
+    max_velocity=0.5
+)
+
+# Filter the stopped vehicles to include only those that are currently on an intersection.
+# These are the specific "stopped vehicles at an intersection" that an approaching vehicle might target.
+stopped_vehicles_at_intersection = on_intersection(
+    track_candidates=stopped_vehicle_candidates,
+    log_dir=log_dir
+)
+
+# Identify moving vehicles.
+# These are vehicles that are NOT in the "stopped" category defined above (i.e., their velocity is > 0.5 m/s).
+# We use scenario_not to get the complement of the stopped_vehicle_candidates set from all_vehicles.
+# These vehicles are candidates for being the "vehicle approaching".
+moving_vehicles = scenario_not(has_velocity)(
+    all_vehicles, # track_candidates for has_velocity
+    log_dir,      # log_dir for has_velocity
+    min_velocity=0.0, # min_velocity for has_velocity
+    max_velocity=0.5  # max_velocity for has_velocity
+)
+
+# Identify the subset of moving vehicles that are heading toward any of the stopped vehicles at an intersection.
+# The `heading_toward` function checks for:
+#   1. Alignment: The approaching vehicle's velocity vector must be within `angle_threshold` (default 22.5 degrees)
+#      of the vector pointing from the approaching vehicle to the stopped vehicle.
+#   2. Intent: The component of the approaching vehicle's velocity towards the stopped vehicle must be at least `minimum_speed` (default 0.5 m/s).
+#   3. Proximity: The stopped vehicle must be within `max_distance` (default infinity, here set to 50.0 meters)
+#      of the approaching vehicle.
+approaching_vehicles = heading_toward(
+    track_candidates=moving_vehicles,
+    related_candidates=stopped_vehicles_at_intersection,
+    log_dir=log_dir,
+    angle_threshold=22.5, # Default, but stated for clarity
+    minimum_speed=0.5,    # Default, but stated for clarity. Refers to component of velocity towards related candidate.
+    max_distance=50.0     # Setting a practical limit for "approaching"
+)
+
+# Output the scenario.
+# The 'approaching_vehicles' dictionary contains the UUIDs of vehicles that meet all the specified criteria,
+# along with the timestamps when they do.
+output_scenario(approaching_vehicles, description, log_dir, output_dir)

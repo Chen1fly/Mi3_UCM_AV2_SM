@@ -1,0 +1,26 @@
+description = 'vehicle traveling perpendicular to the ego vehicle'
+
+# Get all vehicles in the scenario
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Get the ego vehicle
+ego_vehicle = get_objects_of_category(log_dir, category="EGO_VEHICLE")
+
+# Filter out vehicles that are stationary, as "traveling" implies motion
+moving_vehicles = scenario_not(stationary)(all_vehicles, log_dir)
+# Also ensure the ego vehicle is moving, as its heading is important for relative direction
+moving_ego = scenario_not(stationary)(ego_vehicle, log_dir)
+
+
+# Find vehicles that are traveling in a perpendicular direction relative to the ego vehicle's heading.
+# The 'heading_in_relative_direction_to' function defines 'perpendicular' as traveling
+# in a direction 45-135 degrees from the direction the related_candidates (ego_vehicle) are heading.
+perpendicular_vehicles = heading_in_relative_direction_to(
+    track_candidates=moving_vehicles,
+    related_candidates=moving_ego,
+    log_dir=log_dir,
+    direction='perpendicular'
+)
+
+# Output the scenario
+output_scenario(perpendicular_vehicles, description, log_dir, output_dir)

@@ -1,0 +1,74 @@
+description = 'the vehicle two cars in front of the ego vehicle'
+
+# Get the EGO vehicle. This will be our primary reference point.
+# The EGO_VEHICLE category is distinct and represents the data-collecting vehicle.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all vehicles in the scenario. These are the potential candidates for vehicles
+# in front of the ego or in front of other vehicles.
+# The 'VEHICLE' superclass includes REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK, BUS, etc.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Step 1: Find the first vehicle directly in front of the ego vehicle.
+# We use `get_objects_in_relative_direction`. According to its documentation and examples
+# (e.g., `peds_in_front_of_vehicles`), this function returns a scenario dictionary
+# keyed by the UUIDs of the 'related_candidates' (in this case, vehicles from 'all_vehicles')
+# that satisfy the specified relative direction criteria with respect to the 'track_candidates'
+# (in this case, the 'ego_vehicle').
+
+# - `track_candidates=ego_vehicle`: We are looking from the perspective of the ego vehicle.
+# - `related_candidates=all_vehicles`: We are searching within all vehicles for the one in front.
+# - `direction='forward'`: The vehicle must be in the forward direction relative to the ego vehicle.
+# - `max_number=1`: This is crucial. We only want the single closest vehicle in that direction.
+#   If multiple vehicles are generally in front, this ensures we only select the immediately leading one.
+# - `within_distance=50`: The vehicle must be within 50 meters. This is a reasonable
+#   distance to consider a vehicle as being "in front" in a driving context.
+# - `lateral_thresh=1.5`: This parameter specifies the maximum lateral distance the related
+#   object can be from the sides of the tracked object. A relatively small value like 1.5 meters
+#   helps to ensure that the vehicle found is primarily in the same lane or very close to it,
+#   improving precision and reducing false positives from adjacent lanes.
+#
+# The result `first_vehicle_directly_in_front` will be a scenario dictionary. Its keys will be
+# the UUIDs of vehicles found directly in front of the ego. The values in this dictionary
+# will map these UUIDs to the ego vehicle's UUID and the timestamps of the relation.
+first_vehicle_directly_in_front = get_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=all_vehicles,
+    log_dir=log_dir,
+    direction='forward',
+    max_number=1, # We want at most one vehicle (the closest one)
+    within_distance=50,
+    lateral_thresh=1.5 # To ensure it's largely in the same lane
+)
+
+# Step 2: Find the second vehicle, which is directly in front of the 'first_vehicle_directly_in_front'.
+# The logic is similar to Step 1.
+# - `track_candidates=first_vehicle_directly_in_front`: Now, we are looking from the perspective
+#   of the vehicle(s) found in Step 1.
+# - `related_candidates=all_vehicles`: We are again searching within all vehicles. The function
+#   should inherently handle not selecting the 'first_vehicle_directly_in_front' as being in front of itself,
+#   nor should it select the 'ego_vehicle' (which would be behind).
+# - The parameters `direction`, `max_number`, `within_distance`, and `lateral_thresh` serve the
+#   same purpose as in Step 1, ensuring we find the single, closest relevant vehicle.
+#
+# The result `vehicle_two_cars_in_front` will be a scenario dictionary keyed by the UUIDs
+# of the vehicles that are two cars ahead of the ego vehicle.
+vehicle_two_cars_in_front = get_objects_in_relative_direction(
+    track_candidates=first_vehicle_directly_in_front,
+    related_candidates=all_vehicles,
+    log_dir=log_dir,
+    direction='forward',
+    max_number=1, # We want at most one vehicle (the closest one)
+    within_distance=50,
+    lateral_thresh=1.5 # To ensure it's largely in the same lane
+)
+
+# Output the final scenario.
+# This scenario dictionary `vehicle_two_cars_in_front` contains the target vehicles
+# (those that are two cars ahead of the ego vehicle) as keys.
+output_scenario(
+    scenario=vehicle_two_cars_in_front,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

@@ -1,0 +1,48 @@
+description = 'pedestrian walking with stroller'
+
+# Get all pedestrian objects from the logs.
+# These are potential candidates for pedestrians walking with strollers.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get all stroller objects from the logs.
+# These are the strollers that pedestrians might be walking with.
+strollers = get_objects_of_category(log_dir, category='STROLLER')
+
+# Filter pedestrians to include only those that are "walking".
+# "Walking" implies movement. We use has_velocity with a minimum threshold
+# slightly above the documented jitter level (0.5 m/s) to ensure actual motion.
+# A pedestrian's walking speed is typically > 1 m/s, but they can also walk slowly.
+# min_velocity=0.6 m/s is chosen to confidently identify moving pedestrians beyond sensor/annotation jitter.
+walking_pedestrians = has_velocity(pedestrians, log_dir, min_velocity=0.6)
+
+# If a pedestrian is "walking with" a stroller, the stroller is also expected to be moving.
+# Filter strollers to include only those that are moving, using the same velocity threshold.
+# This ensures we are looking for an active pairing of a walking pedestrian and a moving stroller.
+moving_strollers = has_velocity(strollers, log_dir, min_velocity=0.6)
+
+# Identify instances where a "walking pedestrian" is "with" a "moving stroller".
+# "With" is interpreted as being in very close proximity, suggesting an association.
+# We use near_objects to find walking_pedestrians that are near at least one moving_stroller.
+# - track_candidates: walking_pedestrians. The primary objects we are interested in identifying.
+# - related_candidates: moving_strollers. The objects the track_candidates must be near.
+# - distance_thresh=1.0: A tight distance threshold (1 meter from center of pedestrian to center of stroller).
+#   This is chosen for precision. For example:
+#     - If a pedestrian (approx 0.5m deep) is pushing a stroller (approx 1m long),
+#       the distance between their centers might be around 0.75m.
+#     - If a pedestrian is walking directly beside a stroller (approx 0.6m wide),
+#       the distance between their centers might be around 0.55m.
+#   A 1.0m threshold captures these direct interactions while minimizing accidental inclusions
+#   of nearby, unrelated pedestrians and strollers.
+# - min_objects=1: The pedestrian must be near at least one moving stroller to satisfy the "with stroller" condition.
+pedestrian_walking_with_stroller = near_objects(
+    track_candidates=walking_pedestrians,
+    related_candidates=moving_strollers,
+    log_dir=log_dir,
+    distance_thresh=1.0,
+    min_objects=1
+)
+
+# Output the scenario. The resulting `pedestrian_walking_with_stroller` dictionary
+# will contain the UUIDs of pedestrians who meet the criteria of walking with a stroller,
+# along with the timestamps for when these conditions are met.
+output_scenario(pedestrian_walking_with_stroller, description, log_dir, output_dir)

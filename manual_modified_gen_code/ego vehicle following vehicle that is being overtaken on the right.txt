@@ -1,0 +1,55 @@
+description = 'ego vehicle following vehicle that is being overtaken on the right'
+
+# Get the ego vehicle
+# The EGO_VEHICLE category represents the data-collecting vehicle.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Ensure the ego vehicle is actually moving, as "following" implies motion.
+# The stationary() function identifies objects that moved very little.
+# scenario_not(stationary) thus gives us moving objects.
+moving_ego = scenario_not(stationary)(ego_vehicle, log_dir)
+
+# Get all vehicles that could be involved in the overtaking scenario.
+# This includes vehicles that might be overtaken (Vehicle X) or vehicles that might be doing the overtaking (Vehicle Y).
+# The 'VEHICLE' superclass encompasses various types like cars, trucks, buses, and also includes the EGO_VEHICLE.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter these vehicles to include only those that are moving, as overtaking involves motion.
+moving_vehicles = scenario_not(stationary)(all_vehicles, log_dir)
+
+# Identify vehicles (Vehicle X) that are currently being overtaken on their right side by another moving vehicle (Vehicle Y).
+# In being_crossed_by:
+# - track_candidates: The set of vehicles that are potentially being overtaken (Vehicle X).
+# - related_candidates: The set of vehicles that are potentially doing the overtaking (Vehicle Y).
+# Both Vehicle X and Vehicle Y are drawn from the general pool of 'moving_vehicles'.
+# The function will identify track_candidates (Vehicle X) that are crossed by a related_candidate (Vehicle Y).
+# direction='right': Specifies that the crossing (overtaking) happens on the right side of Vehicle X.
+# forward_thresh=5 and lateral_thresh=10: These define the spatial zone for the crossing interaction.
+# These values are based on the provided example 'ego vehicle being overtaken on right by a semi'.
+vehicles_being_overtaken_on_right = being_crossed_by(
+    track_candidates=moving_vehicles,
+    related_candidates=moving_vehicles,
+    log_dir=log_dir,
+    direction='right',
+    forward_thresh=5,
+    lateral_thresh=10
+)
+# The result 'vehicles_being_overtaken_on_right' is a dictionary where keys are UUIDs of
+# vehicles that were identified as being overtaken on their right.
+
+# Now, find instances where our 'moving_ego' vehicle is following one of the
+# 'vehicles_being_overtaken_on_right'.
+# In following:
+# - track_uuid: The follower vehicle, which is our 'moving_ego'.
+# - candidate_uuids: The set of potential lead vehicles, which are the
+#   vehicles we identified as 'vehicles_being_overtaken_on_right'.
+ego_following_vehicle_being_overtaken = following(
+    track_uuid=moving_ego,
+    candidate_uuids=vehicles_being_overtaken_on_right,
+    log_dir=log_dir
+)
+
+# Output the resulting scenario.
+# This scenario will contain instances of the ego vehicle (and associated timestamps)
+# when it meets the condition of following another vehicle that is simultaneously being overtaken on its right.
+output_scenario(ego_following_vehicle_being_overtaken, description, log_dir, output_dir)

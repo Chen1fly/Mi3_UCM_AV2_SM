@@ -1,0 +1,101 @@
+description = "vehicle two cars ahead is changing lanes"
+# The "vehicle" in the description is interpreted as the EGO_VEHICLE.
+# The goal is to find instances where a vehicle, which is two positions ahead of the ego vehicle
+# (i.e., the vehicle in front of the vehicle directly in front of ego), is performing a lane change.
+# This implies a sequence: EGO_VEHICLE -> CAR1_AHEAD -> CAR2_AHEAD,
+# where CAR2_AHEAD is changing lanes, and all vehicles are in a plausible forward chain (same lane).
+
+# Get all vehicles in the scenario and the ego vehicle.
+# 'all_vehicles' will serve as the general pool of vehicles to find CAR1_AHEAD and CAR2_AHEAD from.
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+# 'ego_vehicle' is the reference point for the "ahead" relationships.
+ego_vehicle = get_objects_of_category(log_dir, category="EGO_VEHICLE")
+
+# --- Step 1: Identify CAR1_AHEAD ---
+# CAR1_AHEAD is the vehicle directly in front of the EGO_VEHICLE and in the same lane.
+
+# First, find the closest vehicle that is generally in front of the EGO_VEHICLE.
+# `get_objects_in_relative_direction(ego_vehicle, all_vehicles, ...)` would return `{ego_uuid: {potential_car1_uuid: [ts]}}`.
+# `reverse_relationship` swaps this to make `potential_car1_uuid` the primary key:
+# `potential_car1_objects` = `{potential_car1_uuid: {ego_uuid: [ts_potential_car1_is_ahead_of_ego]}}`.
+# `lateral_thresh` is set somewhat generously here because `in_same_lane` will provide a more precise filter.
+potential_car1_objects = reverse_relationship(get_objects_in_relative_direction)(
+    track_candidates=all_vehicles,    # Search within all vehicles for potential CAR1_AHEAD
+    related_candidates=ego_vehicle,   # CAR1_AHEAD is relative to EGO_VEHICLE
+    log_dir=log_dir,
+    direction='forward',              # CAR1_AHEAD is in the 'forward' direction from EGO_VEHICLE's perspective
+    min_number=1,                     # We need at least one vehicle ahead
+    max_number=1,                     # We are interested in only the single closest vehicle
+    within_distance=50,               # Maximum distance in meters to consider a vehicle "ahead"
+    lateral_thresh=3.0                # Maximum lateral distance. A wider threshold initially, refined by in_same_lane.
+)
+
+# Next, filter `potential_car1_objects` to ensure CAR1_AHEAD is in the same lane as EGO_VEHICLE.
+# `in_same_lane` filters the `track_candidates` (potential_car1_objects) based on their lane relationship
+# with `related_candidates` (ego_vehicle).
+# The output `car1_ahead_in_lane` will contain CAR1_AHEAD UUIDs as keys, with timestamps reflecting
+# when CAR1_AHEAD is indeed the closest vehicle in front of EGO_VEHICLE AND in the same lane.
+# Expected structure: {car1_uuid: {ego_uuid: [ts_car1_confirmed_ahead_in_lane_of_ego]}} or similar,
+# where timestamps are refined.
+car1_ahead_in_lane = in_same_lane(
+    track_candidates=potential_car1_objects,
+    related_candidates=ego_vehicle,
+    log_dir=log_dir
+)
+
+# --- Step 2: Identify CAR2_AHEAD ---
+# CAR2_AHEAD is the vehicle directly in front of CAR1_AHEAD and in the same lane.
+
+# First, find the closest vehicle generally in front of CAR1_AHEAD.
+# `car1_ahead_in_lane` (output from previous step) acts as the set of reference vehicles.
+# `reverse_relationship(get_objects_in_relative_direction)(all_vehicles, car1_ahead_in_lane, ...)`
+# will call `get_objects_in_relative_direction(car1_ahead_in_lane, all_vehicles, ...)`.
+# This returns `{car1_uuid: {potential_car2_uuid: [ts]}}`.
+# `reverse_relationship` then swaps this to:
+# `potential_car2_objects` = `{potential_car2_uuid: {car1_uuid: [ts_potential_car2_is_ahead_of_car1]}}`.
+# The timestamps here are implicitly filtered by the validity of CAR1_AHEAD from the previous step.
+potential_car2_objects = reverse_relationship(get_objects_in_relative_direction)(
+    track_candidates=all_vehicles,         # Search within all vehicles for potential CAR2_AHEAD
+    related_candidates=car1_ahead_in_lane, # CAR2_AHEAD is relative to CAR1_AHEAD
+    log_dir=log_dir,
+    direction='forward',                   # CAR2_AHEAD is in the 'forward' direction from CAR1_AHEAD's perspective
+    min_number=1,
+    max_number=1,
+    within_distance=50,                    # Max distance for CAR2_AHEAD relative to CAR1_AHEAD
+    lateral_thresh=3.0                     # Lateral threshold, to be refined by in_same_lane.
+)
+
+# Next, filter `potential_car2_objects` to ensure CAR2_AHEAD is in the same lane as CAR1_AHEAD.
+# `car2_ahead_in_lane` will contain CAR2_AHEAD UUIDs as keys. The associated timestamps
+# indicate when CAR2_AHEAD is the closest vehicle in front of CAR1_AHEAD,
+# CAR1_AHEAD is the closest vehicle in front of EGO_VEHICLE,
+# and all three are in the same lane sequence.
+car2_ahead_in_lane = in_same_lane(
+    track_candidates=potential_car2_objects,
+    related_candidates=car1_ahead_in_lane, # CAR2_AHEAD must be in the same lane as CAR1_AHEAD
+    log_dir=log_dir
+)
+
+# --- Step 3: Identify if CAR2_AHEAD is changing lanes ---
+
+# Now, take `car2_ahead_in_lane` (which represents vehicles that are two cars ahead of ego in the same lane sequence)
+# and filter it for instances where these vehicles are performing a lane change.
+# `changing_lanes` will operate on the `car2_ahead_in_lane` dictionary,
+# further refining the timestamps to only include moments of lane change.
+# `direction=None` means we detect lane changes to either left or right.
+vehicle_two_cars_ahead_changing_lanes = changing_lanes(
+    track_candidates=car2_ahead_in_lane,
+    log_dir=log_dir,
+    direction=None
+)
+
+# --- Step 4: Output the final scenario ---
+# The `vehicle_two_cars_ahead_changing_lanes` dictionary now contains the UUIDs of vehicles
+# that are two cars ahead of the ego vehicle and are changing lanes, along with the specific timestamps
+# when this complex condition is met.
+output_scenario(
+    scenario=vehicle_two_cars_ahead_changing_lanes,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

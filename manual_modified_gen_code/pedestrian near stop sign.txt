@@ -1,0 +1,32 @@
+description = 'pedestrian near stop sign'
+
+# Get all pedestrian objects from the dataset
+# 'PEDESTRIAN': Person that is not driving or riding in/on a vehicle.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get all stop sign objects from the dataset
+# 'STOP_SIGN': Red octagonal traffic sign displaying the word STOP.
+stop_signs = get_objects_of_category(log_dir, category='STOP_SIGN')
+
+# Find pedestrians that are near stop signs.
+# The `near_objects` function identifies timestamps when a tracked object (from the first argument)
+# is near a specified set of related objects (from the second argument).
+# By default, 'near' is defined as being within `distance_thresh=10` meters.
+# By default, `min_objects=1`, meaning the pedestrian needs to be near at least one stop sign.
+# The output is expected to be a scenario dictionary where keys are the UUIDs of the pedestrians
+# that meet the condition.
+pedestrians_near_stop_sign_instances = near_objects(
+    track_uuid=pedestrians,       # The objects we are primarily interested in (pedestrians)
+    candidate_uuids=stop_signs, # The objects we are checking proximity to (stop signs)
+    log_dir=log_dir,
+    distance_thresh=10            # Using the default 10 meters for "near"
+)
+
+# Output the resulting scenario.
+# This will save the instances of pedestrians found near stop signs.
+output_scenario(
+    scenario=pedestrians_near_stop_sign_instances,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

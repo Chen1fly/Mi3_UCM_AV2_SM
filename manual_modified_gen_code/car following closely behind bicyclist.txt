@@ -1,0 +1,54 @@
+description = "car following closely behind bicyclist"
+
+# 1. Get REGULAR_VEHICLE objects (specifically "cars" as requested, not all VEHICLE types)
+cars = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+# 2. Get BICYCLIST objects (persons riding bicycles)
+bicyclists = get_objects_of_category(log_dir, category='BICYCLIST')
+
+# 3. Filter for cars and bicyclists that are actively moving.
+# Using a minimum velocity of 1.0 m/s to ensure they are genuinely in motion
+# and not just experiencing sensor jitter or moving extremely slowly.
+moving_cars = has_velocity(cars, log_dir, min_velocity=1.0)
+moving_bicyclists = has_velocity(bicyclists, log_dir, min_velocity=1.0)
+
+# 4. Identify cars that are "following" a moving bicyclist.
+# The 'following' function defines this as "simultaneously moving in the same direction and lane."
+# This establishes the primary dynamic of following.
+# The output of 'following' is expected to be {car_uuid: [timestamps]}.
+cars_following_a_bicyclist = following(
+    track_uuid=moving_cars,
+    candidate_uuids=moving_bicyclists,
+    log_dir=log_dir
+)
+
+# 5. From the cars identified as "following" a bicyclist, filter for those where
+# the bicyclist is "closely behind" (i.e., the bicyclist is closely in front of the car).
+# 'has_objects_in_relative_direction' is used to check the geometric proximity and alignment.
+# - track_candidates: Cars that are already determined to be "following" some bicyclist.
+# - related_candidates: All moving bicyclists. The function will find the specific bicyclist
+#   that is closely in front of the "following" car.
+# - direction='forward': The bicyclist is in the car's forward direction.
+# - min_number=1, max_number=1: Ensures the car is linked to at most one bicyclist
+#   meeting the criteria (the closest one).
+# - within_distance=4.0: Defines "closely" as the bicyclist being within 4 meters
+#   from the front of the car. This is a typical close following distance.
+# - lateral_thresh=0.5: Defines "directly behind" (good alignment). This means the bicyclist's
+#   centroid should be within approximately 0.5 meters laterally from the car's projected sides,
+#   keeping the bicyclist well within the car's path or the same lane.
+cars_following_closely_behind_bicyclist = has_objects_in_relative_direction(
+    track_candidates=cars_following_a_bicyclist,
+    related_candidates=moving_bicyclists, # Check against all moving bicyclists to find the one being followed closely
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=1,
+    within_distance=4.0,
+    lateral_thresh=0.5
+)
+
+# Output the scenario.
+# The output 'cars_following_closely_behind_bicyclist' will be a dictionary where keys are
+# car UUIDs and values are dictionaries linking to the specific bicyclist UUID and timestamps
+# when the "car following closely behind bicyclist" condition is met.
+output_scenario(cars_following_closely_behind_bicyclist, description, log_dir, output_dir)

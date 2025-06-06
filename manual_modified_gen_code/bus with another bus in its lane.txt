@@ -1,0 +1,21 @@
+# Define the description for the scenario
+description = 'bus with another bus in its lane'
+
+# Get all objects of the category 'BUS'
+# This will return a scenario dictionary where keys are UUIDs of buses
+# and values are lists of timestamps when they are present.
+buses = get_objects_of_category(log_dir, category='BUS')
+
+# Identify buses that are in the same lane as another bus.
+# We provide the 'buses' dictionary as both the track_candidates and related_candidates.
+# The `in_same_lane` function is expected to identify a bus from the track_candidates (the first argument)
+# if it is in the same lane as at least one bus from the related_candidates (the second argument).
+# When both arguments are the same set of buses, this effectively finds buses
+# that share a lane with at least one *other* bus from that set.
+# The result will be a scenario dictionary containing buses that meet this condition.
+bus_with_another_bus_in_lane = in_same_lane(buses, buses, log_dir)
+
+# Output the resulting scenario.
+# This will save the identified instances (buses that have another bus in their lane)
+# in the specified output format.
+output_scenario(bus_with_another_bus_in_lane, description, log_dir, output_dir)

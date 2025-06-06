@@ -1,0 +1,30 @@
+description = 'pedestrian near construction cone'
+
+# Get all pedestrian objects from the dataset.
+# 'PEDESTRIAN' is the category for people who are not in/on a vehicle.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get all construction cone objects from the dataset.
+# 'CONSTRUCTION_CONE' is the category for movable traffic cones.
+construction_cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+
+# Find pedestrians that are near at least one construction cone.
+# The 'near_objects' function is used for this.
+# - 'track_uuid' (conceptually track_candidates) will be the pedestrians, as we are interested in finding instances of pedestrians.
+# - 'candidate_uuids' (conceptually related_candidates) will be the construction cones, which pedestrians should be near.
+# - 'distance_thresh' is set to 3.0 meters. This value is chosen to be relatively small
+#   to ensure precision and reduce false positives, aligning with the request to "be precise".
+#   A pedestrian within 3 meters of a cone can be reasonably considered "near".
+# - 'min_objects' is set to 1, meaning the pedestrian must be near at least one construction cone.
+pedestrian_near_cone = near_objects(
+    track_uuid=pedestrians,
+    candidate_uuids=construction_cones,
+    log_dir=log_dir,
+    distance_thresh=3.0,
+    min_objects=1
+)
+
+# Output the scenario.
+# This function will save the identified instances (pedestrians near construction cones)
+# in a format suitable for evaluation or further analysis.
+output_scenario(pedestrian_near_cone, description, log_dir, output_dir)

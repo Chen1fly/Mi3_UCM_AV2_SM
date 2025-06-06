@@ -1,0 +1,23 @@
+description = 'vehicle braking heavily'
+
+# Get all objects categorized as VEHICLE.
+# The "VEHICLE" superclass includes REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, BOX_TRUCK, BUS, etc.
+vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Identify vehicles that are braking heavily.
+# The `accelerating` function can be used to find objects with a specific range of forward acceleration.
+# For braking, the acceleration values will be negative.
+# The docstring for `accelerating` states: "Values under -1 reliably indicates braking."
+# To capture "heavily braking", we'll use a threshold more negative than -1.0 m/s^2.
+# We define "heavily braking" as having a forward acceleration less than or equal to -2.0 m/s^2.
+# So, min_accel is set to -np.inf (or a very small number) and max_accel is set to -2.0.
+heavily_braking_vehicles = accelerating(
+    track_candidates=vehicles,
+    log_dir=log_dir,
+    min_accel=-np.inf,  # No lower limit for how strong the braking can be.
+    max_accel=-2.0      # The acceleration must be -2.0 m/s^2 or less (i.e., more negative).
+)
+
+# Output the scenario.
+# This will create a file with the instances of vehicles braking heavily.
+output_scenario(heavily_braking_vehicles, description, log_dir, output_dir)

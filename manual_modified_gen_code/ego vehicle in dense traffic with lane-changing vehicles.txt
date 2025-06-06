@@ -1,0 +1,69 @@
+description = "ego vehicle in dense traffic with lane-changing vehicles"
+
+# Define parameters for "dense traffic" and "near"
+# These are heuristics and might need tuning based on dataset characteristics
+# to achieve the desired precision and avoid false positives.
+# "Dense traffic" could mean the ego vehicle has at least 4 other vehicles within a 25-meter radius.
+DENSE_TRAFFIC_MIN_OTHER_VEHICLES = 4
+DENSE_TRAFFIC_DISTANCE_THRESH = 25.0  # Meters
+
+# "With lane-changing vehicles" means at least one of these lane-changing vehicles is also near the ego.
+# We can use a similar distance threshold.
+NEAR_LANE_CHANGER_DISTANCE_THRESH = 25.0  # Meters
+MIN_NEAR_LANE_CHANGERS = 1
+
+# 1. Get the ego vehicle.
+# ego_vehicle will be a scenario dictionary like: {ego_uuid: [timestamp_list]}
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# 2. Get all vehicles. These will be used to:
+#    a) Determine if the traffic around the ego is dense.
+#    b) Identify which vehicles are changing lanes.
+# all_vehicles will be a scenario dictionary like: {vehicle_uuid: [timestamp_list]}
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# 3. Identify timestamps when the ego vehicle is in "dense traffic".
+# "Dense traffic" is defined here as the ego vehicle being near at least DENSE_TRAFFIC_MIN_OTHER_VEHICLES
+# other vehicles (as specified by include_self=False, which is default)
+# within DENSE_TRAFFIC_DISTANCE_THRESH meters.
+# Assuming near_objects returns a scenario dictionary filtering the track_uuid,
+# ego_in_dense_traffic will be {ego_uuid: [timestamps_where_ego_is_in_dense_traffic]}.
+ego_in_dense_traffic = near_objects(
+    track_uuid=ego_vehicle,
+    candidate_uuids=all_vehicles, # Check proximity against all vehicles
+    log_dir=log_dir,
+    distance_thresh=DENSE_TRAFFIC_DISTANCE_THRESH,
+    min_objects=DENSE_TRAFFIC_MIN_OTHER_VEHICLES,
+    include_self=False  # Ensures we count *other* vehicles for density (default behavior)
+)
+
+# 4. Identify all vehicles that are changing lanes.
+# This will return a scenario dictionary: {vehicle_uuid: [timestamps_where_vehicle_is_changing_lanes]}.
+# This can include any vehicle, including the ego vehicle if it happens to be changing lanes.
+lane_changing_vehicles = changing_lanes(
+    track_candidates=all_vehicles,
+    log_dir=log_dir
+)
+
+# 5. Identify instances where the ego vehicle (which is already confirmed to be in dense traffic)
+# is also near at least one *other* vehicle that is changing lanes.
+# - The track_uuid is ego_in_dense_traffic. This ensures we are only considering timestamps
+#   where the ego vehicle has already met the "dense traffic" condition.
+# - The candidate_uuids are lane_changing_vehicles. We are checking if any of these are near the ego.
+# - min_objects=MIN_NEAR_LANE_CHANGERS (e.g., 1) ensures at least one such lane-changing vehicle is nearby.
+# - The include_self=False behavior of near_objects (default) is important: if the ego itself
+#   is in lane_changing_vehicles, it won't satisfy the condition by being "near" itself.
+#   It must be near a *different* vehicle that is changing lanes. This matches the intuition of
+#   "ego ... with [other] lane-changing vehicles."
+final_scenario = near_objects(
+    track_uuid=ego_in_dense_traffic,    # Filtered ego_vehicle (only at timestamps it's in dense traffic)
+    candidate_uuids=lane_changing_vehicles, # Check for proximity to these lane-changing vehicles
+    log_dir=log_dir,
+    distance_thresh=NEAR_LANE_CHANGER_DISTANCE_THRESH, # Check within this distance
+    min_objects=MIN_NEAR_LANE_CHANGERS # At least this many lane-changing vehicles must be nearby
+)
+
+# Output the resulting scenario.
+# This will contain the ego vehicle's UUID and the list of timestamps where it is
+# in dense traffic and concurrently near at least one other lane-changing vehicle.
+output_scenario(final_scenario, description, log_dir, output_dir)

@@ -1,0 +1,31 @@
+# Define the description of the scenario
+description = "bus with at least 3 pedestrians within 5 meters"
+
+# Get all bus objects from the dataset
+# 'BUS' is a specific category for standard city buses.
+buses = get_objects_of_category(log_dir, category='BUS')
+
+# Get all pedestrian objects from the dataset
+# 'PEDESTRIAN' is the category for people not in/on a vehicle.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Find buses that have at least 3 pedestrians within a 5-meter radius.
+# The `near_objects` function is used here:
+# - The first argument (`track_uuid`) takes the primary objects of interest (buses).
+# - The second argument (`candidate_uuids`) takes the related objects to check for proximity (pedestrians).
+# - `distance_thresh=5` specifies the maximum distance (5 meters) for pedestrians to be considered "near".
+# - `min_objects=3` specifies that at least 3 pedestrians must be near the bus.
+# The function is expected to return a scenario dictionary where keys are UUIDs of buses
+# meeting the criteria, and values are timestamps of when the condition is met.
+buses_with_nearby_pedestrians = near_objects(
+    track_uuid=buses,
+    candidate_uuids=pedestrians,
+    log_dir=log_dir,
+    distance_thresh=5,  # Maximum distance in meters
+    min_objects=3       # Minimum number of pedestrians
+)
+
+# Output the resulting scenario
+# This function will save the identified instances (buses with at least 3 pedestrians nearby)
+# to a file in an evaluation-ready format.
+output_scenario(buses_with_nearby_pedestrians, description, log_dir, output_dir)

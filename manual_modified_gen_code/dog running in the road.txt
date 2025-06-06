@@ -1,0 +1,22 @@
+description = "dog running in the road"
+
+# Get all instances of dogs from the dataset.
+# The 'DOG' category includes any member of the canine family.
+dogs = get_objects_of_category(log_dir, category='DOG')
+
+# Filter the identified dogs to include only those that are on a road or bike lane.
+# The on_road() function is used as it's more specific than in_drivable_area() for this context.
+dogs_on_road = on_road(dogs, log_dir)
+
+# Further filter the 'dogs_on_road' to find those that are "running".
+# "Running" is interpreted as having a significant forward velocity.
+# Stationary objects can have velocity up to 0.5 m/s due to jitter.
+# A typical dog walking speed is around 1.3-1.8 m/s.
+# We set a minimum velocity of 2.0 m/s to distinguish running from walking,
+# aiming to capture dogs moving at a pace faster than a brisk walk.
+# This helps to avoid false positives of dogs merely walking or standing on the road.
+dog_running_in_road = has_velocity(dogs_on_road, log_dir, min_velocity=2.0)
+
+# Output the scenario.
+# This will include dog UUIDs and timestamps where a dog is on the road and has a velocity >= 2.0 m/s.
+output_scenario(dog_running_in_road, description, log_dir, output_dir)

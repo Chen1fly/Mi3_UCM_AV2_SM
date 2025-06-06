@@ -1,0 +1,28 @@
+description = 'ego vehicle driving while it is cloudy'
+
+# Get the ego vehicle. The EGO_VEHICLE category refers to the vehicle collecting the data.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Identify instances where the ego vehicle is driving.
+# "Driving" is interpreted as the ego vehicle having a velocity greater than a threshold
+# that distinguishes it from being stationary or having minor jitter.
+# According to has_velocity documentation, stationary objects can have velocity up to 0.5 m/s.
+# We'll use 1.0 m/s as a minimum threshold for "driving".
+ego_vehicle_driving = has_velocity(
+    track_candidates=ego_vehicle,
+    log_dir=log_dir,
+    min_velocity=1.0
+)
+
+# The "while it is cloudy" part of the description cannot be determined using the provided functions.
+# The available functions relate to object detection, kinematics, and road topology,
+# but do not include any information about weather conditions like cloudiness.
+# Therefore, this scenario will identify all instances of the ego vehicle driving,
+# irrespective of the weather conditions.
+
+output_scenario(
+    scenario=ego_vehicle_driving,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

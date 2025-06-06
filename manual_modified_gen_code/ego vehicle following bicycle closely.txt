@@ -1,0 +1,58 @@
+# Define the description of the scenario
+description = 'ego vehicle following bicycle closely'
+
+# Get all EGO_VEHICLE objects
+ego_vehicles = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all BICYCLE objects
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Filter for ego vehicles that are currently moving (not stationary for the whole scene, and have some minimal velocity)
+# Using has_velocity with min_velocity=0.5 m/s to ensure they are currently in motion.
+# stationary() is for objects that barely move throughout the scenario (e.g. parked).
+moving_ego_vehicles = has_velocity(ego_vehicles, log_dir, min_velocity=0.5)
+
+# Filter for bicycles that are currently moving
+moving_bicycles = has_velocity(bicycles, log_dir, min_velocity=0.5)
+
+# Identify instances where a moving ego vehicle is following a moving bicycle.
+# The 'following' function implies that both are moving in the same direction and are in the same lane.
+# The output of 'following' is a dictionary: {ego_uuid: [timestamps_when_following_a_bicycle]}
+ego_following_a_bicycle = following(
+    track_uuid=moving_ego_vehicles,
+    candidate_uuids=moving_bicycles,
+    log_dir=log_dir
+)
+
+# Now, further refine these "following" instances to ensure the bicycle is "closely" in front.
+# We use 'has_objects_in_relative_direction' with the output of 'following' as track_candidates.
+# This means we are only considering the ego vehicles (and their specific timestamps)
+# that are already determined to be "following" a bicycle.
+# - direction='forward': The bicycle must be in front of the ego vehicle.
+# - min_number=1: There must be at least one bicycle.
+# - max_number=1: If multiple bicycles are close, focus on the closest one (typical for following).
+# - within_distance=10: Defines "closely" as within 10 meters. This can be adjusted.
+# - lateral_thresh=1.0: Defines "closely" in terms of lateral alignment.
+#   A small lateral threshold helps ensure the bicycle is directly in front, consistent with being in the same lane.
+#   It's the max lateral distance from the SIDES of the ego vehicle.
+ego_following_bicycle_closely = has_objects_in_relative_direction(
+    track_candidates=ego_following_a_bicycle,
+    related_candidates=moving_bicycles, # Check against all moving bicycles
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=1,
+    within_distance=10, # meters, defines "closely"
+    lateral_thresh=1.0  # meters, defines lateral alignment for "closely"
+)
+
+# Output the scenario
+# The 'ego_following_bicycle_closely' dictionary will contain ego vehicle UUIDs as keys,
+# and their values will be dictionaries mapping to the specific bicycle UUID being closely followed
+# and the timestamps when this condition is met.
+output_scenario(
+    ego_following_bicycle_closely,
+    description,
+    log_dir,
+    output_dir
+)

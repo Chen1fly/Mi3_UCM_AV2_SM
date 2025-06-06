@@ -1,0 +1,37 @@
+description = 'vehicle near construction barrel'
+
+# First, get all objects belonging to the 'VEHICLE' category.
+# The 'VEHICLE' category is a superclass that includes REGULAR_VEHICLE, LARGE_VEHICLE, BUS, etc.
+vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Next, get all objects belonging to the 'CONSTRUCTION_BARREL' category.
+construction_barrels = get_objects_of_category(log_dir, category="CONSTRUCTION_BARREL")
+
+# Now, find instances where a vehicle is near a construction barrel.
+# We use the `near_objects` function for this.
+# - track_uuid: We are interested in 'vehicles'.
+# - candidate_uuids: We are checking for proximity to 'construction_barrels'.
+# - log_dir: The path to the scenario logs.
+# - distance_thresh: We set this to 5.0 meters. This means a vehicle is considered "near" a barrel
+#   if the distance between them is 5 meters or less. This value is chosen to be precise
+#   and reduce false positives, as construction barrels are relatively small and "near"
+#   implies close proximity in a driving context. The default is 10m.
+# - min_objects: We set this to 1, as the description refers to "a construction barrel" (singular).
+#   This means we are looking for vehicles that have at least one construction barrel within the distance_thresh.
+vehicles_near_construction_barrel = near_objects(
+    track_uuid=vehicles,
+    candidate_uuids=construction_barrels,
+    log_dir=log_dir,
+    distance_thresh=5.0,
+    min_objects=1
+)
+
+# Finally, output the identified scenario.
+# This will save the results in a format that can be used for evaluation or further analysis.
+# The `visualize=False` parameter is implied by the instruction "Do not provide any visualization kwargs".
+output_scenario(
+    scenario=vehicles_near_construction_barrel,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

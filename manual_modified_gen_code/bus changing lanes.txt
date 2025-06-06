@@ -1,0 +1,17 @@
+# Define the description for the scenario
+description = 'bus changing lanes'
+
+# Get all objects of the category 'BUS'
+# The 'BUS' category includes standard city buses and school buses might be covered by 'SCHOOL_BUS' if separate.
+# For a general "bus", 'BUS' is the most direct category. If school buses and articulated buses also count,
+# one might need to use scenario_or with get_objects_of_category for 'BUS', 'SCHOOL_BUS', 'ARTICULATED_BUS'.
+# However, given the description "bus", the 'BUS' category should be the primary target.
+buses = get_objects_of_category(log_dir, category='BUS')
+
+# Identify buses that are changing lanes.
+# The changing_lanes function with direction=None will detect lane changes to both left and right.
+bus_lane_changes = changing_lanes(buses, log_dir)
+
+# Output the scenario
+# This will save the instances of buses changing lanes.
+output_scenario(bus_lane_changes, description, log_dir, output_dir)

@@ -1,0 +1,71 @@
+import numpy as np # np.inf is used as a default in function signatures
+
+# Description for the scenario
+description = 'bicyclist within 3 meters on either side'
+
+# Get all bicyclists. BICYCLIST refers to a person riding a bicycle.
+bicyclists = get_objects_of_category(log_dir, category='BICYCLIST')
+
+# Get all other objects that could be on the side of the bicyclist.
+# 'ANY' includes all categories of objects in the dataset.
+# The has_objects_in_relative_direction function will ensure that the bicyclist itself
+# is not considered as the object on its own side (by comparing UUIDs).
+all_potential_side_objects = get_objects_of_category(log_dir, category='ANY')
+
+# Define the parameters for the spatial relationship:
+# 1. The maximum distance to consider an object "within".
+distance_limit = 3.0  # meters
+
+# 2. Lateral threshold for alignment.
+# This parameter in 'has_objects_in_relative_direction' refers to the maximum longitudinal
+# distance the center of the 'related_candidate' can be from the front or back edge of the 'track_candidate'.
+# A smaller value means the object must be more directly "abeam" or aligned with the side of the bicyclist.
+# A typical bicyclist length is around 1.7-2.0 meters.
+# Setting this to 1.0m means the center of the side object must be longitudinally
+# within 1.0m of the bicyclist's front or back extent.
+# This helps ensure the object is truly "on the side" rather than mostly in front or behind.
+longitudinal_alignment_threshold = 1.0 # meters
+
+# Minimum number of objects required in the direction. "an object" implies at least one.
+minimum_objects_on_side = 1
+
+# Find bicyclists that have at least one object to their left, meeting the criteria.
+# The function 'has_objects_in_relative_direction' returns the 'track_candidates' (bicyclists)
+# that satisfy the condition.
+bicyclists_with_object_on_left = has_objects_in_relative_direction(
+    track_candidates=bicyclists,
+    related_candidates=all_potential_side_objects,
+    log_dir=log_dir,
+    direction='left',
+    min_number=minimum_objects_on_side,
+    # max_number defaults to np.inf, meaning it will relate up to all objects found if min_number is met.
+    within_distance=distance_limit,
+    lateral_thresh=longitudinal_alignment_threshold
+)
+
+# Find bicyclists that have at least one object to their right, meeting the criteria.
+bicyclists_with_object_on_right = has_objects_in_relative_direction(
+    track_candidates=bicyclists,
+    related_candidates=all_potential_side_objects,
+    log_dir=log_dir,
+    direction='right',
+    min_number=minimum_objects_on_side,
+    within_distance=distance_limit,
+    lateral_thresh=longitudinal_alignment_threshold
+)
+
+# Combine the two conditions: a bicyclist is counted if there's an object
+# on their left OR on their right meeting the criteria.
+bicyclist_with_object_on_either_side = scenario_or([
+    bicyclists_with_object_on_left,
+    bicyclists_with_object_on_right
+])
+
+# Output the resulting scenario.
+# This will contain the bicyclists that are "within 3 meters on either side" of another object.
+output_scenario(
+    scenario=bicyclist_with_object_on_either_side,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

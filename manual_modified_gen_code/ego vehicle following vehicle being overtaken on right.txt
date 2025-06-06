@@ -1,0 +1,54 @@
+description = 'ego vehicle following vehicle being overtaken on right'
+
+# Get the ego vehicle
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all other vehicles (the 'VEHICLE' superclass does not include 'EGO_VEHICLE')
+other_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Ensure the ego vehicle is moving
+moving_ego = scenario_not(stationary)(
+    ego_vehicle,
+    log_dir
+)
+
+# Ensure other vehicles are moving
+moving_other_vehicles = scenario_not(stationary)(
+    other_vehicles,
+    log_dir
+)
+
+# Identify other vehicles that are being overtaken on their right side by another moving vehicle.
+# The 'track_candidates' are the vehicles being overtaken (V_L in "Ego -> V_L -> V_O").
+# The 'related_candidates' are the vehicles doing the overtaking (V_O).
+# Based on the example 'ego vehicle being overtaken on right by a semi',
+# we use direction='right' and default in_direction='either'.
+# forward_thresh dictates the longitudinal extent of the interaction.
+# lateral_thresh dictates how far laterally the overtaker can be and still be part of the event post-midplane-crossing.
+# A moderate lateral_thresh (e.g., 5m) is chosen for general vehicle overtaking.
+lead_vehicle_being_overtaken_on_right = being_crossed_by(
+    track_candidates=moving_other_vehicles,
+    related_candidates=moving_other_vehicles,  # The overtaker is also a (different) moving vehicle
+    log_dir=log_dir,
+    direction='right',
+    # in_direction='either' (default) - a vehicle crossing the right midplane from any allowed direction
+    forward_thresh=5.0,  # Longitudinal distance for the crossing interaction zone
+    lateral_thresh=5.0   # Lateral distance tolerance for the overtaker after crossing the midplane
+)
+
+# Find instances where the moving ego vehicle is following one of these vehicles
+# that is currently being overtaken on its right.
+# The 'track_uuid' for following is the ego vehicle.
+# The 'candidate_uuids' are the vehicles that are being overtaken on their right.
+ego_following_scenario = following(
+    track_uuid=moving_ego,
+    candidate_uuids=lead_vehicle_being_overtaken_on_right,
+    log_dir=log_dir
+)
+
+output_scenario(
+    ego_following_scenario,
+    description,
+    log_dir,
+    output_dir
+)

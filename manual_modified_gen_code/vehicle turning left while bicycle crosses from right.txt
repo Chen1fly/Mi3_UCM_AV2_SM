@@ -1,0 +1,45 @@
+description = "vehicle turning left while bicycle crosses from right"
+
+# Get all objects categorized as 'VEHICLE' from the logs.
+# This will serve as the base set of vehicles to analyze.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter the 'all_vehicles' set to identify only those vehicles that are performing a left turn.
+# The 'turning' function returns a scenario dictionary where keys are the UUIDs of vehicles
+# turning left, and values are dictionaries containing the timestamps of these turning events.
+vehicles_turning_left = turning(all_vehicles, log_dir, direction='left')
+
+# Get all objects categorized as 'BICYCLE' from the logs.
+# These are the potential bicycles that could be involved in the crossing event.
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Identify instances where a vehicle, already determined to be turning left,
+# is simultaneously being crossed by a bicycle from the vehicle's right side.
+# - 'track_candidates': 'vehicles_turning_left'. The function will filter this set.
+# - 'related_candidates': 'bicycles'. These are the objects performing the crossing.
+# - 'direction="right"': This specifies that the bicycle must cross the right-hand
+#   midplane of the vehicle. This means the crossing action occurs on the vehicle's right flank.
+#   This interpretation is analogous to an "overtaking on the right" scenario or a bicycle
+#   passing close to the vehicle's right side.
+# The function 'being_crossed_by' will return a scenario dictionary containing only those
+# vehicles from 'vehicles_turning_left' that satisfy this crossing condition, along with
+# the specific timestamps when both the left turn and the crossing occur.
+# Default values for 'forward_thresh' and 'lateral_thresh' are used to define the
+# spatial zone of interaction for the crossing.
+vehicle_turning_left_while_bicycle_crosses_from_right = being_crossed_by(
+    track_candidates=vehicles_turning_left,
+    related_candidates=bicycles,
+    log_dir=log_dir,
+    direction="right"
+)
+
+# Output the identified scenario instances.
+# The 'vehicle_turning_left_while_bicycle_crosses_from_right' dictionary contains
+# the UUIDs of vehicles that meet all criteria (turning left AND being crossed by a
+# bicycle from their right), and the timestamps for these events.
+output_scenario(
+    vehicle_turning_left_while_bicycle_crosses_from_right,
+    description,
+    log_dir,
+    output_dir
+)

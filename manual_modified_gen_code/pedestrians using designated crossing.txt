@@ -1,0 +1,13 @@
+description = 'pedestrians using designated crossing'
+
+# Get all pedestrian objects from the dataset
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Identify pedestrians that are at or very near a pedestrian crossing.
+# The `at_pedestrian_crossing` function checks if an object is within a certain distance
+# of a pedestrian crossing. The default `within_distance=1` meter is suitable for "using" a crossing,
+# as it allows for slight inaccuracies in annotations or the pedestrian being at the very edge.
+pedestrians_at_crossing = at_pedestrian_crossing(pedestrians, log_dir, within_distance=1)
+
+# Output the scenario
+output_scenario(pedestrians_at_crossing, description, log_dir, output_dir)

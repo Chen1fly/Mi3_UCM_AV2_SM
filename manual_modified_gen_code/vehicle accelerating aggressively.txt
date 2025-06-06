@@ -1,0 +1,14 @@
+# Description: vehicle accelerating aggressively
+# This scenario aims to identify vehicles that are accelerating forward at a high rate.
+
+# Get all objects of category 'VEHICLE'
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are accelerating aggressively.
+# The 'accelerating' function's docstring suggests that values over 1.0 m/s^2 reliably indicate acceleration.
+# For "aggressive" acceleration, we can set a higher threshold, for example, 2.0 m/s^2.
+# This value might need tuning based on dataset characteristics and desired sensitivity.
+aggressive_accelerating_vehicles = accelerating(vehicles, log_dir, min_accel=2.0)
+
+# Output the scenario
+output_scenario(aggressive_accelerating_vehicles, description, log_dir, output_dir)

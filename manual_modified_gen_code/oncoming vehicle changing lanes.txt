@@ -1,0 +1,45 @@
+description = 'oncoming vehicle changing lanes'
+
+# Step 1: Get all relevant vehicle objects.
+# We need all vehicles to check for the behavior, and the ego vehicle to determine "oncoming".
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+ego_vehicle = get_objects_of_category(log_dir, category="EGO_VEHICLE")
+
+# Step 2: Identify vehicles that are "oncoming" relative to the ego vehicle.
+# "Oncoming" is defined as vehicles heading in a direction roughly opposite to the ego vehicle's direction of travel.
+# The `heading_in_relative_direction_to` function with `direction='opposite'` captures this.
+# This function considers vehicles traveling at 135-180 degrees relative to the ego vehicle's heading.
+# It also has a default minimum speed, ensuring the oncoming vehicle is actually moving.
+oncoming_vehicles = heading_in_relative_direction_to(
+    track_candidates=all_vehicles,
+    related_candidates=ego_vehicle,
+    log_dir=log_dir,
+    direction='opposite'
+)
+
+# Step 3: Identify vehicles that are performing a lane change.
+# The description does not specify the direction of the lane change (left or right),
+# so we look for any lane change. The `changing_lanes` function defaults to
+# `direction=None`, which finds lane changes in any direction.
+vehicles_performing_lane_change = changing_lanes(
+    track_candidates=all_vehicles,  # We check all vehicles, not just oncoming ones yet, for this behavior
+    log_dir=log_dir
+)
+
+# Step 4: Combine the two conditions.
+# We are interested in vehicles that are *both* oncoming *and* changing lanes simultaneously.
+# The `scenario_and` function finds the intersection of these two conditions, meaning
+# it will return tracks and timestamps where a vehicle satisfies both criteria.
+oncoming_vehicle_changing_lanes_scenario = scenario_and([
+    oncoming_vehicles,
+    vehicles_performing_lane_change
+])
+
+# Step 5: Output the resulting scenario.
+# This will save the identified instances for evaluation or further analysis.
+output_scenario(
+    scenario=oncoming_vehicle_changing_lanes_scenario,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

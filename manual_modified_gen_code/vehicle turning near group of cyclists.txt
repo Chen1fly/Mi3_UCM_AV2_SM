@@ -1,0 +1,36 @@
+description = "vehicle turning near group of cyclists"
+
+# 1. Get all vehicle objects from the dataset.
+# These are the primary objects we are interested in.
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# 2. Get all bicyclist objects from the dataset.
+# "Cyclists" are interpreted as the "BICYCLIST" category, which refers to people actively riding bicycles.
+all_bicyclists = get_objects_of_category(log_dir, category="BICYCLIST")
+
+# 3. Identify vehicles that are turning.
+# The direction=None parameter means vehicles turning either left or right, or any turn detected.
+turning_vehicles = turning(all_vehicles, log_dir, direction=None)
+
+# 4. Identify vehicles that are near a "group" of bicyclists.
+# We define a "group" as consisting of at least 3 bicyclists.
+# "Near" is defined as being within a 15-meter radius.
+# It's assumed that near_objects returns a scenario dictionary keyed by the UUIDs of
+# track_candidates (vehicles, in this case) that meet the criteria.
+vehicles_near_group_of_bicyclists = near_objects(
+    track_candidates=all_vehicles,       # The objects to check (all vehicles)
+    candidate_uuids=all_bicyclists,      # The objects to check for proximity to (all bicyclists)
+    log_dir=log_dir,
+    distance_thresh=15.0,                # Maximum distance in meters for a bicyclist to be considered "near" the vehicle
+    min_objects=3                        # Minimum number of bicyclists that must be near the vehicle to be considered a "group"
+)
+
+# 5. Combine the two conditions using scenario_and.
+# We are looking for vehicles that are BOTH turning AND near a group of bicyclists.
+# scenario_and will return a dictionary of vehicles that are present in both `turning_vehicles`
+# and `vehicles_near_group_of_bicyclists`, with their timestamps intersected for when both conditions are true.
+vehicle_turning_near_group_of_cyclists = scenario_and([turning_vehicles, vehicles_near_group_of_bicyclists])
+
+# 6. Output the resulting scenario.
+# This will save the instances of vehicles turning near a group of cyclists.
+output_scenario(vehicle_turning_near_group_of_cyclists, description, log_dir, output_dir)

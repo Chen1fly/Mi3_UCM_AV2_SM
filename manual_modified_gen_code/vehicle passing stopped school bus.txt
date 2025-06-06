@@ -1,0 +1,106 @@
+description = 'vehicle passing stopped school bus'
+
+# --- Step 1: Identify stopped school buses on the road ---
+
+# Get all objects of category SCHOOL_BUS
+school_buses = get_objects_of_category(log_dir, category='SCHOOL_BUS')
+
+# Filter to include only school buses that are on a road (not in parking lots, driveways, etc.)
+# This helps focus on scenarios relevant to traffic interaction.
+school_buses_on_road = on_road(school_buses, log_dir)
+
+# Filter for school buses that are effectively stopped.
+# According to `has_velocity` documentation, stationary objects can have small velocities
+# (up to 0.5 m/s) due to annotation jitter or minor movements.
+# So, we define "stopped" as having a velocity between 0.0 m/s and 0.5 m/s.
+stopped_school_buses_on_road = has_velocity(
+    track_candidates=school_buses_on_road,
+    log_dir=log_dir,
+    min_velocity=0.0,
+    max_velocity=0.5
+)
+
+# --- Step 2: Identify other vehicles that are moving on the road ---
+
+# Get all objects considered 'VEHICLE'. The 'VEHICLE' superclass includes
+# REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK, BUS, SCHOOL_BUS, etc.
+# This means a moving school bus can also be identified as passing a stopped one.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter to include only these vehicles that are on a road.
+vehicles_on_road = on_road(all_vehicles, log_dir)
+
+# Filter for vehicles that are clearly moving, at a speed indicative of a "passing" action.
+# A minimum velocity of 2.0 m/s (which is 7.2 km/h or approx 4.5 mph) is chosen
+# to ensure the vehicle is engaged in a deliberate movement past the bus,
+# rather than extremely slow crawling or residual sensor noise.
+# The max_velocity defaults to infinity, covering all higher speeds.
+moving_vehicles_on_road = has_velocity(
+    track_candidates=vehicles_on_road,
+    log_dir=log_dir,
+    min_velocity=2.0
+)
+
+# --- Step 3: Identify passing events using `being_crossed_by` ---
+
+# The scenario involves a `moving_vehicles_on_road` (the passer)
+# moving past a `stopped_school_buses_on_road` (the object being passed).
+# The `being_crossed_by` function identifies the `track_candidates` (in this case, the stopped school bus)
+# that are crossed by `related_candidates` (the moving vehicle).
+# Since we want to identify the passing vehicle itself, we use `reverse_relationship`
+# to make the `related_candidates` (the passer) the primary keys in the resulting dictionary.
+
+# Parameters for `being_crossed_by`:
+# - `direction='left'` or `'right'`: Specifies which side of the school bus the passing occurs on.
+# - `in_direction='either'`: The passing vehicle can cross the bus's side midplane
+#   either by moving from the bus's rear towards its front (overtaking in same direction)
+#   or from its front towards its rear (e.g., an oncoming vehicle in an adjacent lane).
+#   Both are considered "passing".
+# - `forward_thresh=5.0`: This parameter defines how far the "crossing interaction zone"
+#   extends along the length of the bus, beyond its physical front and rear edges.
+#   A value of 5.0 meters means the zone extends 5m in front of the bus and 5m behind it.
+#   For a typical school bus length of ~12m, this creates a total interaction zone of 12m + 2*5m = 22m.
+# - `lateral_thresh=5.0`: This defines how far out laterally from the bus's side a crossing
+#   is still considered. 5.0 meters can typically cover an adjacent lane.
+
+# Identify vehicles passing on the left side of a stopped school bus
+passing_vehicles_on_left = reverse_relationship(being_crossed_by)(
+    track_candidates=stopped_school_buses_on_road, # The objects being passed (stopped buses)
+    related_candidates=moving_vehicles_on_road,   # The objects doing the passing (moving vehicles)
+    log_dir=log_dir,
+    direction='left',
+    in_direction='either',
+    forward_thresh=5.0,
+    lateral_thresh=5.0
+)
+
+# Identify vehicles passing on the right side of a stopped school bus
+passing_vehicles_on_right = reverse_relationship(being_crossed_by)(
+    track_candidates=stopped_school_buses_on_road, # The objects being passed (stopped buses)
+    related_candidates=moving_vehicles_on_road,   # The objects doing the passing (moving vehicles)
+    log_dir=log_dir,
+    direction='right',
+    in_direction='either',
+    forward_thresh=5.0,
+    lateral_thresh=5.0
+)
+
+# --- Step 4: Combine results from left and right passes and output ---
+
+# A vehicle is considered "passing a stopped school bus" if it passes on its left OR on its right.
+# `scenario_or` combines these two cases. The resulting dictionary will have
+# UUIDs of the passing vehicles as keys.
+vehicles_passing_stopped_bus = scenario_or([
+    passing_vehicles_on_left,
+    passing_vehicles_on_right
+])
+
+# Output the final scenario.
+# The `description`, `log_dir`, and `output_dir` variables are assumed to be defined
+# in the calling environment, as per the problem's examples.
+output_scenario(
+    scenario=vehicles_passing_stopped_bus,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

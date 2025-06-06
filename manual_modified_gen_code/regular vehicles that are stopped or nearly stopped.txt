@@ -1,0 +1,31 @@
+# Define the description of the scenario
+description = 'regular vehicles that are stopped or nearly stopped'
+
+# Get all objects of the category "REGULAR_VEHICLE"
+# "REGULAR_VEHICLE" includes conventionally sized passenger vehicles like cars, vans, pickup trucks, SUVs.
+regular_vehicles = get_objects_of_category(log_dir, category="REGULAR_VEHICLE")
+
+# Filter these regular vehicles to find those that are "stopped or nearly stopped".
+# We use the `has_velocity` function for this.
+# "Stopped" implies a velocity of 0 m/s.
+# "Nearly stopped" implies a very low velocity. The documentation for `has_velocity`
+# mentions that "Stationary objects may have a velocity up to 0.5 m/s due to annotation jitter."
+# Therefore, we set max_velocity to 0.5 m/s to capture this.
+# We set min_velocity to 0.0 m/s to include vehicles that are completely stopped.
+# The range [0.0, 0.5] m/s should accurately capture "stopped or nearly stopped" vehicles.
+stopped_or_nearly_stopped_regular_vehicles = has_velocity(
+    track_candidates=regular_vehicles,
+    log_dir=log_dir,
+    min_velocity=0.0,  # Minimum velocity for a vehicle to be considered (0 m/s for stopped)
+    max_velocity=0.5   # Maximum velocity for a vehicle to be considered "nearly stopped"
+)
+
+# Output the resulting scenario
+# This function will save the identified instances in the required format.
+# Visualization is turned off by default as per instructions not to provide visualization_kwargs unless specified.
+output_scenario(
+    stopped_or_nearly_stopped_regular_vehicles,
+    description,
+    log_dir,
+    output_dir
+)

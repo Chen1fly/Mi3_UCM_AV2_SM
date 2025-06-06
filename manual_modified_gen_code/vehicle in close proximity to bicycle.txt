@@ -1,0 +1,32 @@
+description = 'vehicle in close proximity to bicycle'
+
+# Get all objects of category "VEHICLE"
+# The "VEHICLE" superclass includes various types of vehicles like cars, trucks, buses.
+vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Get all objects of category "BICYCLE"
+# This refers to the bicycle itself as an object.
+bicycles = get_objects_of_category(log_dir, category="BICYCLE")
+
+# Find vehicles that are in close proximity to at least one bicycle.
+# The 'near_objects' function is used to determine proximity.
+# - track_uuid: The primary objects we are interested in (vehicles).
+# - candidate_uuids: The objects we are checking proximity to (bicycles).
+# - distance_thresh: Defines "close proximity". We'll use 5.0 meters.
+#   This value is chosen as a balance: close enough to be relevant, but not so close as to miss common scenarios
+#   like a vehicle and bicycle in adjacent lanes or stopped near each other. The default for this function is 10m.
+# - min_objects: We are looking for a vehicle near at least one bicycle.
+# It is assumed that 'near_objects' returns a scenario dictionary where keys are the UUIDs
+# of the 'track_uuid' objects (vehicles in this case) that meet the criteria.
+vehicles_near_bicycles = near_objects(
+    track_uuid=vehicles,
+    candidate_uuids=bicycles,
+    log_dir=log_dir,
+    distance_thresh=5.0,  # Maximum distance in meters to be considered "near"
+    min_objects=1         # Minimum number of bicycles to be near the vehicle
+)
+
+# Output the resulting scenario
+# This function will save the identified instances (vehicles in close proximity to bicycles)
+# for evaluation or further analysis.
+output_scenario(vehicles_near_bicycles, description, log_dir, output_dir)

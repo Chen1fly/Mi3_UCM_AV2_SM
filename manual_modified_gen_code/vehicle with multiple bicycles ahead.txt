@@ -1,0 +1,47 @@
+# Define the description of the scenario.
+description = 'vehicle with multiple bicycles ahead'
+
+# Get all vehicle objects from the dataset.
+# "VEHICLE" is a superclass that includes various types of vehicles like cars, trucks, buses, etc.
+vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Get all bicycle objects from the dataset.
+bicycles = get_objects_of_category(log_dir, category="BICYCLE")
+
+# Identify vehicles that have at least two bicycles ahead of them.
+# The function `has_objects_in_relative_direction` is used because we are interested in the
+# 'track_candidates' (vehicles) that satisfy the condition of having 'related_candidates' (bicycles)
+# in a specific relative position.
+
+# Parameters for `has_objects_in_relative_direction`:
+# - track_candidates: The primary objects we are analyzing (vehicles).
+# - related_candidates: The objects we are looking for in relation to the track_candidates (bicycles).
+# - log_dir: Path to scenario logs.
+# - direction='forward': Specifies that bicycles should be in front of the vehicle.
+# - min_number=2: Specifies that there must be at least two ("multiple") bicycles.
+# - within_distance=50: (Default value) Specifies the maximum longitudinal distance (in meters)
+#   for a bicycle to be considered "ahead". 50 meters is a common range for relevance in driving scenarios.
+# - lateral_thresh=2.0: Specifies the maximum lateral distance (in meters) a bicycle can be from
+#   the sides of the vehicle. This is chosen to ensure precision and avoid false positives.
+#   For example, if a vehicle is 2 meters wide, this threshold means bicycles are considered if they are
+#   within a zone roughly 2m (vehicle_width) + 2 * 2.0m (lateral_thresh on both sides) = 6 meters wide
+#   centered on the vehicle's path. This helps to include bicycles in the same lane, adjacent bike lanes,
+#   or on the shoulder, while excluding those significantly off to the side.
+vehicles_with_multiple_bicycles_ahead = has_objects_in_relative_direction(
+    track_candidates=vehicles,
+    related_candidates=bicycles,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=2,
+    within_distance=50,  # Default is 50m, made explicit for clarity
+    lateral_thresh=2.0   # Chosen for precision based on typical road/lane widths
+)
+
+# Output the identified scenario instances.
+# This function will save the results in a format suitable for evaluation.
+output_scenario(
+    scenario=vehicles_with_multiple_bicycles_ahead,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

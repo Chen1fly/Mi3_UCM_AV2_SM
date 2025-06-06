@@ -1,0 +1,54 @@
+description = 'pedestrian crossing between bollards'
+
+# Get all pedestrian objects from the dataset
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get all bollard objects from the dataset
+bollards = get_objects_of_category(log_dir, category='BOLLARD')
+
+# Filter for pedestrians that are actually moving, as "crossing" implies motion.
+# A velocity of 0.5 m/s is typically used as a threshold to distinguish
+# moving objects from stationary ones that might have slight annotation jitter.
+moving_pedestrians = has_velocity(pedestrians, log_dir, min_velocity=0.5)
+
+# Identify moving pedestrians that have at least one bollard to their immediate left.
+# 'within_distance' specifies the maximum distance the bollard can be to the left of the pedestrian.
+# 'lateral_thresh' specifies the maximum longitudinal offset (how far forward or backward
+# the bollard can be relative to the pedestrian's center, along their direction of travel).
+# We are looking for a bollard that is currently beside the pedestrian.
+pedestrians_with_bollard_to_left = has_objects_in_relative_direction(
+    track_candidates=moving_pedestrians,
+    related_candidates=bollards,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1,       # We need at least one bollard to the left.
+    max_number=1,       # We are interested in the presence, so one closest is enough.
+    within_distance=2.0, # The bollard should be within 2.0 meters to the pedestrian's left side.
+                        # This defines half of the maximum width of the "gap" between bollards.
+    lateral_thresh=1.5  # The bollard should be within +/- 1.5 meters longitudinally from the pedestrian's center.
+                        # This ensures the bollard is roughly abreast of the pedestrian.
+)
+
+# Identify moving pedestrians that have at least one bollard to their immediate right.
+# Similar conditions apply as for the left side.
+# It's important to use 'moving_pedestrians' as track_candidates again, not the result from the previous step,
+# as we are looking for two independent conditions on the same set of moving pedestrians.
+pedestrians_with_bollard_to_right = has_objects_in_relative_direction(
+    track_candidates=moving_pedestrians,
+    related_candidates=bollards,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,       # We need at least one bollard to the right.
+    max_number=1,       # We are interested in the presence, so one closest is enough.
+    within_distance=2.0, # The bollard should be within 2.0 meters to the pedestrian's right side.
+    lateral_thresh=1.5  # The bollard should be within +/- 1.5 meters longitudinally from the pedestrian's center.
+)
+
+# A pedestrian is considered "crossing between bollards" if they are moving AND
+# they simultaneously have a bollard to their immediate left AND a bollard to their immediate right.
+# The 'scenario_and' function finds pedestrians (and the corresponding timestamps)
+# that satisfy both conditions.
+pedestrian_crossing_between_bollards = scenario_and([pedestrians_with_bollard_to_left, pedestrians_with_bollard_to_right])
+
+# Output the resulting scenario.
+output_scenario(pedestrian_crossing_between_bollards, description, log_dir, output_dir)

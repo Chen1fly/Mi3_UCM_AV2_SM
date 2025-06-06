@@ -1,0 +1,9 @@
+# description: parked vehicle
+# Get all objects of category 'VEHICLE'
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter for vehicles that are stationary, which indicates they are likely parked
+parked_vehicles = stationary(vehicles, log_dir)
+
+# Output the scenario
+output_scenario(parked_vehicles, description, log_dir, output_dir)

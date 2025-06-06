@@ -1,0 +1,49 @@
+description = 'vehicle approaching pedestrians waiting at a crosswalk'
+
+# Get all pedestrian objects from the dataset
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Identify pedestrians who are at or very near a pedestrian crossing.
+# 'within_distance=1.0' means the pedestrian's centroid is within 1.0 meter of the crosswalk boundaries.
+# This helps to identify pedestrians who are positioned at a location typically used for crossing.
+pedestrians_at_crosswalk = at_pedestrian_crossing(pedestrians, log_dir, within_distance=1.0)
+
+# Filter the pedestrians at the crosswalk to find those who are "waiting".
+# "Waiting" is defined as being stationary or moving very slowly.
+# 'max_velocity=0.5' m/s is used, as the documentation for 'has_velocity' suggests that
+# stationary objects can have a velocity up to 0.5 m/s due to annotation jitter.
+# 'min_velocity=0.0' includes pedestrians that are completely stationary.
+waiting_pedestrians_at_crosswalk = has_velocity(
+    pedestrians_at_crosswalk,
+    log_dir,
+    min_velocity=0.0,
+    max_velocity=0.5
+)
+
+# Get all vehicle objects from the dataset.
+# The 'VEHICLE' category is a superclass including various types of vehicles.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are heading towards the pedestrians who are waiting at the crosswalk.
+# 'heading_toward' checks if the vehicle's movement vector is directed towards the pedestrians.
+# 'minimum_speed=1.0' m/s ensures that the vehicle is actively moving towards the pedestrians,
+# rather than being stationary but oriented in their direction. This helps avoid false positives of parked cars.
+# 'max_distance=30.0' meters defines a reasonable zone for considering a vehicle as "approaching" the crosswalk.
+# 'angle_threshold=22.5' degrees (default) means the vehicle's velocity vector must be within this angle
+# of the vector pointing from the vehicle to the pedestrian, ensuring the vehicle is heading in their direction.
+vehicles_approaching_waiting_pedestrians = heading_toward(
+    track_candidates=vehicles,
+    related_candidates=waiting_pedestrians_at_crosswalk,
+    log_dir=log_dir,
+    minimum_speed=1.0,
+    max_distance=30.0,
+    angle_threshold=22.5
+)
+
+# Output the resulting scenario, which contains vehicles approaching pedestrians waiting at a crosswalk.
+output_scenario(
+    vehicles_approaching_waiting_pedestrians,
+    description,
+    log_dir,
+    output_dir
+)

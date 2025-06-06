@@ -1,0 +1,39 @@
+description = "pedestrians facing each other at close range, possibly conversing"
+
+# Get all pedestrian objects from the dataset.
+# 'pedestrians' will be a scenario dictionary where keys are pedestrian UUIDs
+# and values are lists of timestamps they are visible.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Identify pedestrians that are facing another pedestrian at close range.
+# The `facing_toward` function identifies track_candidates (first argument)
+# that are oriented towards any of the related_candidates (second argument).
+#
+# Parameters:
+#   track_candidates: The set of pedestrians we are evaluating.
+#   related_candidates: The set of pedestrians they could be facing (in this case, also all pedestrians).
+#   log_dir: Path to the scenario logs.
+#   within_angle: The other pedestrian must be within this angle on either side of the
+#                 track_candidate's forward axis. An angle of 45.0 means the other pedestrian
+#                 is within a 90-degree cone in front of the track_candidate. This suggests
+#                 a general "facing towards" orientation suitable for conversation.
+#   max_distance: The maximum distance between the track_candidate and the related_candidate.
+#                 3.0 meters is chosen for "close range," typical of a conversation.
+#
+# The output `peds_facing_another_ped_closely` will be a scenario dictionary.
+# The keys will be the UUIDs of pedestrians who meet the criteria of facing
+# at least one other pedestrian under the specified angle and distance constraints.
+# If two pedestrians are indeed facing each other and are close, both should
+# independently satisfy this condition and thus both be included as keys in the result.
+peds_facing_another_ped_closely = facing_toward(
+    track_candidates=pedestrians,
+    related_candidates=pedestrians,
+    log_dir=log_dir,
+    within_angle=45.0,  # Other pedestrian is within a +/- 45 degree cone (90 degree total)
+    max_distance=3.0    # Other pedestrian is within 3 meters
+)
+
+# Output the scenario.
+# This will save the UUIDs of pedestrians found by the above logic, along with the
+# timestamps when they meet the condition.
+output_scenario(peds_facing_another_ped_closely, description, log_dir, output_dir)

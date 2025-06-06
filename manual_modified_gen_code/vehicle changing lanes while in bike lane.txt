@@ -1,0 +1,21 @@
+description = 'vehicle changing lanes while in bike lane'
+
+# Get all objects of category "VEHICLE"
+# The "VEHICLE" category is a superclass that includes various types of vehicles.
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Identify vehicles that are in a bike lane.
+# The on_lane_type function filters track_candidates that are on the specified lane_type.
+vehicles_in_bike_lane = on_lane_type(all_vehicles, log_dir, lane_type='BIKE')
+
+# Identify vehicles that are changing lanes.
+# The direction parameter is set to None to capture lane changes in any direction (left or right).
+vehicles_actively_changing_lanes = changing_lanes(all_vehicles, log_dir, direction=None)
+
+# Combine the two conditions: the vehicle must be changing lanes AND be in a bike lane.
+# scenario_and ensures that the vehicle satisfies both conditions at the same timestamps.
+vehicle_changing_lanes_while_in_bike_lane = scenario_and([vehicles_in_bike_lane, vehicles_actively_changing_lanes])
+
+# Output the resulting scenario.
+# This will create a file with the identified instances for evaluation or visualization.
+output_scenario(vehicle_changing_lanes_while_in_bike_lane, description, log_dir, output_dir)

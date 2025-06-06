@@ -1,0 +1,51 @@
+description = 'bicycle traveling against traffic'
+
+# Get all bicycle objects from the logs.
+# 'BICYCLE' is the category for the physical object.
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Filter for bicycles that are actually moving, as "traveling" implies motion.
+# A minimum velocity of 0.5 m/s is used to distinguish from stationary objects,
+# which might show small velocities due to annotation jitter, as per 'has_velocity' documentation.
+moving_bicycles = has_velocity(bicycles, log_dir, min_velocity=0.5)
+
+# Further filter these moving bicycles to include only those on a road or bike lane.
+# The 'on_road' function excludes objects on sidewalks, parking lots, etc.,
+# focusing on entities interacting with road traffic, as per its documentation.
+moving_bicycles_on_road = on_road(moving_bicycles, log_dir)
+
+# Get all vehicle objects to represent the general "traffic".
+# 'VEHICLE' is a superclass for various types of vehicles like cars, trucks, buses.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter these vehicles to include only those that are moving, representing active traffic flow.
+# This helps to ensure that the "traffic" reference is based on dynamic elements of the environment.
+moving_vehicles = has_velocity(all_vehicles, log_dir, min_velocity=0.5)
+
+# Ensure that these moving vehicles are also on a road or bike lane.
+# This keeps the comparison domain consistent: both bicycles and vehicles must be on the road network.
+moving_vehicles_on_road = on_road(moving_vehicles, log_dir)
+
+# Identify bicycles from the 'moving_bicycles_on_road' set that are traveling
+# in a direction opposite to vehicles from the 'moving_vehicles_on_road' set.
+# The 'heading_in_relative_direction_to' function with 'direction="opposite"' checks for cases
+# where the heading of a track candidate (bicycle) is 135-180 degrees relative to the heading
+# of a related candidate (vehicle).
+# This definition will identify bicycles moving against the flow of other observed vehicles.
+# This covers several scenarios:
+#   1. A bicycle going the wrong way on a one-way street (thus opposing all correctly flowing vehicles).
+#   2. A bicycle in the incorrect lane on a two-way street (opposing vehicles that should be in that lane).
+#   3. A bicycle in its correct lane on a two-way street, where there is oncoming traffic
+#      in an adjacent lane (as it is, literally, "traveling against" that part of traffic).
+# The function returns the subset of 'track_candidates' (bicycles) that satisfy this condition
+# with respect to at least one of 'related_candidates' (vehicles). If no such vehicles exist,
+# or no bicycles meet the criteria, the result will be empty.
+bicycles_traveling_against_traffic = heading_in_relative_direction_to(
+    track_candidates=moving_bicycles_on_road,
+    related_candidates=moving_vehicles_on_road,
+    log_dir=log_dir,
+    direction='opposite'
+)
+
+# Output the scenario, which contains the bicycles found to be traveling against traffic.
+output_scenario(bicycles_traveling_against_traffic, description, log_dir, output_dir)

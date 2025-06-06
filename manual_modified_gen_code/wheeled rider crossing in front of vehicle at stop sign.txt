@@ -1,0 +1,44 @@
+description = 'wheeled rider crossing in front of vehicle at stop sign'
+
+# Get relevant object categories
+# WHEELED_RIDER: Person actively riding or being carried by a wheeled device (e.g., skateboards, non-motorized scooters, segways, golf-carts).
+wheeled_riders = get_objects_of_category(log_dir, category='WHEELED_RIDER')
+# VEHICLE: Superclass for cars, trucks, buses, etc.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are at a stop sign.
+# The 'at_stop_sign' function identifies vehicles that are in a lane corresponding to a stop sign
+# and are within a certain forward distance of it (default for 'forward_thresh' in at_stop_sign is 10m).
+# This function captures the state "at stop sign" as per its definition.
+vehicles_at_stop_sign = at_stop_sign(all_vehicles, log_dir)
+
+# Identify wheeled riders that are crossing in front of these vehicles at a stop sign.
+# We use `reverse_relationship` because the primary actor in the description is the "wheeled rider".
+# This function will make the output scenario dictionary have wheeled_rider UUIDs as keys.
+#
+# For `being_crossed_by(track_candidates, related_candidates, ...)`:
+# - `track_candidates` (here, `vehicles_at_stop_sign`) are the objects whose space is being crossed.
+# - `related_candidates` (here, `wheeled_riders`) are the objects performing the crossing.
+#
+# Parameters for `being_crossed_by`:
+# - `direction="forward"`: The crossing occurs over the vehicle's forward midplane (i.e., "in front of" the vehicle).
+# - `forward_thresh=5`: The interaction zone for crossing extends 5 meters in front of the vehicle.
+#   This value is chosen to be somewhat restrictive to ensure the crossing is relatively close to the front of the vehicle,
+#   which is appropriate for a vehicle at a stop sign (likely near an intersection line).
+# - `lateral_thresh=1`: This parameter defines the lateral extent of the crossing.
+#   Assuming it means the crossing object must be within 1 meter from the physical sides of the vehicle,
+#   the total width of the crossing band would be approximately (vehicle_width + 2 * 1m).
+#   For a typical vehicle (e.g., 2m wide), this results in a ~4m wide band, which is similar to a single lane width.
+#   This aims for precision and helps avoid false positives by defining a reasonably constrained area for the crossing.
+#   The default for `being_crossed_by` is `lateral_thresh=5`, which would be a much wider zone.
+wheeled_riders_performing_crossing = reverse_relationship(being_crossed_by)(
+    track_candidates=vehicles_at_stop_sign, 
+    related_candidates=wheeled_riders, 
+    log_dir=log_dir, 
+    direction="forward", 
+    forward_thresh=5,
+    lateral_thresh=1 
+)
+
+# Output the scenario.
+output_scenario(wheeled_riders_performing_crossing, description, log_dir, output_dir)

@@ -1,0 +1,62 @@
+description = 'truck swerving near construction cones'
+
+# 1. Get all objects of category 'TRUCK'.
+# "TRUCK" category as defined: Vehicles that are clearly defined as a truck but does not fit into the subclasses of Box Truck or Truck Cab.
+# Examples include common delivery vehicles (UPS, FedEx), mail trucks, garbage trucks, utility trucks, ambulances, dump trucks, etc.
+all_trucks = get_objects_of_category(log_dir, category='TRUCK')
+
+# 2. Filter trucks to those that are in a drivable area.
+# This helps ensure the truck's behavior is relevant to driving scenarios.
+trucks_in_drivable_area = in_drivable_area(all_trucks, log_dir)
+
+# 3. Filter for trucks that are actually moving.
+# "Swerving" implies motion. Stationary objects might have sensor noise.
+# min_velocity=0.5 is the default and helps filter out stationary objects with minor jitter.
+moving_trucks = has_velocity(trucks_in_drivable_area, log_dir, min_velocity=0.5)
+
+# 4. Get all construction cones.
+construction_cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+
+# 5. Exclude trucks that are making a standard turn.
+# "Swerving" is often a more erratic or sudden lateral movement than a planned turn.
+# The `turning` function with direction=None will identify objects turning either left or right.
+# `scenario_not(turning)` will give us trucks that are not performing a standard turn.
+non_turning_moving_trucks = scenario_not(turning)(moving_trucks, log_dir)
+
+# 6. Identify non-turning trucks that have significant lateral acceleration (indicative of swerving).
+# Positive lateral acceleration indicates acceleration to the left, negative to the right.
+# We'll use a threshold of 1.5 m/s^2. This value might need tuning based on dataset characteristics;
+# it's chosen to be less than "jerking" (e.g., 2 m/s^2) but still significant.
+
+# Trucks swerving/accelerating to the left
+trucks_swerving_left = has_lateral_acceleration(
+    non_turning_moving_trucks,
+    log_dir,
+    min_accel=1.5,  # Minimum positive lateral acceleration for swerving left
+    max_accel=np.inf # No upper bound on leftward acceleration
+)
+
+# Trucks swerving/accelerating to the right
+trucks_swerving_right = has_lateral_acceleration(
+    non_turning_moving_trucks,
+    log_dir,
+    min_accel=-np.inf, # No lower bound for rightward acceleration (allow any negative)
+    max_accel=-1.5     # Maximum negative lateral acceleration for swerving right (e.g., -1.5 or less)
+)
+
+# 7. Combine trucks swerving left or right.
+swerving_trucks = scenario_or([trucks_swerving_left, trucks_swerving_right])
+
+# 8. Find swerving trucks that are near construction cones.
+# "Near" is defined as being within a certain distance (e.g., 5 meters) of at least one cone.
+# This distance_thresh may need tuning.
+trucks_swerving_near_cones = near_objects(
+    track_uuid=swerving_trucks,               # The trucks we identified as swerving
+    candidate_uuids=construction_cones,       # The construction cones to check proximity to
+    log_dir=log_dir,
+    distance_thresh=5.0,                      # Maximum distance in meters to be considered "near"
+    min_objects=1                             # Must be near at least one construction cone
+)
+
+# 9. Output the scenario.
+output_scenario(trucks_swerving_near_cones, description, log_dir, output_dir)

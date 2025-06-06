@@ -1,0 +1,28 @@
+description = 'pedestrians, strollers, or wheeled devices at a pedestrian crossing'
+
+# Get all pedestrian objects
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get all stroller objects
+strollers = get_objects_of_category(log_dir, category='STROLLER')
+
+# Get all wheeled device objects
+# WHEELED_DEVICE: Objects involved in the transportation of a person and do not fit a more specific class.
+# Examples range from skateboards, non-motorized scooters, segways, to golf-carts.
+wheeled_devices = get_objects_of_category(log_dir, category='WHEELED_DEVICE')
+
+# Combine these three categories into a single group of vulnerable road users
+# We are interested if ANY of these types are at a pedestrian crossing.
+vulnerable_road_users = scenario_or([pedestrians, strollers, wheeled_devices])
+
+# Identify instances where these vulnerable road users are at a pedestrian crossing.
+# "at a pedestrian crossing" implies being within the boundaries of the crossing.
+# The at_pedestrian_crossing function with within_distance=0 means the object is within the boundaries.
+vulnerable_users_at_crossing = at_pedestrian_crossing(
+    track_candidates=vulnerable_road_users,
+    log_dir=log_dir,
+    within_distance=0  # Ensures the object is within the boundaries of the pedestrian crossing for precision
+)
+
+# Output the scenario
+output_scenario(vulnerable_users_at_crossing, description, log_dir, output_dir)

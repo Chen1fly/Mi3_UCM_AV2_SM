@@ -1,0 +1,70 @@
+# Description of the scenario to be identified.
+description = "vehicle turning while pedestrian crosses with stroller"
+
+# Step 1: Get all relevant object categories from the dataset.
+# 'VEHICLE' is a superclass including various types of vehicles.
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+# 'PEDESTRIAN' includes people walking, standing, etc., not in/on a vehicle.
+all_pedestrians = get_objects_of_category(log_dir, category="PEDESTRIAN")
+# 'STROLLER' are push-carts for babies/toddlers.
+all_strollers = get_objects_of_category(log_dir, category="STROLLER")
+
+# Step 2: Identify vehicles that are turning.
+# The 'turning' function filters track_candidates to find those that are turning.
+# direction=None means vehicles turning in any direction (left or right).
+# The result 'turning_vehicles' is a scenario dictionary of vehicles that are turning.
+turning_vehicles = turning(
+    track_candidates=all_vehicles,
+    log_dir=log_dir,
+    direction=None # Any turning direction is considered.
+)
+
+# Step 3: Identify pedestrians who are "with a stroller".
+# This is approximated by finding pedestrians who are very close to a stroller.
+# 'near_objects' identifies track_candidates (pedestrians in this case) that are near
+# at least 'min_objects' from 'candidate_uuids' (strollers) within 'distance_thresh'.
+# The result 'peds_with_strollers' is a scenario dictionary where keys are pedestrian UUIDs
+# that are considered to be with a stroller.
+peds_with_strollers = near_objects(
+    track_uuid=all_pedestrians,      # The primary objects we are filtering.
+    candidate_uuids=all_strollers,   # The objects to check for proximity.
+    log_dir=log_dir,
+    distance_thresh=1.5,  # Pedestrian must be within 1.5 meters of a stroller to be considered "with" it.
+    min_objects=1         # At least one stroller must be nearby.
+)
+
+# Step 4: Identify vehicles that are being crossed by these pedestrians with strollers.
+# 'being_crossed_by' identifies track_candidates (vehicles) whose specified midplane
+# is crossed by related_candidates (pedestrians with strollers).
+# direction="forward" means the pedestrian is crossing the front path of the vehicle.
+# forward_thresh=5 means the crossing zone (midplane) extends 5 meters in front of the vehicle's edge.
+# lateral_thresh=2.5 means the crossing zone is 2 * 2.5 = 5 meters wide centered on the vehicle's path.
+# The result 'vehicles_being_crossed_by_ped_with_stroller' is a scenario dictionary of vehicles being crossed.
+vehicles_being_crossed_by_ped_with_stroller = being_crossed_by(
+    track_candidates=all_vehicles,               # The objects that are potentially being crossed.
+    related_candidates=peds_with_strollers,      # The objects performing the crossing action.
+    log_dir=log_dir,
+    direction="forward",      # Pedestrian crosses the vehicle's forward midplane.
+    forward_thresh=5,         # Crossing must occur within a plane extending 5m from the vehicle's front.
+    lateral_thresh=2.5        # The width of this crossing plane is 5m (2.5m to each side of the vehicle's centerline).
+)
+
+# Step 5: Combine the conditions to find vehicles that are both turning AND being crossed by a pedestrian with a stroller.
+# 'scenario_and' takes a list of scenario dictionaries and returns a new one.
+# This new dictionary contains only those track objects (and their timestamps)
+# that are present in ALL input dictionaries. This ensures the vehicle is turning *while* the pedestrian crosses.
+# The resulting dictionary will have vehicle UUIDs (that satisfy both conditions) as keys.
+final_scenario_vehicles = scenario_and([
+    turning_vehicles,
+    vehicles_being_crossed_by_ped_with_stroller
+])
+
+# Step 6: Output the identified scenario.
+# This function saves the results, typically in an evaluation-ready format.
+# Visualization arguments are not provided as per instructions.
+output_scenario(
+    scenario=final_scenario_vehicles,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

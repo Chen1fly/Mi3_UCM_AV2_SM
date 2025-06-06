@@ -1,0 +1,40 @@
+description = 'motorcyclist traveling opposite to bicycle traffic'
+
+# Get all motorcyclist objects (persons actively riding motorcycles)
+# 'MOTORCYCLIST' refers to the person riding, which aligns with "motorcyclist traveling"
+motorcyclists = get_objects_of_category(log_dir, category='MOTORCYCLIST')
+
+# Get all bicycle objects (the vehicles themselves)
+# 'BICYCLE' refers to the vehicle, which aligns with "bicycle traffic" (traffic composed of bicycles)
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Filter for motorcyclists that are actively traveling.
+# "Traveling" implies they are moving. A minimum velocity helps filter out stationary objects.
+traveling_motorcyclists = has_velocity(motorcyclists, log_dir, min_velocity=0.5)
+
+# Filter for bicycles that constitute "traffic".
+# "Traffic" implies they are moving.
+bicycle_traffic = has_velocity(bicycles, log_dir, min_velocity=0.5)
+
+# Ensure that the traveling motorcyclists are on a road.
+# "Traveling" in a traffic context usually means on a road.
+traveling_motorcyclists_on_road = on_road(traveling_motorcyclists, log_dir)
+
+# Ensure that the bicycle traffic is on a road or bike lane.
+# "Bicycle traffic" is typically on roads or designated bike lanes.
+# The on_road function includes bike lanes.
+bicycle_traffic_on_road = on_road(bicycle_traffic, log_dir)
+
+# Find motorcyclists (track_candidates) that are traveling in the opposite direction
+# relative to the bicycle traffic (related_candidates).
+# The 'opposite' direction typically means their heading vectors are roughly 180 degrees apart (e.g., within 135-180 degrees).
+motorcyclist_opposite_bicycle_traffic = heading_in_relative_direction_to(
+    track_candidates=traveling_motorcyclists_on_road,
+    related_candidates=bicycle_traffic_on_road,
+    log_dir=log_dir,
+    direction='opposite'
+)
+
+# Output the scenario
+# This will contain motorcyclists who meet all the specified conditions.
+output_scenario(motorcyclist_opposite_bicycle_traffic, description, log_dir, output_dir)

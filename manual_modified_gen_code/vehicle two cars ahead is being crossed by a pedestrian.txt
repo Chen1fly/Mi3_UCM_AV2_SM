@@ -1,0 +1,76 @@
+# Define the description for the scenario
+description = 'vehicle two cars ahead is being crossed by a pedestrian'
+
+# Get all pedestrian objects
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get all vehicle objects, including the EGO vehicle, as any of them could be part of the scenario
+all_vehicle_types = get_objects_of_category(log_dir, category='VEHICLE')
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+all_vehicles_and_ego = scenario_or([all_vehicle_types, ego_vehicle])
+
+# Filter for vehicles that are on a road (not in parking lots, etc.)
+vehicles_on_road = on_road(all_vehicles_and_ego, log_dir)
+
+# Filter for vehicles that are not stationary (i.e., are actively part of traffic)
+# Stationary objects might have slight velocity due to jitter, has_velocity(min_velocity=0.5) could also be used.
+# However, stationary() is for parked/inactive. active_vehicles are those not parked for long.
+active_vehicles = scenario_not(stationary)(vehicles_on_road, log_dir)
+
+# Identify CAR_2: an active vehicle that is being crossed by a pedestrian from the front.
+# - direction="forward": The pedestrian is crossing the front of CAR_2.
+# - forward_thresh=10: The crossing interaction zone extends up to 10 meters in front of CAR_2.
+# - lateral_thresh=1.5: The crossing must occur within a path 2*1.5=3 meters wide, centered on CAR_2's path.
+#   This ensures the pedestrian is crossing directly in CAR_2's path or very close to it.
+car_2_being_crossed_by_ped = being_crossed_by(
+    track_candidates=active_vehicles,
+    related_candidates=pedestrians,
+    log_dir=log_dir,
+    direction="forward",
+    forward_thresh=10,
+    lateral_thresh=1.5
+)
+
+# Identify CAR_1: an active vehicle that has CAR_2 (a vehicle being crossed by a pedestrian) directly in front of it.
+# - track_candidates=active_vehicles: CAR_1 must be an active vehicle.
+# - related_candidates=car_2_being_crossed_by_ped: The vehicle in front of CAR_1 must be one of those identified as CAR_2.
+# - direction='forward': CAR_2 is in the forward direction relative to CAR_1.
+# - min_number=1, max_number=1: Exactly one such CAR_2 must be ahead.
+# - within_distance=30: CAR_2 is within 30 meters of CAR_1 (reasonable following distance).
+# - lateral_thresh=0.5: CAR_2 is laterally within 0.5 meters of the sides of CAR_1, ensuring they are closely aligned in the same lane.
+car_1_behind_car_2 = has_objects_in_relative_direction(
+    track_candidates=active_vehicles,
+    related_candidates=car_2_being_crossed_by_ped,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=1,
+    within_distance=30,
+    lateral_thresh=0.5
+)
+# The keys of car_1_behind_car_2 are the UUIDs of CAR_1 vehicles.
+
+# Identify the "Observer Vehicle": an active vehicle that has CAR_1 (which is behind CAR_2) directly in front of it.
+# This is the vehicle that is "two cars behind" the vehicle being crossed by the pedestrian.
+# - track_candidates=active_vehicles: The Observer Vehicle must be an active vehicle.
+# - related_candidates=car_1_behind_car_2: The vehicle in front of the Observer must be one of those identified as CAR_1.
+# - direction='forward': CAR_1 is in the forward direction relative to the Observer Vehicle.
+# - min_number=1, max_number=1: Exactly one such CAR_1 must be ahead.
+# - within_distance=30: CAR_1 is within 30 meters of the Observer Vehicle.
+# - lateral_thresh=0.5: CAR_1 is laterally within 0.5 meters of the sides of the Observer Vehicle.
+observer_vehicle_two_cars_behind = has_objects_in_relative_direction(
+    track_candidates=active_vehicles,
+    related_candidates=car_1_behind_car_2, # These are the CAR_1s
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=1,
+    within_distance=30,
+    lateral_thresh=0.5
+)
+# The keys of observer_vehicle_two_cars_behind are the UUIDs of the observer vehicles satisfying the condition.
+
+# Output the scenario
+# The `observer_vehicle_two_cars_behind` dictionary contains the vehicles that are two cars behind
+# a vehicle being crossed by a pedestrian, along with timestamps and the UUID of the intermediate car (CAR_1).
+output_scenario(observer_vehicle_two_cars_behind, description, log_dir, output_dir)

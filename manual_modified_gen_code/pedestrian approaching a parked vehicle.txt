@@ -1,0 +1,37 @@
+description = 'pedestrian approaching a parked vehicle'
+
+# Get all pedestrian objects from the logs.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get all vehicle objects from the logs.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are parked.
+# The stationary() function identifies objects that moved less than 2m over their entire observation period,
+# which is a good proxy for "parked" in many contexts.
+parked_vehicles = stationary(all_vehicles, log_dir)
+
+# Identify pedestrians who are actively heading towards these parked vehicles.
+# The 'heading_toward' function is suitable for this, as it checks if the track_candidate's
+# velocity vector is directed towards the related_candidate and if they are moving with a certain speed.
+# - track_candidates: The pedestrians we are observing.
+# - related_candidates: The parked vehicles they might be approaching.
+# - max_distance: We set a maximum distance (e.g., 20 meters) to consider the approach relevant.
+#                 A pedestrian 100m away heading towards a parked car is less critical than one at 10m.
+# - minimum_speed: The component of the pedestrian's velocity directly towards the parked vehicle
+#                  must be at least 0.5 m/s. This ensures active approach and helps avoid false positives
+#                  from very slow or nearly stationary pedestrians whose orientation might momentarily align.
+# - angle_threshold: The pedestrian's direction of movement must be within 22.5 degrees of the
+#                    direct line to the parked vehicle. This ensures they are generally moving "towards" it,
+#                    not just passing by.
+pedestrians_approaching_parked_vehicles = heading_toward(
+    track_candidates=pedestrians,
+    related_candidates=parked_vehicles,
+    log_dir=log_dir,
+    angle_threshold=22.5,  # Default, ensures movement is generally towards the vehicle
+    minimum_speed=0.5,     # Default, ensures a clear component of velocity towards the vehicle
+    max_distance=20.0      # Pedestrian must be within 20 meters to be considered "approaching"
+)
+
+# Output the identified scenario instances.
+output_scenario(pedestrians_approaching_parked_vehicles, description, log_dir, output_dir)

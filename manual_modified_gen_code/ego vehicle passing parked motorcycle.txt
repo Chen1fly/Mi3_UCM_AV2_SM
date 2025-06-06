@@ -1,0 +1,60 @@
+description = "ego vehicle passing parked motorcycle"
+
+# Get the ego vehicle
+# The EGO_VEHICLE category represents the vehicle collecting the data.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all motorcycles
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+
+# Identify parked motorcycles
+# The stationary() function identifies objects that moved less than 2m over their entire observation period in the scenario.
+# This is suitable for identifying vehicles that are genuinely parked, not just temporarily stopped.
+parked_motorcycles = stationary(motorcycles, log_dir)
+
+# Ensure the ego vehicle is not stationary (i.e., it is considered to be moving)
+# scenario_not(stationary)(...) will return instances where the ego vehicle has moved more than 2m during the scenario.
+# This distinguishes the ego from being parked itself.
+moving_ego = scenario_not(stationary)(ego_vehicle, log_dir)
+
+# Define "passing" using the being_crossed_by function.
+# The ego vehicle (track_candidate) is doing the passing.
+# The parked motorcycle (related_candidate) is being passed.
+# The parked motorcycle will appear to move from the front of the ego to the rear of the ego.
+# Based on the example `overtaking_on_left = being_crossed_by(moving_cars_A, moving_cars_B, log_dir, direction="left", in_direction="clockwise")`
+# where car B (related) overtakes car A (track) on A's left, car B moves from A's rear to A's front. This is "clockwise".
+# Therefore, if the related object moves from track's front to track's rear, it should be "counterclockwise".
+
+# Case 1: Ego vehicle passes a parked motorcycle that is on the ego's right side.
+# The motorcycle (related_candidate) is on the ego's right and effectively moves from ego's front-right to rear-right.
+ego_passing_motorcycle_on_egos_right_side = being_crossed_by(
+    track_candidates=moving_ego,
+    related_candidates=parked_motorcycles,
+    log_dir=log_dir,
+    direction="right",  # The motorcycle crosses the ego vehicle's right-hand side midplane.
+    in_direction="counterclockwise",  # Motorcycle moves from front-of-ego to rear-of-ego.
+    # forward_thresh default is 10m, defining the longitudinal extent of the crossing interaction.
+    lateral_thresh=3.5  # Max lateral distance for crossing. A lane width is ~3-3.5m.
+                        # This ensures the motorcycle is relatively close (e.g., adjacent lane/shoulder).
+)
+
+# Case 2: Ego vehicle passes a parked motorcycle that is on the ego's left side.
+# The motorcycle (related_candidate) is on the ego's left and effectively moves from ego's front-left to rear-left.
+ego_passing_motorcycle_on_egos_left_side = being_crossed_by(
+    track_candidates=moving_ego,
+    related_candidates=parked_motorcycles,
+    log_dir=log_dir,
+    direction="left",  # The motorcycle crosses the ego vehicle's left-hand side midplane.
+    in_direction="counterclockwise",  # Motorcycle moves from front-of-ego to rear-of-ego.
+    lateral_thresh=3.5
+)
+
+# The ego vehicle is passing if either of the above conditions is met.
+ego_passing_parked_motorcycle = scenario_or([
+    ego_passing_motorcycle_on_egos_right_side,
+    ego_passing_motorcycle_on_egos_left_side
+])
+
+# Output the scenario.
+# This will identify timestamps where the moving ego vehicle is passing a parked motorcycle.
+output_scenario(ego_passing_parked_motorcycle, description, log_dir, output_dir)

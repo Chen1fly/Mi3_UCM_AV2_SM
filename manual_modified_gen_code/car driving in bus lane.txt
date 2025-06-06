@@ -1,0 +1,17 @@
+description = "car driving in bus lane"
+
+# Get all objects of category "REGULAR_VEHICLE".
+# "REGULAR_VEHICLE" is defined as "Any conventionally sized passenger vehicle used for the transportation of people and cargo.
+# This includes Cars, vans, pickup trucks, SUVs, etc.", which best represents "car" in the description.
+cars = get_objects_of_category(log_dir, category="REGULAR_VEHICLE")
+
+# Identify instances where these cars are on a "BUS" lane.
+# The function on_lane_type checks if the track candidates are on the specified lane type.
+# The term "driving" is interpreted as the vehicle being operated or found within the bus lane,
+# which includes being temporarily stopped in traffic. This aligns with similar examples
+# that do not explicitly filter for continuous motion unless specified by verbs like "overtaking" or "accelerating".
+cars_in_bus_lane = on_lane_type(cars, log_dir, lane_type="BUS")
+
+# Output the scenario.
+# This will create a file with all instances of cars found to be driving in a bus lane.
+output_scenario(cars_in_bus_lane, description, log_dir, output_dir)

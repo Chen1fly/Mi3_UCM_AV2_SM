@@ -1,0 +1,50 @@
+# Define the description of the scenario
+description = 'vehicle turning right near construction zone'
+
+# 1. Get all vehicles from the dataset
+vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# 2. Identify vehicles that are turning right
+# The 'turning' function filters the input 'vehicles' dictionary and returns only those vehicles that are executing a right turn.
+vehicles_turning_right = turning(vehicles, log_dir, direction='right')
+
+# 3. Get all objects that could indicate the presence of a construction zone.
+# These categories are chosen based on their definitions which suggest use in traffic management or construction areas.
+construction_cones = get_objects_of_category(log_dir, category="CONSTRUCTION_CONE")
+construction_barrels = get_objects_of_category(log_dir, category="CONSTRUCTION_BARREL")
+bollards = get_objects_of_category(log_dir, category="BOLLARD") # Bollards can be temporary for traffic control.
+message_board_trailers = get_objects_of_category(log_dir, category="MESSAGE_BOARD_TRAILER") # Often found near construction.
+# Mobile pedestrian signs might be used if construction reroutes pedestrian traffic.
+mobile_ped_signs = get_objects_of_category(log_dir, category="MOBILE_PEDESTRIAN_SIGN")
+# The "SIGN" category includes general DOT signs, which can encompass construction-specific signage.
+signs = get_objects_of_category(log_dir, category="SIGN")
+# Traffic light trailers are commonly used in temporary setups like construction zones.
+traffic_light_trailers = get_objects_of_category(log_dir, category="TRAFFIC_LIGHT_TRAILER")
+
+# Combine all these individual construction-related object dictionaries into a single comprehensive dictionary.
+# scenario_or ensures that an object appearing in any of these categories is considered part of the construction indicators.
+construction_zone_indicators = scenario_or([
+    construction_cones,
+    construction_barrels,
+    bollards,
+    message_board_trailers,
+    mobile_ped_signs,
+    signs,
+    traffic_light_trailers
+])
+
+# 4. Find vehicles (from the set of vehicles turning right) that are near any of the identified construction zone indicators.
+# 'near_objects' will filter 'vehicles_turning_right'.
+# It will return vehicles that are within 'distance_thresh' (20 meters) of at least 'min_objects' (1) from 'construction_zone_indicators'.
+# A distance of 20 meters is chosen as a reasonable proximity to be considered "near" a construction zone element.
+vehicle_turning_right_near_construction = near_objects(
+    track_uuid=vehicles_turning_right,  # The objects we are primarily interested in (vehicles turning right).
+    candidate_uuids=construction_zone_indicators,  # The objects we are checking proximity to (construction indicators).
+    log_dir=log_dir,
+    distance_thresh=20,  # Maximum distance in meters to be considered "near".
+    min_objects=1  # Must be near at least one construction indicator.
+)
+
+# 5. Output the resulting scenario.
+# This will save the identified instances of vehicles turning right near a construction zone.
+output_scenario(vehicle_turning_right_near_construction, description, log_dir, output_dir)

@@ -1,0 +1,20 @@
+description = 'pedestrian on intersection not using a crosswalk'
+
+# Get all pedestrians in the scenario
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Find pedestrians that are on an intersection
+peds_on_intersection = on_intersection(pedestrians, log_dir)
+
+# Find pedestrians that are NOT at a pedestrian crossing.
+# at_pedestrian_crossing by default uses within_distance=1, meaning the object is within 1m of a crosswalk.
+# scenario_not will give us pedestrians who are not within 1m of a crosswalk.
+peds_not_at_crosswalk = scenario_not(at_pedestrian_crossing)(pedestrians, log_dir, within_distance=1)
+
+# Combine the two conditions:
+# We want pedestrians who are on an intersection AND are not using a crosswalk.
+# scenario_and will return pedestrians that satisfy both conditions at the same timestamps.
+peds_on_intersection_not_using_crosswalk = scenario_and([peds_on_intersection, peds_not_at_crosswalk])
+
+# Output the scenario
+output_scenario(peds_on_intersection_not_using_crosswalk, description, log_dir, output_dir)

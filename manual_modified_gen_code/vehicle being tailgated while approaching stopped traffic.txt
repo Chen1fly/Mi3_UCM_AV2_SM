@@ -1,0 +1,66 @@
+description = 'vehicle being tailgated while approaching stopped traffic'
+
+# Get all vehicles in the scenario.
+# The 'VEHICLE' supercategory includes REGULAR_VEHICLE, EGO_VEHICLE, TRUCK, BUS, etc.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# 1. Identify "stopped traffic" or very slow-moving vehicles (V3s).
+# These are vehicles moving at a very low speed (<= 1.5 m/s, which is approx 5.4 km/h).
+# This state is indicative of a traffic jam, vehicles stopping for a traffic signal, etc.
+slow_or_stopped_vehicles = has_velocity(
+    track_candidates=all_vehicles,
+    log_dir=log_dir,
+    min_velocity=0.0,  # Includes vehicles that are completely stationary.
+    max_velocity=1.5   # Upper bound for being considered "stopped" or "very slow".
+)
+
+# 2. Identify "lead vehicles" (V1s) that are currently moving and are approaching this slow/stopped traffic.
+# These V1s must be moving at a discernible speed (>= 2.0 m/s, approx 7.2 km/h),
+# ensuring they are distinct from the `slow_or_stopped_vehicles` they are approaching.
+# This helps confirm that V1 is actively approaching, not already part of the stopped queue itself.
+moving_vehicles = has_velocity(
+    track_candidates=all_vehicles,
+    log_dir=log_dir,
+    min_velocity=2.0 # Lower bound for V1 to be considered "moving" in this context.
+)
+
+# Filter `moving_vehicles` to get V1s that have `slow_or_stopped_vehicles` (V3s) in front of them.
+# These are the "vehicles approaching stopped traffic".
+lead_vehicles_approaching_slow_traffic = has_objects_in_relative_direction(
+    track_candidates=moving_vehicles,                # The set of potential V1s.
+    related_candidates=slow_or_stopped_vehicles,     # The V3s (the stopped/slow traffic ahead).
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,        # V1 must be approaching at least one V3.
+    max_number=np.inf,   # There could be a queue of V3s.
+    within_distance=40,  # V3 is considered "being approached" if it's within 40 meters in front of V1.
+    lateral_thresh=2.5   # V3's centroid must be within (V1_width/2 + 2.5m) of V1's centerline.
+                         # This allows V3 to be in the same lane or an immediately adjacent lane.
+)
+
+# 3. From these `lead_vehicles_approaching_slow_traffic` (V1s), identify those that are "being tailgated"
+# by another vehicle (V2).
+# The tailgating vehicle (V2) must also be a `moving_vehicle`, implying active following.
+vehicles_being_tailgated_while_approaching_stopped_traffic = has_objects_in_relative_direction(
+    track_candidates=lead_vehicles_approaching_slow_traffic, # These are the V1s (the vehicles being tailgated).
+    related_candidates=moving_vehicles,                     # The V2s (tailgaters) must also be moving.
+    log_dir=log_dir,
+    direction='backward',
+    min_number=1,        # V1 must have at least one V2 tailgating it.
+    max_number=1,        # We are interested in the primary (closest) tailgater.
+    within_distance=10,  # Tailgating is defined as V2 being within 10 meters behind V1 (close following).
+    lateral_thresh=0.75  # V2's centroid must be within (V1_width/2 + 0.75m) of V1's centerline.
+                         # This aims to keep V2 largely in the same lane as V1, allowing for slight misalignment.
+                         # For a typical V1 width of 2m, V2's centroid must be within +/-1.75m of V1's centerline.
+)
+
+# The final result, `vehicles_being_tailgated_while_approaching_stopped_traffic`,
+# contains the UUIDs of V1s that satisfy all parts of the description:
+# they are vehicles, they are being tailgated (by a moving V2),
+# and this is happening while they (V1) are approaching stopped/slow traffic (V3s).
+output_scenario(
+    vehicles_being_tailgated_while_approaching_stopped_traffic,
+    description,
+    log_dir,
+    output_dir
+)

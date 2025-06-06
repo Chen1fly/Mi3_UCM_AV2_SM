@@ -1,0 +1,95 @@
+# Description: truck being passed by ego vehicle while nearby pedestrians cross between construction barriers
+
+# Get initial objects by their categories
+trucks = get_objects_of_category(log_dir, category='TRUCK')
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Define construction barriers by combining relevant categories
+bollards = get_objects_of_category(log_dir, category='BOLLARD')
+cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+barrels = get_objects_of_category(log_dir, category='CONSTRUCTION_BARREL')
+# Construction barriers are any of these types
+construction_barriers = scenario_or([bollards, cones, barrels])
+
+# --- Part 1: Identify trucks being passed by the ego vehicle ---
+
+# Ensure both truck and ego are moving (not stationary/parked)
+# A velocity > 0.5 m/s is typically used to denote movement, excluding annotation jitter for stationary objects.
+moving_trucks = has_velocity(trucks, log_dir, min_velocity=0.5)
+moving_ego = has_velocity(ego_vehicle, log_dir, min_velocity=0.5)
+
+# Identify trucks being passed by the ego vehicle.
+# "being_crossed_by" means the `track_candidates` (trucks) are being crossed by `related_candidates` (ego).
+# `direction` specifies the side of the truck the ego is on.
+# `in_direction` specifies the direction of ego's motion relative to the truck for it to be a pass.
+# `forward_thresh` defines the longitudinal extent of the interaction zone along the truck's side. Trucks are long, so 10m.
+# `lateral_thresh` defines how far out from the truck's side the ego can be (e.g., adjacent lane). 2.5m.
+
+trucks_passed_on_left_by_ego = being_crossed_by(
+    moving_trucks,
+    moving_ego,
+    log_dir,
+    direction='left',
+    in_direction='clockwise',  # Ego moves from truck's rear-left to front-left
+    forward_thresh=10,
+    lateral_thresh=2.5
+)
+
+trucks_passed_on_right_by_ego = being_crossed_by(
+    moving_trucks,
+    moving_ego,
+    log_dir,
+    direction='right',
+    in_direction='counterclockwise',  # Ego moves from truck's rear-right to front-right
+    forward_thresh=10,
+    lateral_thresh=2.5
+)
+
+# Trucks that are passed on either side by the ego
+trucks_being_passed_by_ego = scenario_or([trucks_passed_on_left_by_ego, trucks_passed_on_right_by_ego])
+
+# --- Part 2: Identify pedestrians crossing between construction barriers ---
+
+# Pedestrians are "between" construction barriers if they are near at least two such barriers.
+# `distance_thresh=3`: Pedestrian centroid within 3m of at least two barrier centroids.
+peds_between_barriers = near_objects(
+    pedestrians,
+    construction_barriers,
+    log_dir,
+    distance_thresh=3,
+    min_objects=2  # Must be near at least two barriers
+)
+
+# "Crossing" implies movement.
+moving_pedestrians = has_velocity(pedestrians, log_dir, min_velocity=0.5)
+
+# "Crossing" in a road context often means being on the road.
+pedestrians_on_road = on_road(pedestrians, log_dir)
+
+# Combine conditions for pedestrians: moving, on road, and between barriers.
+crossing_peds_between_barriers = scenario_and([
+    peds_between_barriers,
+    moving_pedestrians,
+    pedestrians_on_road
+])
+
+# --- Part 3: Combine the two conditions ---
+# Find trucks (that are being passed by ego) which are also "nearby" the
+# "pedestrians crossing between construction barriers".
+
+# The `target_trucks` are those identified in `trucks_being_passed_by_ego`.
+# The `qualifying_pedestrians` are those identified in `crossing_peds_between_barriers`.
+# `distance_thresh=15`: The truck is within 15m of such a pedestrian.
+# `min_objects=1`: At least one such pedestrian must be nearby.
+final_trucks_scenario = near_objects(
+    trucks_being_passed_by_ego,
+    crossing_peds_between_barriers,
+    log_dir,
+    distance_thresh=15,
+    min_objects=1
+)
+
+# Output the scenario
+description = 'truck being passed by ego vehicle while nearby pedestrians cross between construction barriers'
+output_scenario(final_trucks_scenario, description, log_dir, output_dir)

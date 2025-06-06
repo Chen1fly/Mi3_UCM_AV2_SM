@@ -1,0 +1,20 @@
+# Define the description for the scenario
+description = 'passenger vehicle turning left at intersection'
+
+# Get all objects of the category 'REGULAR_VEHICLE', which corresponds to passenger vehicles
+# "REGULAR_VEHICLE: Any conventionally sized passenger vehicle used for the transportation of people and cargo.
+# This includes Cars, vans, pickup trucks, SUVs, etc.
+passenger_vehicles = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+# Filter these passenger vehicles to find those that are turning left
+# The turning() function returns objects that are turning in the given direction.
+turning_left_passenger_vehicles = turning(passenger_vehicles, log_dir, direction='left')
+
+# Filter the vehicles that are turning left to find those that are on an intersection
+# The on_intersection() function identifies objects located on top of a road intersection.
+# This ensures the left turn is happening "at" (i.e., on) the intersection.
+passenger_vehicles_turning_left_at_intersection = on_intersection(turning_left_passenger_vehicles, log_dir)
+
+# Output the scenario
+# This will save the identified instances for evaluation or visualization.
+output_scenario(passenger_vehicles_turning_left_at_intersection, description, log_dir, output_dir)

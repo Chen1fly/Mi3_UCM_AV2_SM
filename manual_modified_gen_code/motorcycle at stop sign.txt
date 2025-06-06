@@ -1,0 +1,12 @@
+# Description: motorcycle at stop sign
+# First, get all objects categorized as 'MOTORCYCLE'.
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+
+# Then, filter these motorcycles to find those that are at a stop sign.
+# The at_stop_sign function identifies objects within a certain distance of a stop sign.
+# By default, forward_thresh is 10m, which seems reasonable for this case.
+motorcycles_at_stop_sign = at_stop_sign(motorcycles, log_dir)
+
+# Output the scenario.
+# This will create a file with the identified motorcycles at stop signs.
+output_scenario(motorcycles_at_stop_sign, description, log_dir, output_dir)

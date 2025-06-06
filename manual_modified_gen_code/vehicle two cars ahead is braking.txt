@@ -1,0 +1,116 @@
+description = 'vehicle two cars ahead is braking'
+
+# Get all relevant object categories
+all_vehicles_initially = get_objects_of_category(log_dir, category="VEHICLE")
+ego_vehicle_initially = get_objects_of_category(log_dir, category="EGO_VEHICLE")
+
+# Filter for objects that are actively moving (not stationary for extended periods)
+# stationary() identifies objects that moved very little. scenario_not(stationary) gives us active ones.
+active_vehicles = scenario_not(stationary)(all_vehicles_initially, log_dir)
+active_ego = scenario_not(stationary)(ego_vehicle_initially, log_dir)
+# Ensure active_ego is also considered within the broader set of active vehicles if logic requires it,
+# though for related_candidates, active_vehicles (non-ego) is usually what's intended.
+
+# Identify vehicles that are currently braking
+# Braking is indicated by a longitudinal acceleration less than -1.0 m/s^2.
+# min_accel defaults to -np.inf, so we only need to set max_accel.
+braking_vehicles = accelerating(active_vehicles, log_dir, max_accel=-1.0)
+
+# --- Find the first car ahead of the ego vehicle (car_1) ---
+
+# Step 1: Get candidate vehicles spatially in front of the active ego vehicle.
+# We are looking for the single closest vehicle (min_number=1, max_number=1).
+# A generous within_distance is used, e.g., 75 meters.
+# lateral_thresh is initially open (inf) as in_same_lane will provide precise filtering.
+# get_objects_in_relative_direction returns a dict of the related_candidates (potential car_1s).
+potential_car_1 = get_objects_in_relative_direction(
+    track_candidates=active_ego,
+    related_candidates=active_vehicles,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1, # Ego must have at least one car in front
+    max_number=1, # We only care about the closest car
+    within_distance=75.0,
+    lateral_thresh=float('inf') # Lane check will be done by in_same_lane
+)
+
+# Step 2: Filter potential_car_1 to ensure it's in the same lane as the ego vehicle.
+# in_same_lane returns a filtered version of track_candidates (potential_car_1)
+# that are in the same lane as any of the related_candidates (active_ego).
+car_1_in_ego_lane = in_same_lane(
+    track_candidates=potential_car_1,
+    related_candidates=active_ego,
+    log_dir=log_dir
+)
+# car_1_in_ego_lane is now a scenario dict keyed by UUIDs of the actual first cars ahead of ego, in the same lane.
+
+# --- Find the second car ahead of the ego vehicle (car_2), which is the car ahead of car_1 ---
+
+# Step 3: Get candidate vehicles spatially in front of car_1_in_ego_lane.
+# These are potential car_2s.
+potential_car_2 = get_objects_in_relative_direction(
+    track_candidates=car_1_in_ego_lane, # car_1 is now the reference
+    related_candidates=active_vehicles, # Search among other active vehicles
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1, # car_1 must have at least one car in front
+    max_number=1, # We only care about the closest car to car_1
+    within_distance=75.0,
+    lateral_thresh=float('inf')
+)
+
+# Step 4: Filter potential_car_2 to ensure it's in the same lane as car_1_in_ego_lane.
+car_2_in_car_1_lane = in_same_lane(
+    track_candidates=potential_car_2,
+    related_candidates=car_1_in_ego_lane, # car_2 must be in car_1's lane
+    log_dir=log_dir
+)
+# car_2_in_car_1_lane now contains the actual second vehicles ahead of ego, in the correct lane sequence.
+
+# --- Identify which of these car_2 instances are braking ---
+
+# Step 5: Find the intersection of car_2_in_car_1_lane and braking_vehicles.
+# These are the specific "vehicle two cars ahead is braking".
+braking_car_2_specific = scenario_and([car_2_in_car_1_lane, braking_vehicles])
+# braking_car_2_specific is keyed by UUIDs of these target braking vehicles.
+
+# --- Link this event back to the EGO vehicle ---
+# We want to find EGO vehicles that are experiencing this situation.
+# The final scenario should be keyed by EGO vehicle UUIDs.
+
+# Step 6: Identify the car_1s that are immediately followed by one of the braking_car_2_specific.
+# has_objects_in_relative_direction links track_candidates to related_candidates.
+# Here, track_candidates are car_1_in_ego_lane.
+# related_candidates are the braking_car_2_specific instances.
+# This identifies car_1s that have a direct line-of-sight (and same-lane confirmed by braking_car_2_specific's construction)
+# to a braking second car.
+car_1_leading_to_braking_event = has_objects_in_relative_direction(
+    track_candidates=car_1_in_ego_lane,
+    related_candidates=braking_car_2_specific, # The specific car_2s that are braking
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1, # Must have at least one such braking car_2 in front
+    max_number=1, # And it must be the direct one
+    within_distance=75.0,
+    lateral_thresh=float('inf') # Lane integrity is already part of braking_car_2_specific definition relative to car_1
+)
+# car_1_leading_to_braking_event is keyed by car_1 UUIDs, and its relationships point to the braking_car_2_specific.
+
+# Step 7: Identify the active_ego vehicles that are immediately followed by one of these car_1_leading_to_braking_event.
+# This is the final step to attribute the scenario to the ego.
+# track_candidates are active_ego.
+# related_candidates are the car_1s identified in the previous step.
+result_scenario = has_objects_in_relative_direction(
+    track_candidates=active_ego,
+    related_candidates=car_1_leading_to_braking_event, # car_1s that lead to the braking event
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1, # Must have one such car_1 in front
+    max_number=1, # And it must be the direct one
+    within_distance=75.0,
+    lateral_thresh=float('inf') # Lane integrity is already part of car_1_leading_to_braking_event's definition relative to ego
+)
+# result_scenario is keyed by active_ego UUIDs.
+# The relationships point from ego -> car_1 -> braking_car_2.
+
+output_scenario(result_scenario, description, log_dir, output_dir)

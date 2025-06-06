@@ -1,0 +1,16 @@
+# Description: school bus on intersection
+
+# Get all school bus objects from the logs.
+school_buses = get_objects_of_category(log_dir, category='SCHOOL_BUS')
+
+# Filter the school buses to find those that are on an intersection.
+# The on_intersection function identifies objects located on top of a road intersection.
+school_buses_on_intersection = on_intersection(school_buses, log_dir)
+
+# Define the description for the scenario.
+description = 'school bus on intersection'
+
+# Output the scenario.
+# This will save the identified instances of school buses on intersections.
+# The visualize=False flag means that no visualization will be generated.
+output_scenario(school_buses_on_intersection, description, log_dir, output_dir, visualize=False)

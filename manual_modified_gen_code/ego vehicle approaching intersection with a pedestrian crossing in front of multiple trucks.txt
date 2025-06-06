@@ -1,0 +1,56 @@
+description = "ego vehicle approaching intersection with a pedestrian crossing in front of multiple trucks"
+
+# 1. Define the Ego Vehicle that is actively approaching an intersection.
+# Get the EGO_VEHICLE object.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+# Ego should be moving to be "approaching".
+moving_ego = scenario_not(stationary)(ego_vehicle, log_dir)
+# Ego should be near an intersection (e.g., within 25 meters).
+ego_near_intersection = near_intersection(moving_ego, log_dir, threshold=25.0)
+# Ego should not yet be ON the intersection if it's "approaching".
+ego_not_on_intersection = scenario_not(on_intersection)(moving_ego, log_dir)
+# Combine these conditions for the candidate ego vehicle.
+candidate_ego = scenario_and([ego_near_intersection, ego_not_on_intersection])
+
+# 2. Define "a pedestrian crossing" as pedestrians currently on a physical pedestrian crossing.
+# Get all PEDESTRIAN objects.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+# Filter for pedestrians that are on a pedestrian crossing (e.g., within 1 meter of it).
+peds_on_crossing = at_pedestrian_crossing(pedestrians, log_dir, within_distance=1.0)
+
+# 3. Define "multiple trucks" that have this "pedestrian crossing" (peds_on_crossing) in front of them.
+# Get all TRUCK objects.
+trucks = get_objects_of_category(log_dir, category='TRUCK')
+# Consider only active (non-stationary) trucks as they are part of a dynamic traffic scenario.
+active_trucks = scenario_not(stationary)(trucks, log_dir)
+
+# Identify trucks that have at least one pedestrian (who is on a crossing) in front of them.
+# 'min_number=1' means at least one ped_on_crossing.
+# 'within_distance=30.0' means the pedestrian is within 30 meters in front of the truck.
+# 'lateral_thresh=5.0' defines the lateral width of the "in front" region.
+trucks_with_peds_on_crossing_in_front = has_objects_in_relative_direction(
+    track_candidates=active_trucks,
+    related_candidates=peds_on_crossing,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=np.inf, # No upper limit on number of peds, as long as there's at least one.
+    within_distance=30.0,
+    lateral_thresh=5.0
+)
+# trucks_with_peds_on_crossing_in_front is now a scenario dictionary of TRUCK UUIDs satisfying the condition.
+
+# 4. The final scenario: The candidate_ego is near "multiple" (at least 2) of these
+#    trucks_with_peds_on_crossing_in_front.
+# 'distance_thresh=50.0' means the ego is within 50 meters of these trucks, defining the overall scene.
+# 'min_objects=2' ensures there are "multiple" such trucks.
+final_scenario = near_objects(
+    track_uuid=candidate_ego,  # The ego vehicles matching criteria from step 1
+    candidate_uuids=trucks_with_peds_on_crossing_in_front, # The trucks identified in step 3
+    log_dir=log_dir,
+    distance_thresh=50.0,
+    min_objects=2
+)
+
+# Output the final scenario.
+output_scenario(final_scenario, description, log_dir, output_dir)

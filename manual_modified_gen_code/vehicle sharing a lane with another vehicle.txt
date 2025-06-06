@@ -1,0 +1,24 @@
+# Define a single scenario for the description: vehicle sharing a lane with another vehicle
+
+# Get all objects of the 'VEHICLE' category.
+# 'VEHICLE' is a superclass including REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, etc.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are in the same lane as another vehicle.
+# We use the 'vehicles' set for both track_candidates and related_candidates.
+# The function in_same_lane(A, B) identifies tracks in A that are in the same road lane as a related candidate in B.
+# When A and B are the same set (all vehicles), this is intended to find vehicles
+# that are in the same lane as at least one *other* vehicle from that set.
+# This interpretation is based on the provided example:
+#   description = 'vehicle sharing a lane with another vehicle'
+#   vehicles_in_same_lane = in_same_lane(vehicles, vehicles, log_dir)
+# "Sharing a lane with another vehicle" implies the presence of at least two vehicles in that lane.
+vehicles_sharing_lane = in_same_lane(vehicles, vehicles, log_dir)
+
+# Define the description for the scenario.
+description = 'vehicle sharing a lane with another vehicle'
+
+# Output the resulting scenario.
+# The 'vehicles_sharing_lane' dictionary will contain track UUIDs of vehicles
+# that meet the condition of being in the same lane as another vehicle.
+output_scenario(vehicles_sharing_lane, description, log_dir, output_dir)

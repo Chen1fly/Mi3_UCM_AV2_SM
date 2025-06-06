@@ -1,0 +1,37 @@
+# Define a single scenario for the description: {dog near pedestrian}
+
+# The description for the scenario
+description = 'dog near pedestrian'
+
+# Get all instances of dogs from the dataset
+# The 'DOG' category is specified in the provided list of object categories.
+dogs = get_objects_of_category(log_dir, category='DOG')
+
+# Get all instances of pedestrians from the dataset
+# The 'PEDESTRIAN' category is one of the most frequent object categories.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Find instances of dogs that are near at least one pedestrian.
+# The 'near_objects' function identifies track candidates (dogs) that are
+# within a specified distance of a minimum number of related candidates (pedestrians).
+# To be precise and avoid false positives, as requested, a distance_thresh of 5.0 meters is used.
+# This is smaller than the default 10 meters and represents a closer interaction
+# between a dog and a pedestrian.
+# min_objects=1 means we are looking for a dog near at least one pedestrian.
+dogs_near_pedestrians = near_objects(
+    track_uuid=dogs,  # The objects we are focusing on (dogs)
+    candidate_uuids=pedestrians,  # The objects to check proximity to (pedestrians)
+    log_dir=log_dir,
+    distance_thresh=5.0,  # Maximum distance in meters for a pedestrian to be considered "near" a dog.
+    min_objects=1  # At least one pedestrian must be near the dog.
+)
+
+# Output the resulting scenario.
+# This function will save the identified instances (dogs near pedestrians)
+# in an evaluation-ready format.
+output_scenario(
+    dogs_near_pedestrians,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

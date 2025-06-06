@@ -1,0 +1,11 @@
+# motorcyclist
+# This scenario identifies all instances of motorcyclists in the dataset.
+
+# Get all objects categorized as 'MOTORCYCLIST' from the logs.
+# The 'MOTORCYCLIST' category includes persons actively riding a motorcycle or a moped, including passengers.
+motorcyclists = get_objects_of_category(log_dir, category='MOTORCYCLIST')
+
+# Output the identified motorcyclists.
+# The description provides a human-readable explanation of what the scenario represents.
+# The log_dir and output_dir are assumed to be predefined variables for the location of logs and where to save the output.
+output_scenario(motorcyclists, description, log_dir, output_dir)

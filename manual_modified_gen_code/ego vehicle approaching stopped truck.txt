@@ -1,0 +1,39 @@
+description = 'ego vehicle approaching stopped truck'
+
+# Get the EGO_VEHICLE. This is the vehicle collecting the data.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all categories of trucks.
+# The "TRUCK" category is for trucks not fitting BOX_TRUCK or TRUCK_CAB.
+# To capture a general "truck", we should combine these categories.
+trucks_proper = get_objects_of_category(log_dir, category='TRUCK')
+box_trucks = get_objects_of_category(log_dir, category='BOX_TRUCK')
+truck_cabs = get_objects_of_category(log_dir, category='TRUCK_CAB')
+
+# Combine all truck objects into a single scenario dictionary.
+all_truck_objects = scenario_or([trucks_proper, box_trucks, truck_cabs])
+
+# Filter for trucks that are "stopped".
+# We use has_velocity with a low max_velocity to identify temporarily stopped vehicles.
+# A max_velocity of 0.5 m/s is used, as stationary objects can have jitter up to this speed.
+# stationary() is for objects that moved <2m over their entire observation, which might be too strict.
+stopped_trucks = has_velocity(all_truck_objects, log_dir, max_velocity=0.5)
+
+# Find instances where the ego vehicle is "approaching" one of these stopped trucks.
+# The 'heading_toward' function is suitable for this.
+# - track_candidates: ego_vehicle
+# - related_candidates: stopped_trucks
+# - max_distance: Defines the maximum distance for "approaching". 50 meters is a reasonable value.
+# - minimum_speed: The component of the ego's velocity towards the truck must be at least 0.5 m/s.
+#   This ensures the ego is actively moving towards the truck and not, for example, moving parallel or away slowly.
+# - angle_threshold (default 22.5 degrees): Ensures the ego's direction of travel is generally towards the truck.
+ego_approaching_stopped_truck = heading_toward(
+    track_candidates=ego_vehicle,
+    related_candidates=stopped_trucks,
+    log_dir=log_dir,
+    max_distance=50.0,  # Ego must be within 50 meters of the stopped truck
+    minimum_speed=0.5   # Ego's speed component towards the truck must be at least 0.5 m/s
+)
+
+# Output the scenario.
+output_scenario(ego_approaching_stopped_truck, description, log_dir, output_dir)

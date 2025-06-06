@@ -1,0 +1,12 @@
+description = 'parked box trucks'
+
+# Get all objects of category BOX_TRUCK
+box_trucks = get_objects_of_category(log_dir, category='BOX_TRUCK')
+
+# Filter the box trucks to find those that are stationary (parked)
+# The stationary() function identifies objects that moved less than 2m over their observation length,
+# which is suitable for identifying parked vehicles.
+parked_box_trucks = stationary(box_trucks, log_dir)
+
+# Output the scenario
+output_scenario(parked_box_trucks, description, log_dir, output_dir)

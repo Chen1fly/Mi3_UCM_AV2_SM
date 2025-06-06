@@ -1,0 +1,36 @@
+# description for the scenario
+description = 'passenger vehicle near stroller in road'
+
+# Get all regular vehicles, which are considered passenger vehicles based on the category definition:
+# "REGULAR_VEHICLE": Any conventionally sized passenger vehicle used for the transportation of people and cargo.
+# This includes Cars, vans, pickup trucks, SUVs, etc.
+passenger_vehicles = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+# Get all stroller objects from the dataset.
+# "STROLLER": Push-cart with wheels meant to hold a baby or toddler.
+strollers = get_objects_of_category(log_dir, category='STROLLER')
+
+# Filter the stroller objects to include only those that are on a road.
+# The 'on_road' function is preferred over 'in_drivable_area' for precision,
+# as it excludes areas like parking lots.
+strollers_on_road = on_road(strollers, log_dir)
+
+# Identify passenger vehicles that are near the strollers located on the road.
+# The 'near_objects' function is used for this.
+# - 'track_uuid' (passenger_vehicles): These are the primary objects we are interested in finding.
+# - 'candidate_uuids' (strollers_on_road): These are the related objects that the primary objects must be near.
+# - 'distance_thresh=5.0': Defines "near" as being within 5 meters. This value is chosen for a reasonable proximity
+#   without being too restrictive or too broad, aiming for precision.
+# - 'min_objects=1': Requires the passenger vehicle to be near at least one stroller on the road,
+#   matching the singular "stroller" in the description.
+passenger_vehicle_near_stroller_on_road = near_objects(
+    track_uuid=passenger_vehicles,
+    candidate_uuids=strollers_on_road,
+    log_dir=log_dir,
+    distance_thresh=5.0,
+    min_objects=1
+)
+
+# Output the identified scenario instances.
+# This will save the results in a format suitable for evaluation or further analysis.
+output_scenario(passenger_vehicle_near_stroller_on_road, description, log_dir, output_dir)

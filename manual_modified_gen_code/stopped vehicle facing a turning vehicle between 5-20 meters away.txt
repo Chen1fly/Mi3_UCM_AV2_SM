@@ -1,0 +1,68 @@
+description = "stopped vehicle facing a turning vehicle between 5-20 meters away"
+
+# 1. Get all objects of category VEHICLE.
+# This will be the base set for identifying both stopped and turning vehicles.
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# 2. Identify stopped vehicles.
+# A vehicle is considered stopped if its velocity is very low (e.g., 0.0 to 0.5 m/s).
+# The stationary() function is for vehicles that moved less than 2m over their observation,
+# indicating parked vehicles. For temporarily stopped vehicles, has_velocity() is more appropriate.
+stopped_vehicles = has_velocity(
+    track_candidates=all_vehicles,
+    log_dir=log_dir,
+    min_velocity=0.0,  # Minimum velocity for a vehicle to be considered (practically zero)
+    max_velocity=0.5   # Maximum velocity for a vehicle to be considered stopped (accounting for jitter)
+)
+
+# 3. Identify turning vehicles.
+# The 'turning' function identifies vehicles that are executing a turn (left or right).
+# direction=None will capture vehicles turning in either direction.
+turning_vehicles = turning(
+    track_candidates=all_vehicles,
+    log_dir=log_dir,
+    direction=None  # Consider turns in any direction (left or right)
+)
+
+# 4. Identify stopped vehicles that are facing any of the turning vehicles and are within 20 meters.
+# This gives us an initial set of stopped vehicles that are oriented towards a turning vehicle
+# within the maximum specified distance.
+# The default 'within_angle' for facing_toward is 22.5 degrees, which is suitable for "facing".
+stopped_list_facing_turning_max_20m = facing_toward(
+    track_candidates=stopped_vehicles,
+    related_candidates=turning_vehicles,
+    log_dir=log_dir,
+    within_angle=22.5, # Angle in degrees on either side of the track-candidate's forward axis
+    max_distance=20.0  # Maximum distance to consider the turning vehicle
+)
+
+# 5. Refine the set to ensure the distance is strictly greater than 5 meters.
+# We take the set from step 4 (stopped_list_facing_turning_max_20m) and remove any vehicles
+# from it that are also facing a turning vehicle within 5 meters.
+# This is achieved by using scenario_not with facing_toward.
+# scenario_not(func)(TC, RC, log, params_for_func) will compute TC - func(TC, RC, log, params_for_func).
+# Here, TC is stopped_list_facing_turning_max_20m.
+# func is facing_toward.
+# RC is turning_vehicles.
+# The condition for removal is facing a turning vehicle within 5 meters.
+final_scenario_vehicles = scenario_not(facing_toward)(
+    stopped_list_facing_turning_max_20m, # Track candidates to filter: those already facing a turning vehicle within 20m
+    turning_vehicles,                    # Related candidates: the turning vehicles
+    log_dir,
+    within_angle=22.5, # Must use the same angle definition for consistency
+    max_distance=5.0   # If also facing a turning vehicle within 5m, it will be excluded
+)
+
+# The 'final_scenario_vehicles' dictionary now contains UUIDs of stopped vehicles
+# that are facing a turning vehicle, where the distance to such a turning vehicle is
+# greater than 5 meters and less than or equal to 20 meters.
+# It ensures that if a stopped vehicle is facing one turning vehicle at 15m AND another at 3m,
+# it will be excluded, as it faces one too close.
+
+# Output the resulting scenario.
+output_scenario(
+    scenario=final_scenario_vehicles,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

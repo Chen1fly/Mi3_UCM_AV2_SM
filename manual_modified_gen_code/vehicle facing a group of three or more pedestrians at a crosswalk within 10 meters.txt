@@ -1,0 +1,49 @@
+description = "vehicle facing a group of three or more pedestrians at a crosswalk within 10 meters"
+
+# 1. Get all vehicles from the dataset.
+# These are the primary objects we are interested in.
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# 2. Get all pedestrians from the dataset.
+# These are the related objects.
+all_pedestrians = get_objects_of_category(log_dir, category="PEDESTRIAN")
+
+# 3. Filter pedestrians to include only those that are AT a pedestrian crossing.
+# 'within_distance=0' means the pedestrian's centroid is within the boundaries of the crosswalk.
+peds_at_crosswalk = at_pedestrian_crossing(
+    track_candidates=all_pedestrians,
+    log_dir=log_dir,
+    within_distance=0
+)
+
+# 4. Identify vehicles that are near a "group" of these pedestrians at the crosswalk.
+# A "group" is defined as 3 or more pedestrians.
+# The proximity condition is "within 10 meters".
+# 'vehicles_near_ped_group' will be a scenario dictionary where keys are vehicle UUIDs
+# that are near at least 'min_objects' of 'peds_at_crosswalk' within 'distance_thresh'.
+vehicles_near_ped_group = near_objects(
+    track_uuid=all_vehicles, # The objects we are analyzing for proximity to a group
+    candidate_uuids=peds_at_crosswalk, # The pool of objects that can form the group
+    log_dir=log_dir,
+    distance_thresh=10, # The maximum distance for a pedestrian to be considered "near" the vehicle
+    min_objects=3       # The minimum number of pedestrians required to form a "group"
+)
+
+# 5. From the vehicles identified in step 4 (those near a group of pedestrians at a crosswalk),
+#    filter further to find those that are "facing" any of the pedestrians at the crosswalk.
+# The "facing" condition is defined by an angular region (default 22.5 degrees on either side of forward axis)
+# and a maximum distance (10 meters).
+# 'track_candidates' are the vehicles already filtered by the 'near_objects' condition.
+# 'related_candidates' are all pedestrians at a crosswalk, as the vehicle could be facing any one of them.
+final_scenario_vehicles = facing_toward(
+    track_candidates=vehicles_near_ped_group,
+    related_candidates=peds_at_crosswalk,
+    log_dir=log_dir,
+    within_angle=22.5, # Default angle, defining the cone for "facing"
+    max_distance=10    # Maximum distance for the "facing" interaction
+)
+
+# Output the resulting scenario.
+# 'final_scenario_vehicles' contains the UUIDs of vehicles that meet all specified conditions,
+# along with the timestamps when these conditions are met.
+output_scenario(final_scenario_vehicles, description, log_dir, output_dir)

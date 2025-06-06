@@ -1,0 +1,91 @@
+# Define the scenario description
+description = 'motorcycle between two vehicles'
+
+# Get all motorcycle objects from the logs
+# Motorcycles are the primary objects of interest for this scenario.
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+
+# Get all vehicle objects. The 'VEHICLE' superclass includes various types like cars,
+# trucks, buses, etc. Notably, it does not include motorcycles as per the provided
+# category definitions. This is important to ensure that the "two vehicles" are distinct
+# from the motorcycle itself.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Define proximity parameters to precisely define what "between two vehicles" means spatially.
+# These parameters are crucial for avoiding false positives.
+
+# longitudinal_distance_max: Maximum longitudinal (i.e., forward/backward along the direction
+# of travel) distance between the center of the motorcycle and the center of the other vehicle.
+# A value of 5.0 meters allows for some staggering (one vehicle slightly ahead or behind the other,
+# or the motorcycle not perfectly aligned with their midpoint) while ensuring they are
+# relatively close longitudinally.
+longitudinal_distance_max = 5.0  # meters
+
+# lateral_distance_max_from_side: Maximum lateral distance from the side of the motorcycle
+# (the side parallel to its direction of travel, e.g., its left or right flank)
+# to the center of the other vehicle.
+# A value of 2.0 meters is chosen to capture vehicles in immediately adjacent lanes.
+# For context:
+# - A motorcycle might be ~0.8m wide (so its side is 0.4m from its center).
+# - A car might be ~1.8m wide (so its center is 0.9m from its side).
+# - If a car is in an adjacent lane, its center might be, for example, 1.8m laterally
+#   from the motorcycle's center.
+# - The lateral distance from the motorcycle's side (at 0.4m from its center) to the
+#   adjacent car's center (at 1.8m from motorcycle's center) would be |1.8m - 0.4m| = 1.4m.
+# - Thus, a threshold of 2.0m for this side-to-center distance provides a reasonable
+#   margin to robustly identify vehicles to the immediate left/right.
+lateral_distance_max_from_side = 2.0  # meters
+
+# Step 1: Identify motorcycles that have a vehicle to their immediate left.
+# The function `has_objects_in_relative_direction` filters the `track_candidates` (motorcycles)
+# based on the presence of `related_candidates` (all_vehicles) in the specified direction.
+# - min_number=1: Ensures that there is at least one vehicle to the left.
+# - max_number=1: While the function identifies tracks meeting `min_number`, `max_number`
+#                 influences which related objects are considered if multiple exist (focuses on the closest).
+#                 For this check, we primarily care that the condition (at least one vehicle) is met.
+motorcycles_with_vehicle_on_left = has_objects_in_relative_direction(
+    track_candidates=motorcycles,
+    related_candidates=all_vehicles,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1,
+    max_number=1,
+    within_distance=longitudinal_distance_max,
+    lateral_thresh=lateral_distance_max_from_side
+)
+
+# Step 2: Identify motorcycles that have a vehicle to their immediate right.
+# The same logic and parameters are applied, but for the 'right' direction.
+motorcycles_with_vehicle_on_right = has_objects_in_relative_direction(
+    track_candidates=motorcycles,
+    related_candidates=all_vehicles,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,
+    max_number=1,
+    within_distance=longitudinal_distance_max,
+    lateral_thresh=lateral_distance_max_from_side
+)
+
+# Step 3: Combine the conditions.
+# A motorcycle is "between two vehicles" if it simultaneously has a vehicle to its
+# immediate left (from Step 1) AND a vehicle to its immediate right (from Step 2)
+# at the same point in time.
+# The `scenario_and` function computes the intersection of these two sets of motorcycles,
+# ensuring that a motorcycle UUID appears in the result only if it's present in both
+# intermediate results for the same timestamps.
+motorcycle_between_vehicles = scenario_and([
+    motorcycles_with_vehicle_on_left,
+    motorcycles_with_vehicle_on_right
+])
+
+# Step 4: Output the resulting scenario.
+# The `motorcycle_between_vehicles` dictionary contains the UUIDs of motorcycles
+# that satisfy the "between two vehicles" condition, along with the lists of timestamps
+# at which this condition holds true for each motorcycle.
+output_scenario(
+    scenario=motorcycle_between_vehicles,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

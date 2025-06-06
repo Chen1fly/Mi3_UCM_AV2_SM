@@ -1,0 +1,5 @@
+description = "city bus"
+# Get all objects of the category "BUS"
+city_buses = get_objects_of_category(log_dir, category="BUS")
+# Output the scenario
+output_scenario(city_buses, description, log_dir, output_dir)

@@ -1,0 +1,62 @@
+import numpy as np
+from pathlib import Path
+from typing import Literal
+
+# Assume log_dir and output_dir are predefined Path objects.
+# log_dir: Path
+# output_dir: Path
+
+description = "box truck braking in front of ego vehicle"
+
+# 1. Get all box trucks from the dataset.
+# The category 'BOX_TRUCK' is specific to this type of vehicle.
+box_trucks = get_objects_of_category(log_dir, category='BOX_TRUCK')
+
+# 2. Get the ego vehicle.
+# The 'EGO_VEHICLE' category represents the vehicle collecting the data.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# 3. Identify box trucks that are braking.
+# The 'accelerating' function can find objects with negative acceleration (braking).
+# According to its documentation, "Values under -1 reliably indicates braking."
+# So, we set max_accel to -1.0 m/s^2 and min_accel to -infinity.
+braking_box_trucks = accelerating(
+    track_candidates=box_trucks,
+    log_dir=log_dir,
+    min_accel=-np.inf,  # No lower bound for braking deceleration.
+    max_accel=-1.0      # Upper bound for braking (acceleration <= -1.0 m/s^2).
+)
+
+# 4. Find braking box trucks that are in front of the ego vehicle.
+# We use 'has_objects_in_relative_direction' for this.
+# - track_candidates: braking_box_trucks (these are the primary objects we want to identify).
+# - related_candidates: ego_vehicle (the object the box truck is in front of).
+# - direction: 'backward'. If the box truck is in front of the ego, the ego is 'backward' relative to the box truck.
+# - min_number=1, max_number=1: There is only one ego vehicle.
+# - within_distance=50: The ego vehicle must be within 50 meters behind the box truck. This is a common interaction distance.
+# - lateral_thresh=1.5: This parameter controls how laterally offset the ego vehicle can be.
+#   A box truck is roughly 2.5m wide. The ego vehicle's centroid must be within a lateral corridor.
+#   The width of this corridor for the ego's centroid, relative to the box truck's centerline, is:
+#   (box_truck_width / 2) + lateral_thresh = (2.5m / 2) + 1.5m = 1.25m + 1.5m = 2.75m.
+#   So, the ego's center must be within +/- 2.75m of the box truck's centerline.
+#   This ensures the box truck is largely in the same lane or immediately relevant adjacent space.
+box_truck_braking_in_front_of_ego = has_objects_in_relative_direction(
+    track_candidates=braking_box_trucks,
+    related_candidates=ego_vehicle,
+    log_dir=log_dir,
+    direction='backward',
+    min_number=1,
+    max_number=1,
+    within_distance=50.0,  # meters
+    lateral_thresh=1.5     # meters
+)
+
+# 5. Output the scenario.
+# The resulting 'box_truck_braking_in_front_of_ego' dictionary will have UUIDs of
+# box trucks that meet all specified conditions.
+output_scenario(
+    scenario=box_truck_braking_in_front_of_ego,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

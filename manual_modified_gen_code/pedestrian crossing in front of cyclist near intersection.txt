@@ -1,0 +1,31 @@
+description = "pedestrian crossing in front of cyclist near intersection"
+
+# Get all pedestrian objects from the dataset
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get all bicyclist objects (people riding bicycles) from the dataset
+# 'BICYCLIST' refers to the person riding, which fits "cyclist"
+bicyclists = get_objects_of_category(log_dir, category='BICYCLIST')
+
+# Identify bicyclists that are near an intersection
+# Using a threshold of 10 meters to define "near"
+bicyclists_near_intersection = near_intersection(bicyclists, log_dir, threshold=10.0)
+
+# Identify pedestrians who are crossing in front of the bicyclists that are near an intersection.
+# 'being_crossed_by' normally returns the objects being crossed (the bicyclists in this case).
+# 'reverse_relationship' is used to make the pedestrians (the ones doing the crossing) the primary objects in the output scenario.
+# direction='forward': The pedestrian is crossing the forward midplane of the bicyclist.
+# forward_thresh=5: The crossing interaction zone extends up to 5 meters in front of the bicyclist.
+# lateral_thresh=2: The crossing is considered active if the pedestrian is within 2 meters laterally
+#                   from the bicyclist's forward path during the crossing. This ensures a more direct crossing.
+pedestrians_crossing_cyclists_near_intersection = reverse_relationship(being_crossed_by)(
+    track_candidates=bicyclists_near_intersection,
+    related_candidates=pedestrians,
+    log_dir=log_dir,
+    direction='forward',
+    forward_thresh=5,
+    lateral_thresh=2
+)
+
+# Output the scenario, which now contains pedestrians meeting the specified conditions.
+output_scenario(pedestrians_crossing_cyclists_near_intersection, description, log_dir, output_dir)

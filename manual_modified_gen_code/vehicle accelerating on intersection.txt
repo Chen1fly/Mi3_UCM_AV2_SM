@@ -1,0 +1,17 @@
+description = 'vehicle accelerating on intersection'
+
+# Get all objects of category VEHICLE
+vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Identify vehicles that are accelerating
+# The default min_accel=0.65 m/s^2 is used, which indicates positive acceleration.
+accelerating_vehicles = accelerating(vehicles, log_dir)
+
+# Identify vehicles that are on an intersection
+vehicles_on_intersection = on_intersection(vehicles, log_dir)
+
+# Find vehicles that are both accelerating and on an intersection
+accelerating_vehicles_on_intersection = scenario_and([accelerating_vehicles, vehicles_on_intersection])
+
+# Output the scenario
+output_scenario(accelerating_vehicles_on_intersection, description, log_dir, output_dir)

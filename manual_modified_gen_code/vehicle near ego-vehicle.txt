@@ -1,0 +1,43 @@
+description = "vehicle near ego-vehicle"
+
+# Get the ego vehicle.
+# The EGO_VEHICLE category represents the data-collecting vehicle.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all other vehicles.
+# The 'VEHICLE' superclass includes various types of vehicles but is assumed
+# not to overlap with EGO_VEHICLE based on category definitions.
+all_other_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Find instances of other vehicles being near the ego vehicle.
+# We use `reverse_relationship` with `near_objects` to achieve this.
+# The `near_objects` function identifies timestamps when a tracked object (first argument)
+# is near a specified set of related objects (second argument).
+# Its direct output is typically {timestamp: [related_candidate_uuids_involved]}.
+#
+# `reverse_relationship(near_objects)(A, B, ...)` is intended to make the objects in B
+# the primary keys in the output scenario, showing their relationship to A.
+# In this case, A is `ego_vehicle` and B is `all_other_vehicles`.
+#
+# The underlying effective call for `near_objects` would be:
+# `near_objects(track_candidates=ego_vehicle, related_candidates=all_other_vehicles, ...)`
+# - `distance_thresh=10`: Defines "near" as within 10 meters (default for `near_objects`).
+# - `min_objects=1`: Specifies that the `ego_vehicle` must be near at least one vehicle
+#   from `all_other_vehicles` for the condition to be met at a given timestamp.
+#
+# The `reverse_relationship` wrapper then transforms this so that the output scenario
+# `vehicles_near_ego` is keyed by the UUIDs of vehicles from `all_other_vehicles`.
+# For each such vehicle, the value will indicate its relationship (being near) to the `ego_vehicle`
+# and the timestamps when this occurs. This matches the desired output where "vehicle" (non-ego)
+# is the primary referred object.
+vehicles_near_ego = reverse_relationship(near_objects)(
+    track_uuid=ego_vehicle,  # First argument to near_objects (conceptually)
+    candidate_uuids=all_other_vehicles,  # Second argument to near_objects (conceptually)
+    log_dir=log_dir,
+    distance_thresh=10,  # Standard distance for "near" as per near_objects default
+    min_objects=1        # Ego vehicle must be near at least one other vehicle
+)
+
+# Output the resulting scenario.
+# The `vehicles_near_ego` dictionary is expected to have other_vehicle UUIDs as keys.
+output_scenario(vehicles_near_ego, description, log_dir, output_dir)

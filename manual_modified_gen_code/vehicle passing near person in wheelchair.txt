@@ -1,0 +1,30 @@
+description = "vehicle passing near person in wheelchair"
+
+# Get all objects of category "VEHICLE"
+# This includes REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, BOX_TRUCK, BUS, SCHOOL_BUS, ARTICULATED_BUS, TRUCK, and RAILED_VEHICLE.
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Filter for vehicles that are actively moving, not stationary (parked).
+# The "passing" part of the description implies the vehicle is in motion.
+moving_vehicles = scenario_not(stationary)(all_vehicles, log_dir)
+
+# Get all objects of category "WHEELCHAIR".
+# The category "WHEELCHAIR" is defined as "Chair fitted with wheels for use as a means of transport by a person who is unable to walk...",
+# so this directly represents the "person in wheelchair" concept.
+wheelchairs = get_objects_of_category(log_dir, category="WHEELCHAIR")
+
+# Identify moving vehicles that are near at least one wheelchair.
+# "Near" is defined as being within a 5-meter distance.
+# The near_objects function is used to find track_candidates (moving_vehicles)
+# that have at least min_objects (1 wheelchair) within distance_thresh (5 meters).
+vehicles_passing_near_wheelchairs = near_objects(
+    track_uuid=moving_vehicles,               # The vehicles that might be passing near
+    candidate_uuids=wheelchairs,              # The wheelchairs to check proximity to
+    log_dir=log_dir,
+    distance_thresh=5.0,                      # Maximum distance in meters to be considered "near"
+    min_objects=1                             # At least one wheelchair must be near
+)
+
+# Output the resulting scenario.
+# This will store the identified instances of vehicles passing near wheelchairs.
+output_scenario(vehicles_passing_near_wheelchairs, description, log_dir, output_dir)

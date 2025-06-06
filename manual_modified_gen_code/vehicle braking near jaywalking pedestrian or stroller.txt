@@ -1,0 +1,45 @@
+description = 'vehicle braking near jaywalking pedestrian or stroller'
+
+# Get all vehicles, pedestrians, and strollers from the dataset
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+strollers = get_objects_of_category(log_dir, category='STROLLER')
+
+# Identify vehicles that are braking
+# Braking is indicated by a negative acceleration. Values under -1.0 m/s^2 reliably indicate braking.
+# We are interested in any acceleration from -infinity up to -1.0 m/s^2.
+braking_vehicles = accelerating(vehicles, log_dir, min_accel=-np.inf, max_accel=-1.0)
+
+# Identify jaywalking pedestrians
+# Jaywalking pedestrians are those on the road but not at a designated pedestrian crossing.
+# First, find pedestrians that are on the road.
+peds_on_road = on_road(pedestrians, log_dir)
+# Next, filter these to pedestrians not at a pedestrian crossing.
+# at_pedestrian_crossing by default checks within 1 meter.
+# scenario_not will give us pedestrians on road who are NOT within 1m of a pedestrian crossing.
+jaywalking_pedestrians = scenario_not(at_pedestrian_crossing)(peds_on_road, log_dir, within_distance=1.0)
+
+# Identify "jaywalking" strollers (strollers on the road and not at a pedestrian crossing)
+# Similar to jaywalking pedestrians, these are strollers in a potentially unsafe road position.
+strollers_on_road = on_road(strollers, log_dir)
+jaywalking_strollers = scenario_not(at_pedestrian_crossing)(strollers_on_road, log_dir, within_distance=1.0)
+
+# Combine jaywalking pedestrians and "jaywalking" strollers into a single group of interest
+# These are the objects that, if a vehicle is braking near them, would constitute the scenario.
+hazardous_road_users = scenario_or([jaywalking_pedestrians, jaywalking_strollers])
+
+# Identify braking vehicles that are near any of these hazardous road users (jaywalking pedestrians or strollers)
+# near_objects checks if track_candidates (braking_vehicles) are near related_candidates (hazardous_road_users).
+# We'll use a distance threshold of 10 meters for "near" and require at least one such hazardous user.
+vehicles_braking_near_hazard = near_objects(
+    track_uuid=braking_vehicles,
+    candidate_uuids=hazardous_road_users,
+    log_dir=log_dir,
+    distance_thresh=10.0,  # Maximum distance in meters to be considered "near"
+    min_objects=1          # At least one jaywalking pedestrian or stroller must be near
+)
+
+# Output the final scenario
+# This will be a dictionary of braking vehicles that are near a jaywalking pedestrian or stroller,
+# along with the timestamps when this condition is met.
+output_scenario(vehicles_braking_near_hazard, description, log_dir, output_dir)

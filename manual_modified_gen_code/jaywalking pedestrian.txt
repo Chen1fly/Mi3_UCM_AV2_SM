@@ -1,0 +1,22 @@
+# Define the description of the scenario
+description = 'jaywalking pedestrian'
+
+# Get all objects categorized as 'PEDESTRIAN'
+# These are individuals who are not driving or riding in/on a vehicle.
+peds = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Filter the pedestrians to include only those who are on a road or bike lane.
+# 'on_road' is preferred over 'in_drivable_area' for this context as roads
+# exclude parking lots or other drivable areas connecting roads to parking lots.
+peds_on_road = on_road(peds, log_dir)
+
+# Identify jaywalking pedestrians.
+# A pedestrian is considered to be jaywalking if they are on the road
+# AND they are NOT at a designated pedestrian crossing.
+# 'at_pedestrian_crossing' identifies objects within a certain distance (default 1m) of a pedestrian crossing.
+# 'scenario_not' inverts this, so we get pedestrians on the road who are NOT near/at a crossing.
+jaywalking_peds = scenario_not(at_pedestrian_crossing)(peds_on_road, log_dir, within_distance=1)
+
+# Output the identified scenario.
+# This will save the results in an evaluation-ready format.
+output_scenario(jaywalking_peds, description, log_dir, output_dir)

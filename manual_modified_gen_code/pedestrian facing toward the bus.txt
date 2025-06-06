@@ -1,0 +1,20 @@
+description = 'pedestrian facing toward the bus'
+
+# Get all pedestrian objects from the dataset
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get all bus objects from the dataset
+buses = get_objects_of_category(log_dir, category='BUS')
+
+# Find instances where pedestrians are facing toward buses.
+# The default `within_angle` of 22.5 degrees and `max_distance` of 50m will be used.
+# `track_candidates` are the pedestrians (those doing the facing).
+# `related_candidates` are the buses (those being faced).
+pedestrians_facing_buses = facing_toward(
+    track_candidates=pedestrians,
+    related_candidates=buses,
+    log_dir=log_dir
+)
+
+# Output the scenario
+output_scenario(pedestrians_facing_buses, description, log_dir, output_dir)

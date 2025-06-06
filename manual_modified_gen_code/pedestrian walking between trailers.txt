@@ -1,0 +1,108 @@
+description = 'pedestrian walking between trailers'
+
+# Get all pedestrian objects from the logs.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Filter pedestrians to include only those that are "walking".
+# "Walking" is defined as having a velocity greater than 0.5 m/s.
+# This helps distinguish actual movement from stationary states or minor jitters in annotation.
+# The default min_velocity in has_velocity is 0.5 m/s.
+walking_pedestrians = has_velocity(pedestrians, log_dir, min_velocity=0.5)
+
+# Get all vehicular trailer objects from the logs.
+# No specific state (e.g., parked, moving) is assumed for the trailers.
+trailers = get_objects_of_category(log_dir, category='VEHICULAR_TRAILER')
+
+# Define parameters for spatial relationships. These are chosen to be relatively
+# restrictive to increase precision and avoid false positives.
+
+# Parameters for lateral "between" (pedestrian has a trailer to their left and right):
+# - within_distance: Max distance from pedestrian's centroid to trailer's centroid.
+# - lateral_thresh: For 'left'/'right' directions, this is the max longitudinal
+#   offset of the trailer relative to the pedestrian. It ensures the trailer is
+#   somewhat aligned with the pedestrian along their direction of motion.
+lateral_within_distance = 2.5  # meters
+lateral_alignment_thresh = 3.0 # meters
+
+# Parameters for longitudinal "between" (pedestrian has a trailer in front and behind):
+# - within_distance: Max distance from pedestrian's centroid to trailer's centroid.
+# - lateral_thresh: For 'forward'/'backward' directions, this is the max lateral
+#   offset of the trailer relative to the pedestrian. It ensures the trailer is
+#   roughly in the pedestrian's path.
+longitudinal_within_distance = 4.0 # meters
+longitudinal_alignment_thresh = 1.5 # meters
+
+
+# Scenario 1: Pedestrian is walking between trailers laterally.
+# This means the pedestrian has one trailer to their left and one trailer to their right simultaneously.
+# We use `has_objects_in_relative_direction` to find pedestrians (track_candidates)
+# that meet this condition.
+# `min_number=1` and `max_number=1` ensure we are looking for exactly one trailer
+# on the specified side (the closest one if multiple exist).
+
+# Find pedestrians with a trailer to their left.
+peds_with_trailer_to_left = has_objects_in_relative_direction(
+    track_candidates=walking_pedestrians,
+    related_candidates=trailers,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1,
+    max_number=1,
+    within_distance=lateral_within_distance,
+    lateral_thresh=lateral_alignment_thresh
+)
+
+# Find pedestrians with a trailer to their right.
+peds_with_trailer_to_right = has_objects_in_relative_direction(
+    track_candidates=walking_pedestrians,
+    related_candidates=trailers,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,
+    max_number=1,
+    within_distance=lateral_within_distance,
+    lateral_thresh=lateral_alignment_thresh
+)
+
+# Combine the above: pedestrians must have a trailer to their left AND right at the same timestamps.
+peds_between_trailers_laterally = scenario_and([peds_with_trailer_to_left, peds_with_trailer_to_right])
+
+
+# Scenario 2: Pedestrian is walking between trailers longitudinally.
+# This means the pedestrian has one trailer in front and one trailer behind simultaneously.
+
+# Find pedestrians with a trailer in front of them.
+peds_with_trailer_in_front = has_objects_in_relative_direction(
+    track_candidates=walking_pedestrians,
+    related_candidates=trailers,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=1,
+    within_distance=longitudinal_within_distance,
+    lateral_thresh=longitudinal_alignment_thresh
+)
+
+# Find pedestrians with a trailer behind them.
+peds_with_trailer_behind = has_objects_in_relative_direction(
+    track_candidates=walking_pedestrians,
+    related_candidates=trailers,
+    log_dir=log_dir,
+    direction='backward',
+    min_number=1,
+    max_number=1,
+    within_distance=longitudinal_within_distance,
+    lateral_thresh=longitudinal_alignment_thresh
+)
+
+# Combine the above: pedestrians must have a trailer in front AND behind at the same timestamps.
+peds_between_trailers_longitudinally = scenario_and([peds_with_trailer_in_front, peds_with_trailer_behind])
+
+
+# Final scenario: A pedestrian is considered "walking between trailers" if they satisfy
+# either the lateral "between" condition OR the longitudinal "between" condition.
+peds_walking_between_trailers = scenario_or([peds_between_trailers_laterally, peds_between_trailers_longitudinally])
+
+# Output the resulting scenario.
+# This will contain pedestrian UUIDs and timestamps where they are walking between trailers.
+output_scenario(peds_walking_between_trailers, description, log_dir, output_dir)

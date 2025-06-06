@@ -1,0 +1,11 @@
+# Description: regular vehicle turning right
+description = 'regular vehicle turning right'
+
+# Get all objects of category "REGULAR_VEHICLE"
+regular_vehicles = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+# Filter for regular vehicles that are turning right
+regular_vehicles_turning_right = turning(regular_vehicles, log_dir, direction='right')
+
+# Output the scenario
+output_scenario(regular_vehicles_turning_right, description, log_dir, output_dir)

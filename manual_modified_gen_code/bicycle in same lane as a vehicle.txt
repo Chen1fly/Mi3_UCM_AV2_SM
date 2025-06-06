@@ -1,0 +1,17 @@
+# Description of the scenario
+description = 'bicycle in same lane as a vehicle'
+
+# Get all bicycle objects from the logs
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Get all vehicle objects from the logs
+# The 'VEHICLE' supercategory includes REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, BOX_TRUCK, BUS, SCHOOL_BUS, ARTICULATED_BUS, TRUCK, and RAILED_VEHICLE
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Find instances where a bicycle is in the same lane as a vehicle
+# The function in_same_lane will return a scenario dictionary where the keys are the UUIDs of the bicycles
+# that are in the same lane as at least one of the vehicles, and the values are the timestamps when this condition is met.
+bicycle_in_same_lane_as_vehicle = in_same_lane(bicycles, vehicles, log_dir)
+
+# Output the identified scenario
+output_scenario(bicycle_in_same_lane_as_vehicle, description, log_dir, output_dir)

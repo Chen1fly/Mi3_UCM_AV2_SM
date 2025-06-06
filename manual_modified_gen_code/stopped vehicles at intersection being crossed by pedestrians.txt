@@ -1,0 +1,70 @@
+description = 'stopped vehicles at intersection being crossed by pedestrians'
+
+# Get all vehicle objects from the logs.
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Get all pedestrian objects from the logs.
+pedestrians = get_objects_of_category(log_dir, category="PEDESTRIAN")
+
+# --- Define "stopped vehicles" ---
+# A vehicle is considered "stopped" if it has a very low velocity
+# and is not significantly accelerating or braking. This distinguishes
+# from "stationary" (e.g., parked) and allows for vehicles temporarily
+# stopped at an intersection.
+
+# 1. Filter for vehicles with very low speed (e.g., <= 0.5 m/s).
+# The 'has_velocity' function's docstring notes that stationary objects (or those appearing stationary due to jitter)
+# might have a velocity up to 0.5 m/s.
+low_velocity_vehicles = has_velocity(all_vehicles, log_dir, max_velocity=0.5)
+
+# 2. Filter for vehicles that are not significantly accelerating.
+# The 'accelerating' function's docstring notes values over 1.0 m/s^2 reliably indicate acceleration.
+# We use 'scenario_not' to get vehicles with acceleration *less than* 1.0 m/s^2.
+not_significantly_accelerating = scenario_not(accelerating)(all_vehicles, log_dir, min_accel=1.0)
+
+# 3. Filter for vehicles that are not significantly braking.
+# The 'accelerating' function's docstring notes values under -1.0 m/s^2 reliably indicate braking.
+# We use 'scenario_not' to get vehicles with acceleration *greater than* -1.0 m/s^2 (i.e., braking deceleration is less than 1.0 m/s^2).
+not_significantly_braking = scenario_not(accelerating)(all_vehicles, log_dir, max_accel=-1.0)
+
+# Combine these three conditions using 'scenario_and'.
+# A vehicle is "stopped" if it has low velocity AND is not significantly accelerating AND is not significantly braking.
+stopped_vehicles = scenario_and([
+    low_velocity_vehicles,
+    not_significantly_accelerating,
+    not_significantly_braking
+])
+
+# --- Define "vehicles at an intersection" ---
+# Use 'on_intersection' to find vehicles that are physically located on an intersection area.
+# This is applied to all vehicles initially to get a map of all vehicles that are ever on an intersection.
+all_vehicles_on_intersection = on_intersection(all_vehicles, log_dir)
+
+# --- Identify "stopped vehicles at an intersection" ---
+# These are vehicles that satisfy both being "stopped" (as defined above)
+# AND being "at an intersection" (i.e., on an intersection area).
+# We use 'scenario_and' to find vehicles present in both 'stopped_vehicles' and 'all_vehicles_on_intersection'
+# at the same timestamps.
+stopped_vehicles_at_intersection = scenario_and([
+    stopped_vehicles,
+    all_vehicles_on_intersection
+])
+
+# --- Identify the target vehicles: stopped vehicles at an intersection being crossed by pedestrians ---
+# We use the 'being_crossed_by' function.
+# - 'track_candidates' are the 'stopped_vehicles_at_intersection' (the objects being crossed).
+# - 'related_candidates' are 'pedestrians' (the objects doing the crossing).
+# - 'direction' is "forward", meaning pedestrians are crossing the front midplane of the vehicles.
+# The function will return a scenario dictionary of the 'track_candidates' (vehicles) that meet this condition.
+# Default values for forward_thresh (10m) and lateral_thresh (5m) from the function definition are used.
+final_scenario_vehicles = being_crossed_by(
+    track_candidates=stopped_vehicles_at_intersection,
+    related_candidates=pedestrians,
+    log_dir=log_dir,
+    direction="forward"
+)
+
+# Output the resulting scenario.
+# This scenario will contain the UUIDs of vehicles that were stopped at an intersection
+# and were being crossed by pedestrians, along with the relevant timestamps.
+output_scenario(final_scenario_vehicles, description, log_dir, output_dir)

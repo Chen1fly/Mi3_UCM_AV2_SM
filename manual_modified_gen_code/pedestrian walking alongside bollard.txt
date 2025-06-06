@@ -1,0 +1,59 @@
+# Assume log_dir and output_dir are predefined Path objects.
+# Assume all the provided functions are defined elsewhere and np is numpy.
+
+description = 'pedestrian walking alongside bollard'
+
+# 1. Get all pedestrian objects from the dataset.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# 2. Filter for pedestrians that are actively walking.
+# A minimum velocity of 0.5 m/s is used to distinguish walking from being stationary,
+# accounting for potential annotation jitter for stationary objects.
+walking_pedestrians = has_velocity(pedestrians, log_dir, min_velocity=0.5)
+
+# 3. Get all bollard objects from the dataset.
+# Bollards are inherently stationary; no further filtering for motion is typically needed.
+bollards = get_objects_of_category(log_dir, category='BOLLARD')
+
+# 4. Identify walking pedestrians that have a bollard to their immediate left.
+# The parameters are chosen to define "alongside" precisely:
+# - 'direction="left"': Specifies that the bollard should be to the pedestrian's left.
+# - 'min_number=1': Requires at least one bollard to satisfy the condition.
+# - 'max_number=1': Focuses on the presence of one such relationship.
+# - 'within_distance=1.5': Defines the maximum lateral distance (to the left) between the
+#   center of the pedestrian and the center of the bollard (e.g., allowing for object widths and a small gap).
+# - 'lateral_thresh=1.0': Defines the maximum longitudinal deviation. The bollard's center
+#   must be within 1.0m of the pedestrian's front or back edge, ensuring they are roughly aligned longitudinally.
+peds_with_bollard_left = has_objects_in_relative_direction(
+    track_candidates=walking_pedestrians,
+    related_candidates=bollards,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1,
+    max_number=1,
+    within_distance=1.5, 
+    lateral_thresh=1.0   
+)
+
+# 5. Identify walking pedestrians that have a bollard to their immediate right.
+# Parameters are analogous to the 'left' case.
+peds_with_bollard_right = has_objects_in_relative_direction(
+    track_candidates=walking_pedestrians,
+    related_candidates=bollards,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,
+    max_number=1,
+    within_distance=1.5, 
+    lateral_thresh=1.0   
+)
+
+# 6. Combine the two conditions using scenario_or.
+# A pedestrian is considered to be walking alongside a bollard if the bollard
+# is on their immediate left OR their immediate right, meeting the proximity criteria.
+peds_walking_alongside_bollard = scenario_or([peds_with_bollard_left, peds_with_bollard_right])
+
+# 7. Output the resulting scenario.
+# This will save the identified instances (pedestrians walking alongside bollards)
+# for evaluation or further analysis.
+output_scenario(peds_walking_alongside_bollard, description, log_dir, output_dir)

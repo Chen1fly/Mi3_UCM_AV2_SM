@@ -1,0 +1,47 @@
+# Define the description of the scenario
+description = 'ego vehicle changing lanes near construction zone'
+
+# Get the EGO_VEHICLE
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Identify when the ego vehicle is changing lanes (either left or right)
+ego_changing_lanes = changing_lanes(ego_vehicle, log_dir, direction=None)
+
+# Get different types of objects that typically signify a construction zone
+construction_cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+construction_barrels = get_objects_of_category(log_dir, category='CONSTRUCTION_BARREL')
+message_board_trailers = get_objects_of_category(log_dir, category='MESSAGE_BOARD_TRAILER')
+mobile_pedestrian_signs = get_objects_of_category(log_dir, category='MOBILE_PEDESTRIAN_SIGN')
+official_signalers = get_objects_of_category(log_dir, category='OFFICIAL_SIGNALER')
+# Construction signs are part of the 'SIGN' category, which is broad.
+# To be precise and avoid false positives, we'll stick to more explicit construction zone indicators.
+# If specific construction signs were a distinct category, they would be included here.
+
+# Combine all construction-related objects into a single scenario dictionary
+# This means if any of these objects are present, it could indicate a construction zone.
+construction_zone_objects_list = [
+    construction_cones,
+    construction_barrels,
+    message_board_trailers,
+    mobile_pedestrian_signs,
+    official_signalers
+]
+all_construction_objects = scenario_or(construction_zone_objects_list)
+
+# Find instances where the ego vehicle (which is already determined to be changing lanes)
+# is near at least one of these construction zone objects.
+# "Near" is defined as being within a certain distance, e.g., 15 meters.
+# The min_objects=1 ensures that we trigger if at least one construction object is nearby.
+# It is assumed that `near_objects` will filter the `ego_changing_lanes` dictionary,
+# retaining the ego vehicle's UUID as the key and refining its associated timestamps
+# to only those moments where it is both changing lanes AND near a construction object.
+ego_cl_near_construction_zone = near_objects(
+    track_uuid=ego_changing_lanes,  # Input are the instances of ego vehicle changing lanes
+    candidate_uuids=all_construction_objects,  # Objects to check proximity against
+    log_dir=log_dir,
+    distance_thresh=15.0,  # Define "near" as within 15 meters
+    min_objects=1  # At least one construction object must be near
+)
+
+# Output the final scenario
+output_scenario(ego_cl_near_construction_zone, description, log_dir, output_dir)

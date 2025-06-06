@@ -1,0 +1,14 @@
+description = 'bicycle on intersection'
+
+# Get all objects of category BICYCLE
+# This function returns a dictionary of all bicycles and the timestamps they are visible.
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Filter for bicycles that are on an intersection
+# The on_intersection function takes a dictionary of track candidates and returns a subset
+# of those candidates that are located on top of a road intersection.
+bicycles_on_intersection = on_intersection(bicycles, log_dir)
+
+# Output the scenario
+# This function will save the identified instances of bicycles on an intersection.
+output_scenario(bicycles_on_intersection, description, log_dir, output_dir)

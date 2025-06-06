@@ -1,0 +1,10 @@
+# Description: bus making right turn
+
+# Get all objects of category BUS
+buses = get_objects_of_category(log_dir, category='BUS')
+
+# Filter for buses that are turning right
+buses_turning_right = turning(buses, log_dir, direction='right')
+
+# Output the scenario
+output_scenario(buses_turning_right, description, log_dir, output_dir)

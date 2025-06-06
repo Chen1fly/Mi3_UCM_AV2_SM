@@ -1,0 +1,26 @@
+description = 'pedestrian turning and watching the ego vehicle'
+
+# Get all pedestrian objects from the logs
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get the ego vehicle object from the logs
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Identify pedestrians that are turning (in any direction: left, right, or not specified which defaults to any turn)
+# The 'direction=None' argument in the 'turning' function means it will detect turns in any direction.
+turning_pedestrians = turning(pedestrians, log_dir, direction=None)
+
+# From the set of turning pedestrians, identify those who are also facing towards the ego vehicle.
+# The 'facing_toward' function checks if 'track_candidates' (turning_pedestrians) are oriented towards 'related_candidates' (ego_vehicle).
+# Default parameters for 'facing_toward' are within_angle=22.5 degrees and max_distance=50 meters.
+# These defaults are considered reasonable for interpreting "watching" in a geometric sense.
+pedestrians_turning_and_watching_ego = facing_toward(
+    track_candidates=turning_pedestrians,
+    related_candidates=ego_vehicle,
+    log_dir=log_dir
+)
+
+# Output the resulting scenario.
+# This will contain pedestrians who are simultaneously turning and facing the ego vehicle,
+# along with the timestamps when these conditions are met.
+output_scenario(pedestrians_turning_and_watching_ego, description, log_dir, output_dir)

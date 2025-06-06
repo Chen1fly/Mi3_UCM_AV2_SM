@@ -1,0 +1,65 @@
+# Define the description for the scenario
+description = 'vehicle turning right next to pedestrian with stroller'
+
+# 1. Get all relevant object categories from the logs
+# These are the base sets of objects we will be working with.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+all_pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+all_strollers = get_objects_of_category(log_dir, category='STROLLER')
+
+# 2. Identify vehicles that are actively turning right.
+# The 'turning' function filters 'all_vehicles' to find those making a right turn.
+vehicles_turning_right = turning(all_vehicles, log_dir, direction='right')
+
+# 3. Identify "pedestrians with stroller".
+# This is interpreted as a pedestrian object that has a stroller object very close to it.
+# We use 'near_objects' to find pedestrians (track_candidates) that have at least one stroller (related_candidates)
+# within a small distance (1.5 meters), implying the pedestrian is "with" the stroller.
+# The resulting 'pedestrians_with_stroller' dictionary will have pedestrian UUIDs as keys.
+pedestrians_with_stroller = near_objects(
+    track_candidates=all_pedestrians,
+    related_candidates=all_strollers,
+    log_dir=log_dir,
+    distance_thresh=1.5,  # Maximum distance between pedestrian and stroller to be considered "with".
+    min_objects=1         # At least one stroller must be near the pedestrian.
+)
+
+# 4. Find vehicles (from 'vehicles_turning_right') that are "next to" these "pedestrians_with_stroller".
+# "Next to" is interpreted as the pedestrian_with_stroller being on the vehicle's immediate left or right side.
+# We use 'has_objects_in_relative_direction' where the 'track_candidates' are the 'vehicles_turning_right'
+# and 'related_candidates' are the 'pedestrians_with_stroller'.
+
+# Case 1: The pedestrian_with_stroller is to the left of the turning vehicle.
+# 'within_distance=3.0': The pedestrian_with_stroller is within 3 meters from the vehicle's left side.
+# 'lateral_thresh=3.0': The pedestrian_with_stroller is within a 3-meter longitudinal window 
+#                       (e.g., aligned with the vehicle's body from front to back).
+vehicles_with_pws_on_left = has_objects_in_relative_direction(
+    track_candidates=vehicles_turning_right,
+    related_candidates=pedestrians_with_stroller,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1,         # At least one pedestrian_with_stroller must be present.
+    within_distance=3.0,
+    lateral_thresh=3.0
+)
+
+# Case 2: The pedestrian_with_stroller is to the right of the turning vehicle.
+# Parameters are similar to the 'left' case, but for the 'right' direction.
+vehicles_with_pws_on_right = has_objects_in_relative_direction(
+    track_candidates=vehicles_turning_right,
+    related_candidates=pedestrians_with_stroller,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,         # At least one pedestrian_with_stroller must be present.
+    within_distance=3.0,
+    lateral_thresh=3.0
+)
+
+# 5. Combine the two cases using 'scenario_or'.
+# The final scenario includes vehicles that meet the condition of having a pedestrian_with_stroller
+# on either their left OR their right side while turning right.
+final_scenario_vehicles = scenario_or([vehicles_with_pws_on_left, vehicles_with_pws_on_right])
+
+# 6. Output the resulting scenario.
+# This will save the instances of vehicles that are turning right next to a pedestrian with a stroller.
+output_scenario(final_scenario_vehicles, description, log_dir, output_dir)

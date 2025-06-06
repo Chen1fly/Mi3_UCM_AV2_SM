@@ -1,0 +1,61 @@
+# Define the scenario description
+description = 'vehicle following another vehicle too closely'
+
+# Get all vehicle objects from the dataset.
+# The 'VEHICLE' category is a superclass including various types of vehicles.
+vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Identify vehicles that are actively following another vehicle.
+# The 'following' function defines this as simultaneously moving in the same direction and in the same lane.
+# The result is a dictionary where keys are follower UUIDs and values are dictionaries
+# mapping leader UUIDs to lists of timestamps when the following condition is met.
+# Example: {follower_A_uuid: {leader_B_uuid: [timestamp1, timestamp2]}}
+following_relationships = following(
+    track_uuid=vehicles,        # The potential followers
+    candidate_uuids=vehicles,   # The potential leaders
+    log_dir=log_dir
+)
+
+# Identify follower vehicles that have a leader vehicle very close in front of them.
+# This function helps to quantify the "too closely" aspect of the scenario.
+# - 'track_candidates': The vehicles from whose perspective we are looking (the followers).
+# - 'related_candidates': The vehicles we are checking for in front (the leaders).
+# - 'direction="forward"': We are looking for vehicles in front of the track_candidates.
+# - 'min_number=1': There must be at least one vehicle in front.
+# - 'max_number=1': We are interested in the single closest vehicle in front. This is crucial for identifying the immediate leader.
+# - 'within_distance=7.0': This defines "too closely" in the longitudinal direction (e.g., within 7 meters).
+#                          This distance is chosen to be roughly 1 to 1.5 typical car lengths.
+# - 'lateral_thresh=0.5': This defines the maximum lateral deviation. A small value like 0.5 meters
+#                         ensures that the vehicle in front is very well-aligned with the follower,
+#                         indicative of being in the same lane and directly in front. This helps improve precision.
+# The result has the same structure: {follower_uuid: {leader_uuid_in_front: [timestamps]}}
+followers_with_leader_very_close_in_front = has_objects_in_relative_direction(
+    track_candidates=vehicles,
+    related_candidates=vehicles,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=1,
+    within_distance=7.0, # Representing "too closely" longitudinally
+    lateral_thresh=0.5   # Ensuring tight lateral alignment for "in the same path"
+)
+
+# Combine the two conditions using scenario_and.
+# This operation finds instances where a vehicle is:
+# 1. Engaged in a 'following' behavior with a specific leader (from following_relationships).
+# AND
+# 2. That specific leader is positioned "too closely" in front of it (from followers_with_leader_very_close_in_front).
+# The 'scenario_and' function will ensure that the follower_uuid, leader_uuid, and timestamps align across both conditions.
+vehicles_following_too_closely = scenario_and([
+    following_relationships,
+    followers_with_leader_very_close_in_front
+])
+
+# Output the resulting scenario.
+# This will save the instances of vehicles following another vehicle too closely.
+output_scenario(
+    scenario=vehicles_following_too_closely,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

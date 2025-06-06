@@ -1,0 +1,34 @@
+# Define the description of the scenario
+description = 'vehicle changing lanes through bike lane'
+
+# Get all objects of category 'VEHICLE'
+# 'VEHICLE' is a superclass including various types of vehicles.
+vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Identify vehicles that are in the process of changing lanes.
+# This function returns a scenario dictionary where keys are vehicle UUIDs
+# and values are lists of timestamps during which the lane change occurs.
+# direction=None means it captures both left and right lane changes.
+lane_changing_vehicles = changing_lanes(vehicles, log_dir, direction=None)
+
+# From the set of vehicles that are changing lanes,
+# identify those that are on a bike lane during the timestamps of their lane change.
+# The on_lane_type function will filter the 'lane_changing_vehicles' dictionary.
+# It checks, for each vehicle and its "lane-changing" timestamps,
+# if the vehicle is also on a 'BIKE' lane at those specific timestamps.
+# This ensures that the vehicle is on the bike lane *while* it is changing lanes.
+vehicle_changing_lanes_through_bike_lane = on_lane_type(
+    lane_changing_vehicles, 
+    log_dir, 
+    lane_type='BIKE'
+)
+
+# Output the resulting scenario.
+# This will contain vehicles that were changing lanes and, during those lane change events,
+# were also on a bike lane.
+output_scenario(
+    vehicle_changing_lanes_through_bike_lane, 
+    description, 
+    log_dir, 
+    output_dir
+)

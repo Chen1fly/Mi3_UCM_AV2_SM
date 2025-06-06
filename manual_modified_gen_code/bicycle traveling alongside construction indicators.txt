@@ -1,0 +1,66 @@
+# Define the description of the scenario
+description = "bicycle traveling alongside construction indicators"
+
+# Get all bicycle objects from the dataset
+# 'BICYCLE' is the category for the non-motorized vehicle itself.
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Filter for bicycles that are actually moving (traveling).
+# Stationary objects can have a velocity up to 0.5 m/s due to jitter.
+# We set min_velocity slightly higher to ensure the bicycle is intentionally moving.
+moving_bicycles = has_velocity(bicycles, log_dir, min_velocity=0.75)  # Corresponds to about 2.7 km/h
+
+# Get construction indicator objects.
+# Based on the provided categories, 'CONSTRUCTION_CONE' and 'CONSTRUCTION_BARREL' are the most direct matches.
+construction_cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+construction_barrels = get_objects_of_category(log_dir, category='CONSTRUCTION_BARREL')
+
+# Combine different types of construction indicators into a single scenario dictionary.
+# A bicycle could be alongside either a cone or a barrel (or both).
+all_construction_indicators = scenario_or([construction_cones, construction_barrels])
+
+# Define parameters for what "alongside" means in terms of proximity.
+# 'within_distance' refers to the longitudinal distance (how far ahead or behind the bicycle along its path).
+# 'lateral_thresh' refers to the lateral distance (how far to the side of the bicycle).
+# These values are chosen to represent a close, side-by-side configuration.
+# A bicycle is roughly 0.5-0.7m wide. Indicators might be 0.5m to 1.5m away from its side.
+# The indicator should be roughly abreast of the bicycle.
+alongside_longitudinal_max_distance = 5.0  # meters: indicator can be within +/- 5m of the bicycle's center along its direction of travel.
+alongside_lateral_max_distance = 2.0      # meters: indicator can be up to 2m from the bicycle's side.
+
+# Find moving bicycles that have at least one construction indicator to their left.
+# 'track_candidates' are the moving bicycles.
+# 'related_candidates' are the construction indicators.
+# 'direction="left"' means we are looking for indicators on the left side of the bicycle.
+bicycles_with_indicators_on_left = has_objects_in_relative_direction(
+    track_candidates=moving_bicycles,
+    related_candidates=all_construction_indicators,
+    log_dir=log_dir,
+    direction="left",
+    min_number=1,  # At least one construction indicator must be present.
+    within_distance=alongside_longitudinal_max_distance,
+    lateral_thresh=alongside_lateral_max_distance
+)
+
+# Find moving bicycles that have at least one construction indicator to their right.
+bicycles_with_indicators_on_right = has_objects_in_relative_direction(
+    track_candidates=moving_bicycles,
+    related_candidates=all_construction_indicators,
+    log_dir=log_dir,
+    direction="right",
+    min_number=1,  # At least one construction indicator must be present.
+    within_distance=alongside_longitudinal_max_distance,
+    lateral_thresh=alongside_lateral_max_distance
+)
+
+# A bicycle is considered "traveling alongside construction indicators" if there are indicators
+# on its left side OR on its right side that meet the defined proximity criteria.
+# scenario_or combines the results, so bicycles found in either (or both) of the above conditions are included.
+bicycles_traveling_alongside_indicators = scenario_or([
+    bicycles_with_indicators_on_left,
+    bicycles_with_indicators_on_right
+])
+
+# Output the resulting scenario.
+# This will create a file with the bicycles that match the description "bicycle traveling alongside construction indicators".
+output_scenario(bicycles_traveling_alongside_indicators, description, log_dir, output_dir)

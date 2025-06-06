@@ -1,0 +1,34 @@
+description = 'ego vehicle with parked bicycles ahead'
+
+# Get the ego vehicle. The EGO_VEHICLE category is specified for the data collecting vehicle.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all objects of category BICYCLE.
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Filter for bicycles that are "parked".
+# The stationary() function identifies objects that moved less than 2m over their observation period,
+# which is suitable for determining if a bicycle is parked.
+parked_bicycles = stationary(bicycles, log_dir)
+
+# Find instances where the ego vehicle has parked bicycles ahead of it.
+# 'ahead' is interpreted as being in the 'forward' direction from the ego vehicle's perspective.
+# We specify min_number=1 to find at least one parked bicycle.
+# within_distance sets the maximum longitudinal distance for a bicycle to be considered "ahead".
+# lateral_thresh sets the maximum lateral distance from the sides of the ego vehicle.
+# These values are chosen to be reasonably focused while still capturing relevant scenarios.
+# A parked bicycle could be on the side of the road, so lateral_thresh should not be too small.
+ego_with_parked_bicycles_ahead = has_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=parked_bicycles,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    within_distance=30.0,  # Consider bicycles within 30 meters longitudinally ahead.
+    lateral_thresh=10.0   # Consider bicycles within 10 meters laterally from the ego's sides.
+)
+
+# Output the resulting scenario.
+# This will contain ego vehicle track UUIDs that meet the condition,
+# along with the UUIDs of the parked bicycles ahead and the corresponding timestamps.
+output_scenario(ego_with_parked_bicycles_ahead, description, log_dir, output_dir)

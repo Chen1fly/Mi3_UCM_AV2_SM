@@ -1,0 +1,42 @@
+description = "ego vehicle approaching intersection with crossing dog"
+
+# 1. Get EGO_VEHICLE and DOG objects
+# The EGO_VEHICLE is the primary subject of the scenario.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+# DOGs are the related objects involved in the crossing event.
+dogs = get_objects_of_category(log_dir, category='DOG')
+
+# 2. Define the condition: "ego vehicle approaching intersection"
+# This involves two sub-conditions for the ego vehicle:
+# 2a. The ego vehicle must be moving. A stationary vehicle isn't "approaching".
+# We use a minimum velocity of 1.0 m/s to filter out very slow or jittery movements.
+moving_ego = has_velocity(ego_vehicle, log_dir, min_velocity=1.0)
+
+# 2b. The moving ego vehicle must be near an intersection.
+# A threshold of 25.0 meters is chosen to represent the "approaching" phase.
+# This means the ego is within 25 meters of an intersection area.
+ego_approaching_intersection = near_intersection(moving_ego, log_dir, threshold=25.0)
+
+# 3. Define the condition: "ego vehicle with a crossing dog"
+# This means the dog is crossing the path of the ego vehicle.
+# The function `being_crossed_by` identifies track_candidates (ego) that are being crossed by related_candidates (dog).
+# We use `ego_vehicle` as track_candidates here; the `scenario_and` later will ensure this ego is also the one approaching an intersection.
+ego_being_crossed_by_dog = being_crossed_by(
+    track_candidates=ego_vehicle,
+    related_candidates=dogs,
+    log_dir=log_dir,
+    direction="forward",  # The dog is crossing the ego vehicle's forward path.
+    forward_thresh=20.0,  # The crossing event is detected if the dog crosses up to 20 meters in front of the ego.
+                          # This should be within the `near_intersection` threshold to make sense.
+    lateral_thresh=2.5    # The dog's crossing path must be within 2.5 meters of the ego's centerline (total 5m wide band).
+                          # This aims for precision, focusing on dogs crossing relatively close to the ego's direct path.
+)
+
+# 4. Combine the conditions using logical AND.
+# The final scenario includes ego vehicles that are BOTH "approaching an intersection"
+# AND "being crossed by a dog" at the same timestamps.
+final_scenario = scenario_and([ego_approaching_intersection, ego_being_crossed_by_dog])
+
+# Output the resulting scenario.
+# This will contain instances of the ego vehicle that meet all specified criteria.
+output_scenario(final_scenario, description, log_dir, output_dir)

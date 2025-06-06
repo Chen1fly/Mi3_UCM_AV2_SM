@@ -1,0 +1,65 @@
+# Define the description of the scenario
+description = 'vehicles approaching stopped school bus with children nearby'
+
+# 1. Get all relevant object categories from the dataset
+# Get all objects categorized as 'VEHICLE'. This superclass includes regular cars, trucks, buses, etc.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Get all objects categorized as 'SCHOOL_BUS'.
+school_buses = get_objects_of_category(log_dir, category='SCHOOL_BUS')
+
+# Get all objects categorized as 'PEDESTRIAN'.
+# We use 'PEDESTRIAN' as a proxy for "children" as there isn't a more specific category.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# 2. Identify school buses that are stopped and on a road
+# A school bus is typically stopped when picking up or dropping off children.
+# We define "stopped" as having a very low velocity (e.g., <= 0.5 m/s).
+# Ensuring the bus is 'on_road' increases the likelihood it's an active stop.
+school_buses_on_road = on_road(school_buses, log_dir)
+stopped_school_buses_on_road = has_velocity(school_buses_on_road, log_dir, min_velocity=0.0, max_velocity=0.5)
+
+# 3. Find stopped school buses (on road) that have children (pedestrians) nearby
+# "Nearby" is defined as pedestrians being within a certain radius of the bus (e.g., 15 meters).
+# This step filters for school buses that meet all criteria: stopped, on road, and pedestrians nearby.
+# The 'near_objects' function returns a scenario dictionary of the 'track_uuid' objects (school buses)
+# that satisfy the condition of having 'candidate_uuids' (pedestrians) nearby.
+stopped_buses_with_children_nearby = near_objects(
+    track_uuid=stopped_school_buses_on_road, # The primary objects to check (stopped school buses)
+    candidate_uuids=pedestrians,             # The objects to look for nearby (pedestrians)
+    log_dir=log_dir,
+    distance_thresh=15, # Pedestrians must be within 15 meters of the bus's centroid
+    min_objects=1       # At least one pedestrian must be nearby for the condition to be met
+)
+
+# 4. Identify moving vehicles on the road that are approaching these specific school buses
+# "Approaching" means the vehicle is actively heading towards one of the identified school buses.
+# These vehicles must be moving (not stationary) and also on a road.
+
+# First, filter 'all_vehicles' to include only those that are moving.
+# A minimum velocity of 0.5 m/s is used to distinguish moving vehicles from stationary ones.
+moving_all_vehicles = has_velocity(all_vehicles, log_dir, min_velocity=0.5)
+# Then, ensure these moving vehicles are on a road.
+moving_vehicles_on_road = on_road(moving_all_vehicles, log_dir)
+
+# Now, find the vehicles from 'moving_vehicles_on_road' that are heading towards
+# the 'stopped_buses_with_children_nearby'.
+# The 'heading_toward' function checks:
+#   - If the track candidate's velocity vector is aligned (within 'angle_threshold')
+#     with the vector pointing from the track candidate to the related candidate.
+#   - If the track candidate is within 'max_distance' of the related candidate.
+#   - If the track candidate has a component of velocity towards the related candidate
+#     greater than 'minimum_speed'.
+vehicles_approaching_scenario = heading_toward(
+    track_candidates=moving_vehicles_on_road,        # The set of vehicles to check for approaching behavior
+    related_candidates=stopped_buses_with_children_nearby, # The target objects (school buses that are stopped with children nearby)
+    log_dir=log_dir,
+    max_distance=50,        # Approaching vehicle must be within 50 meters of the bus
+    minimum_speed=0.5,      # Approaching vehicle must be moving at least 0.5 m/s towards the bus
+    angle_threshold=22.5    # Velocity vector of the approaching vehicle must be within 22.5 degrees
+                            # of the vector pointing from the vehicle to the bus (default value)
+)
+
+# Output the identified scenario instances
+# This function will save the results to a file, and optionally visualize them.
+output_scenario(vehicles_approaching_scenario, description, log_dir, output_dir)

@@ -1,0 +1,46 @@
+description = "vehicles within view of another vehicle"
+
+# Get all vehicles in the scenario.
+# These will serve as both potential "viewers" (track_candidates for the internal facing_toward call)
+# and potential "viewed" objects (related_candidates for the internal facing_toward call).
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# We want to identify vehicles (let's call them 'viewed_vehicles')
+# such that another vehicle ('viewer_vehicle') is facing towards them.
+#
+# The function 'facing_toward(viewer, viewed, ...)' identifies and returns 'viewer' vehicles
+# that are facing towards 'viewed' vehicles.
+#
+# To get the 'viewed_vehicles' as the primary keys in our output scenario,
+# we use 'reverse_relationship(facing_toward)'.
+# Let `reversed_facing_toward = reverse_relationship(facing_toward)`.
+# When we call `reversed_facing_toward(A, B, ...)`, it internally executes `facing_toward(B, A, ...)`.
+#   - In this internal call, `B` acts as the 'track_candidates' (potential viewers)
+#     and `A` acts as the 'related_candidates' (potential viewed objects).
+#   - `facing_toward(B, A, ...)` returns a scenario dictionary keyed by UUIDs from `B`
+#     (i.e., viewers that are facing an object from `A`).
+# The `reverse_relationship` wrapper then transforms this result:
+#   - It makes the UUIDs from `A` (the original first argument to `reversed_facing_toward`)
+#     the primary keys of the output dictionary.
+#
+# So, by calling `reverse_relationship(facing_toward)(all_vehicles, all_vehicles, ...)`,
+# where the first `all_vehicles` argument represents the set of vehicles we want to identify (the "viewed"),
+# and the second `all_vehicles` argument represents the set of potential "viewers",
+# we get a scenario dictionary keyed by the UUIDs of vehicles that were "in view of" (i.e., faced by) another vehicle.
+
+vehicles_in_view_of_another_vehicle = reverse_relationship(facing_toward)(
+    track_candidates=all_vehicles,  # These are the candidates to be returned (the "viewed" vehicles)
+    related_candidates=all_vehicles, # These are the candidates doing the "viewing"
+    log_dir=log_dir,
+    within_angle=30.0,  # Angle on either side of the viewer's forward axis.
+                        # A value of 30.0 means a total 60-degree field of view.
+    max_distance=70.0   # Maximum distance for a vehicle to be considered "in view".
+)
+
+# Output the resulting scenario.
+output_scenario(
+    scenario=vehicles_in_view_of_another_vehicle,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

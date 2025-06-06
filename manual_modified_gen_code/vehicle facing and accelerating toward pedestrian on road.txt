@@ -1,0 +1,47 @@
+# Define the description for the scenario
+description = 'vehicle facing and accelerating toward pedestrian on road'
+
+# Get all objects categorized as 'VEHICLE'.
+# The 'VEHICLE' supercategory includes various types like cars, trucks, buses, etc.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Get all objects categorized as 'PEDESTRIAN'.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Filter the set of pedestrians to include only those who are on a road.
+# The 'on_road' function checks if objects are on a road or bike lane.
+# This addresses the "pedestrian on road" part of the requirement.
+peds_on_road = on_road(pedestrians, log_dir)
+
+# Filter the vehicles to identify those that are actively accelerating.
+# The 'accelerating' function identifies objects with forward acceleration within a specified range.
+# We use min_accel=0.65 m/s^2, as the documentation suggests values over 0.65 m/s^2
+# reliably indicate acceleration. This addresses the "accelerating" part of the requirement.
+accelerating_vehicles = accelerating(vehicles, log_dir, min_accel=0.65)
+
+# From the set of 'accelerating_vehicles', find those that are heading toward 'peds_on_road'.
+# The 'heading_toward' function is crucial here. It identifies track candidates (accelerating vehicles)
+# whose acceleration vector is directed towards related candidates (pedestrians on road)
+# and who also have a component of velocity towards them.
+# - 'track_candidates=accelerating_vehicles': We only consider vehicles already confirmed to be accelerating.
+# - 'related_candidates=peds_on_road': The target of the heading/acceleration must be a pedestrian on the road.
+# - 'angle_threshold=22.5': The maximum angular difference between the vehicle's acceleration vector
+#   and the relative position vector to the pedestrian. Since vehicles accelerate forward,
+#   this condition implies the vehicle is "facing" the pedestrian while "accelerating toward" them.
+# - 'minimum_speed=0.5': The vehicle must have at least this component of velocity (in m/s)
+#   towards the pedestrian, ensuring it's not just accelerating but also moving towards them.
+# - 'max_distance=50.0': The pedestrian must be within 50 meters for the interaction to be considered.
+#   This helps in focusing on more direct and relevant scenarios.
+vehicle_facing_and_accelerating_toward_ped_on_road = heading_toward(
+    track_candidates=accelerating_vehicles,
+    related_candidates=peds_on_road,
+    log_dir=log_dir,
+    angle_threshold=22.5,  # Default is 22.5 degrees, making it explicit
+    minimum_speed=0.5,     # Default is 0.5 m/s, making it explicit
+    max_distance=50.0
+)
+
+# Output the resulting scenario.
+# This will save the instances of vehicles that are facing and accelerating toward a pedestrian on the road,
+# according to the combined logic of the functions used.
+output_scenario(vehicle_facing_and_accelerating_toward_ped_on_road, description, log_dir, output_dir)

@@ -1,0 +1,26 @@
+# Description of the scenario
+description = 'vehicle navigating near multiple bicycles'
+
+# Get all vehicle objects from the dataset
+# The 'VEHICLE' superclass includes REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, BOX_TRUCK, BUS, SCHOOL_BUS, ARTICULATED_BUS, TRUCK, and RAILED_VEHICLE
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Get all bicycle objects from the dataset
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Identify vehicles that are near multiple bicycles.
+# 'near_objects' checks for proximity within a 'distance_thresh' (default is 10 meters).
+# 'min_objects=2' ensures that the vehicle is near at least two bicycles to qualify as "multiple".
+# The term "navigating" is interpreted as being in the operational vicinity, which 'near_objects' captures.
+# If the vehicle should specifically be moving, we could further filter 'all_vehicles' using 'has_velocity' or 'scenario_not(stationary)'.
+# However, "navigating near" can also include slow maneuvers or temporary stops, so we'll use all vehicles for now.
+vehicle_near_multiple_bicycles = near_objects(
+    track_uuid=all_vehicles, 
+    candidate_uuids=bicycles, 
+    log_dir=log_dir, 
+    distance_thresh=15,  # Defining "near" as within 15 meters
+    min_objects=2          # Defining "multiple" as at least 2 bicycles
+)
+
+# Output the identified scenario
+output_scenario(vehicle_near_multiple_bicycles, description, log_dir, output_dir)

@@ -1,0 +1,38 @@
+description = 'truck without trailer'
+
+# Get all TRUCK_CAB objects (semi-truck fronts)
+truck_cabs = get_objects_of_category(log_dir, category='TRUCK_CAB')
+
+# Get all VEHICULAR_TRAILER objects
+vehicular_trailers = get_objects_of_category(log_dir, category='VEHICULAR_TRAILER')
+
+# Define a function that identifies TRUCK_CABs that have a VEHICULAR_TRAILER directly behind them,
+# implying attachment or very close proximity typical of an articulated vehicle.
+# Parameters for has_objects_in_relative_direction:
+# - direction='backward': The trailer should be behind the cab.
+# - min_number=1: We need at least one trailer to consider the cab as "with trailer".
+# - max_number=1: Typically, a cab pulls one main trailer directly.
+# - within_distance=3.0: Maximum longitudinal distance (in meters) from the rear of the cab
+#   to the front of the trailer. This allows for a small gap.
+# - lateral_thresh=1.5: Maximum lateral distance (in meters) of the trailer's centerline
+#   from the cab's backward projected centerline. This ensures the trailer is well-aligned.
+#   A typical semi-truck/trailer width is around 2.5-2.6m, so 1.5m allows for some minor misalignment
+#   but should exclude trailers in adjacent lanes.
+def cab_is_towing_trailer(track_candidates_cabs, current_log_dir):
+    return has_objects_in_relative_direction(
+        track_candidates=track_candidates_cabs,
+        related_candidates=vehicular_trailers,
+        log_dir=current_log_dir,
+        direction='backward',
+        min_number=1,
+        max_number=1,
+        within_distance=3.0,
+        lateral_thresh=1.5
+    )
+
+# Use scenario_not to find TRUCK_CABs that do NOT have a trailer under the conditions defined above.
+# These are considered "truck without trailer" (e.g., bobtail trucks).
+truck_cabs_without_trailers = scenario_not(cab_is_towing_trailer)(truck_cabs, log_dir)
+
+# Output the scenario
+output_scenario(truck_cabs_without_trailers, description, log_dir, output_dir)

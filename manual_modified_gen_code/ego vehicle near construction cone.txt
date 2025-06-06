@@ -1,0 +1,26 @@
+# Define the description of the scenario
+description = 'ego vehicle near construction cone'
+
+# Get all EGO_VEHICLE objects from the dataset
+# The EGO_VEHICLE is the vehicle collecting the data.
+ego_vehicles = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all CONSTRUCTION_CONE objects from the dataset
+# CONSTRUCTION_CONE are movable traffic cones used to alert drivers to a hazard.
+construction_cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+
+# Find instances where the ego vehicle is near at least one construction cone.
+# "near" is defined by the distance_thresh parameter in meters.
+# We are looking for at least 1 construction cone (min_objects=1).
+# The default distance_thresh for near_objects is 10 meters, which is a reasonable interpretation of "near".
+ego_vehicle_near_construction_cone = near_objects(
+    track_uuid=ego_vehicles,
+    candidate_uuids=construction_cones,
+    log_dir=log_dir,
+    distance_thresh=10,  # Maximum distance in meters to be considered "near"
+    min_objects=1        # Minimum number of construction cones to be near the ego vehicle
+)
+
+# Output the identified scenario
+# This function will save the results in a format suitable for evaluation or further analysis.
+output_scenario(ego_vehicle_near_construction_cone, description, log_dir, output_dir)

@@ -1,0 +1,51 @@
+description = 'vehicle with a bicycle to its right'
+
+# Goal: Identify vehicles that have a bicycle positioned to their immediate right.
+# This implies proximity both laterally (to the right) and longitudinally (alongside).
+
+# 1. Get all objects of category 'VEHICLE'.
+# These are the primary objects we are interested in.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# 2. Get all objects of category 'BICYCLE'.
+# These are the related objects we are looking for.
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# 3. Find vehicles that have at least one bicycle to their right.
+# We use has_objects_in_relative_direction, which identifies track_candidates (vehicles)
+# that have a specified number of related_candidates (bicycles) in a given relative direction.
+# - track_candidates: The vehicles we are inspecting.
+# - related_candidates: The bicycles we are looking for.
+# - direction='right': Specifies the relative direction from the vehicle's perspective.
+# - min_number=1: We need at least one bicycle to satisfy the condition "a bicycle".
+#
+# Parameter interpretation for precision and avoiding false positives:
+# Based on typical interpretations and the example `get_objects_in_relative_direction(..., direction='behind', within_distance=5, lateral_thresh=.5)`,
+# we assume:
+# - 'within_distance' is the maximum distance along the primary axis of the specified 'direction'.
+#   For direction='right', this is the maximum lateral distance the bicycle can be to the right of the vehicle.
+#   A typical lane width is around 3-4 meters. Setting within_distance=4m aims to capture
+#   bicycles in an adjacent lane or on a nearby shoulder/bike lane.
+# - 'lateral_thresh' is the maximum distance along the axis perpendicular to the specified 'direction'.
+#   For direction='right', this is the maximum longitudinal distance (forward/backward displacement)
+#   the bicycle can have relative to the vehicle's center and still be considered "to its right"
+#   (rather than significantly ahead or behind).
+#   Setting lateral_thresh=5m allows the bicycle's center to be within a 10-meter longitudinal window
+#   (i.e., +/- 5m from the vehicle's center), which should cover the length of most vehicles and
+#   ensure the bicycle is generally alongside.
+
+vehicles_with_bicycle_to_right = has_objects_in_relative_direction(
+    track_candidates=vehicles,
+    related_candidates=bicycles,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,          # At least one bicycle
+    max_number=np.inf,     # No upper limit on the number of bicycles
+    within_distance=4.0,   # Max lateral distance for the bicycle to be considered "to the right" (e.g., in the next lane)
+    lateral_thresh=5.0     # Max longitudinal leeway (e.g., bicycle can be +/- 5m from vehicle center along its length)
+)
+
+# 4. Output the scenario.
+# The 'vehicles_with_bicycle_to_right' dictionary will have vehicle UUIDs as keys
+# for those vehicles that have a bicycle to their right under the specified conditions.
+output_scenario(vehicles_with_bicycle_to_right, description, log_dir, output_dir)

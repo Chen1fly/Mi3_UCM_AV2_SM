@@ -1,0 +1,84 @@
+import numpy as np
+from pathlib import Path
+from typing import Literal
+
+# Assume log_dir and output_dir are predefined Path objects.
+# from functions import (
+#     has_objects_in_relative_direction,
+#     get_objects_in_relative_direction,
+#     get_objects_of_category,
+#     is_category,
+#     turning,
+#     changing_lanes,
+#     has_lateral_acceleration,
+#     facing_toward,
+#     heading_toward,
+#     accelerating,
+#     has_velocity,
+#     at_pedestrian_crossing,
+#     on_lane_type,
+#     near_intersection,
+#     on_intersection,
+#     being_crossed_by,
+#     near_objects,
+#     following,
+#     heading_in_relative_direction_to,
+#     stationary,
+#     at_stop_sign,
+#     in_drivable_area,
+#     on_road,
+#     in_same_lane,
+#     on_relative_side_of_road,
+#     scenario_and,
+#     scenario_or,
+#     reverse_relationship,
+#     scenario_not,
+#     output_scenario
+# )
+# Dummy Path for log_dir and output_dir if they are not provided externally for linting
+# log_dir = Path("/tmp/log_dir")
+# output_dir = Path("/tmp/output_dir")
+
+
+description = "moving bicycle directly to the left of the ego vehicle"
+
+# Get the ego vehicle. There should be only one ego vehicle.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all bicycles in the dataset.
+all_bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Filter for bicycles that are moving.
+# Stationary objects can have velocity up to 0.5 m/s due to jitter.
+# We set min_velocity=1.0 m/s to be sure the bicycle is intentionally moving.
+moving_bicycles = has_velocity(all_bicycles, log_dir, min_velocity=1.0)
+
+# Find moving bicycles that are directly to the left of the ego vehicle.
+# The function `get_objects_in_relative_direction` returns the `related_candidates` (bicycles in this case)
+# that satisfy the condition relative to `track_candidates` (ego vehicle).
+#
+# Parameters to ensure "directly to the left":
+# - direction='left': Specifies the relative direction from the ego vehicle's perspective.
+# - min_number=1: Ensures that for a given timestamp, the ego vehicle must have at least one bicycle
+#                 in the specified zone for that bicycle to be returned.
+# - within_distance=4.0: The bicycle's center should be within 4.0 meters from the ego vehicle's left side.
+#                        This typically covers the adjacent lane.
+# - lateral_thresh=1.0: This parameter controls the longitudinal alignment. For direction='left',
+#                       it means the bicycle's center should not be more than 1.0 meter ahead of the ego's front
+#                       or 1.0 meter behind the ego's rear. This ensures the bicycle is "directly" alongside the ego,
+#                       not significantly offset forwards or backwards.
+bicycles_directly_left_of_ego = get_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=moving_bicycles,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1,
+    max_number=np.inf,  # Default, but explicit: return all such bicycles if multiple exist.
+    within_distance=4.0,
+    lateral_thresh=1.0
+)
+
+# Output the resulting scenario.
+# The `bicycles_directly_left_of_ego` dictionary will contain the UUIDs of the bicycles
+# that meet the criteria, along with the timestamps when the condition is met.
+output_scenario(bicycles_directly_left_of_ego, description, log_dir, output_dir)

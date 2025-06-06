@@ -1,0 +1,28 @@
+description = 'pedestrian crossing in front of vehicle at crosswalk'
+
+# Get all pedestrian objects
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get all vehicle objects
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter pedestrians to those that are at a pedestrian crossing.
+# within_distance=0 ensures the pedestrian is within the boundaries of the crosswalk.
+pedestrians_at_crosswalk = at_pedestrian_crossing(pedestrians, log_dir, within_distance=0)
+
+# Identify pedestrians (from the 'pedestrians_at_crosswalk' set)
+# that are crossing in front of a vehicle.
+# 'being_crossed_by' identifies track_candidates (here, vehicles) being crossed by related_candidates (here, pedestrians_at_crosswalk).
+# The 'direction="forward"' means the pedestrian is crossing the vehicle's forward midplane.
+# 'reverse_relationship' is used to make the pedestrian the primary object in the output scenario.
+# The resulting scenario will have pedestrian UUIDs as keys, and the related objects will be the vehicles they are crossing.
+# Default values for forward_thresh (10m) and lateral_thresh (5m) in being_crossed_by are used.
+pedestrian_crossing_vehicle_at_crosswalk = reverse_relationship(being_crossed_by)(
+    track_candidates=vehicles,
+    related_candidates=pedestrians_at_crosswalk,
+    log_dir=log_dir,
+    direction='forward'
+)
+
+# Output the scenario
+output_scenario(pedestrian_crossing_vehicle_at_crosswalk, description, log_dir, output_dir)

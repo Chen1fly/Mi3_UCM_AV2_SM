@@ -1,0 +1,52 @@
+# Define the description of the scenario
+description = 'pedestrian with stroller jaywalking'
+
+# Get all pedestrian objects from the dataset
+# 'pedestrians' will be a scenario dictionary where keys are pedestrian UUIDs
+# and values are lists of timestamps they appear.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get all stroller objects from the dataset
+# 'strollers' will be a scenario dictionary similar to 'pedestrians'.
+strollers = get_objects_of_category(log_dir, category='STROLLER')
+
+# Identify pedestrians who are accompanied by a stroller.
+# This is done by finding pedestrians that have at least one stroller within a close proximity (e.g., 2 meters).
+# The resulting 'pedestrians_with_strollers' dictionary will have pedestrian UUIDs as keys,
+# representing those pedestrians who are likely with a stroller.
+pedestrians_with_strollers = near_objects(
+    track_uuid=pedestrians,         # The primary objects we are interested in (pedestrians)
+    candidate_uuids=strollers,      # The related objects to check for proximity (strollers)
+    log_dir=log_dir,
+    distance_thresh=2.0,            # Maximum distance (meters) between pedestrian and stroller to be considered "together"
+    min_objects=1                   # At least one stroller must be near the pedestrian
+)
+
+# Filter the "pedestrians with strollers" to include only those who are currently on a road.
+# 'on_road' checks if the object's centroid is within a road or bike lane.
+# 'pedestrians_with_strollers_on_road' will contain pedestrians (who are with strollers) that are on a road.
+pedestrians_with_strollers_on_road = on_road(
+    track_candidates=pedestrians_with_strollers,
+    log_dir=log_dir
+)
+
+# Identify jaywalking pedestrians (with strollers) by excluding those who are at a pedestrian crossing.
+# 'at_pedestrian_crossing' identifies objects within a certain distance of a pedestrian crossing.
+# Using 'within_distance=0' means the object must be strictly within the boundaries of the pedestrian crossing.
+# 'scenario_not' will then return objects from 'pedestrians_with_strollers_on_road'
+# that are NOT at a pedestrian crossing (i.e., they are jaywalking).
+jaywalking_pedestrians_with_strollers = scenario_not(at_pedestrian_crossing)(
+    pedestrians_with_strollers_on_road, # The set of pedestrians (with strollers, on a road) to check
+    log_dir=log_dir,
+    within_distance=0  # Ensures the pedestrian is considered "at_pedestrian_crossing" only if strictly within its boundaries.
+                       # Thus, scenario_not will correctly identify those not on a crossing.
+)
+
+# Output the final scenario.
+# This will save the UUIDs of jaywalking pedestrians with strollers and the relevant timestamps.
+output_scenario(
+    jaywalking_pedestrians_with_strollers,
+    description,
+    log_dir,
+    output_dir
+)

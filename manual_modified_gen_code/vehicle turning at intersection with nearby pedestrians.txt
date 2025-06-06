@@ -1,0 +1,37 @@
+description = 'vehicle turning at intersection with nearby pedestrians'
+
+# Get all vehicle objects from the logs.
+# 'VEHICLE' is a superclass including various types of vehicles.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Get all pedestrian objects from the logs.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Identify vehicles that are performing a turning maneuver.
+# direction=None means the vehicle could be turning left or right.
+turning_vehicles = turning(vehicles, log_dir, direction=None)
+
+# Identify vehicles that are currently on an intersection.
+# This is more precise than near_intersection for "at intersection".
+vehicles_at_intersection = on_intersection(vehicles, log_dir)
+
+# Combine the above conditions: we want vehicles that are both turning AND at an intersection.
+# scenario_and will find track UUIDs present in both dictionaries with overlapping timestamps.
+turning_vehicles_at_intersection = scenario_and([turning_vehicles, vehicles_at_intersection])
+
+# From the set of vehicles turning at an intersection, find those that have nearby pedestrians.
+# "nearby pedestrians" (plural) suggests at least two.
+# distance_thresh=10 means pedestrians within 10 meters are considered "nearby".
+# min_objects=2 requires at least two pedestrians to be near the vehicle.
+vehicles_turning_at_intersection_with_nearby_pedestrians = near_objects(
+    track_uuid=turning_vehicles_at_intersection,
+    candidate_uuids=pedestrians,
+    log_dir=log_dir,
+    distance_thresh=10,  # Pedestrians within 10 meters.
+    min_objects=2        # At least two pedestrians.
+)
+
+# Output the resulting scenario.
+# The scenario_dict will contain the vehicle UUIDs that satisfy all conditions,
+# along with the timestamps when these conditions are met.
+output_scenario(vehicles_turning_at_intersection_with_nearby_pedestrians, description, log_dir, output_dir)

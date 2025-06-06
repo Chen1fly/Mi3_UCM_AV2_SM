@@ -1,0 +1,9 @@
+description = 'bicyclist riding in vehicle lane'
+# Get all objects categorized as BICYCLIST
+bicyclists = get_objects_of_category(log_dir, category='BICYCLIST')
+
+# Find bicyclists that are on a lane designated for VEHICLEs
+bicyclists_in_vehicle_lane = on_lane_type(bicyclists, log_dir, lane_type='VEHICLE')
+
+# Output the scenario
+output_scenario(bicyclists_in_vehicle_lane, description, log_dir, output_dir)

@@ -1,0 +1,50 @@
+# Define the description of the scenario
+description = "vehicle to the back right of the ego vehicle"
+
+# Get the EGO_VEHICLE object
+# The EGO_VEHICLE is the reference point for our spatial relationship.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all VEHICLE objects in the scenario.
+# These are the candidate objects we want to check against the ego vehicle's position.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Find vehicles that are to the right of the ego vehicle.
+# 'get_objects_in_relative_direction' returns the 'related_candidates' (all_vehicles in this case)
+# that are in the specified direction from the 'track_candidates' (ego_vehicle).
+# min_number=1 ensures we are interested in instances where at least one vehicle is to the right.
+# within_distance=50 (default) sets a 50m radius for consideration.
+# lateral_thresh=np.inf (default) means we don't restrict how far forward or backward a vehicle can be
+# along the ego's longitudinal axis to be considered "to the right". The 'direction' parameter itself defines the primary sector.
+vehicles_to_right_of_ego = get_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=all_vehicles,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1, # We need at least one vehicle to the right to consider it.
+    within_distance=50, # Default, but explicit.
+    lateral_thresh=np.inf # Default, allows for broad definition of "right" half-plane.
+)
+
+# Find vehicles that are to the backward of the ego vehicle.
+# Similar to the 'right' direction, this identifies vehicles in the rearward sector relative to the ego.
+# lateral_thresh=np.inf (default) means we don't restrict how far left or right a vehicle can be
+# along the ego's lateral axis to be considered "to the backward".
+vehicles_to_back_of_ego = get_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=all_vehicles,
+    log_dir=log_dir,
+    direction='backward',
+    min_number=1, # We need at least one vehicle to the back to consider it.
+    within_distance=50, # Default, but explicit.
+    lateral_thresh=np.inf # Default, allows for broad definition of "backward" half-plane.
+)
+
+# Find vehicles that are in both conditions (to the right AND to the back).
+# 'scenario_and' takes the intersection of the results from the previous two calls.
+# This means a vehicle will be in the final set if it is present in 'vehicles_to_right_of_ego'
+# AND 'vehicles_to_back_of_ego', effectively identifying vehicles in the back-right quadrant relative to the ego.
+vehicle_back_right_of_ego = scenario_and([vehicles_to_right_of_ego, vehicles_to_back_of_ego])
+
+# Output the scenario
+output_scenario(vehicle_back_right_of_ego, description, log_dir, output_dir)

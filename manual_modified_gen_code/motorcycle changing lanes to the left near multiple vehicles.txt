@@ -1,0 +1,33 @@
+description = "motorcycle changing lanes to the left near multiple vehicles"
+
+# Get all motorcycle objects from the logs.
+# 'MOTORCYCLE' is a specific category for two-wheeled motorized vehicles.
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+
+# Identify motorcycles that are performing a lane change to the left.
+# The 'changing_lanes' function filters for this specific maneuver.
+motorcycles_changing_left = changing_lanes(motorcycles, log_dir, direction='left')
+
+# Get all objects belonging to the 'VEHICLE' superclass.
+# This superclass includes REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK, BUS, etc.,
+# but typically does not include MOTORCYCLE itself, which is appropriate here as we are looking
+# for other vehicles near the motorcycle.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify motorcycles (that are already filtered for changing lanes to the left)
+# that are near multiple other vehicles.
+# "Multiple vehicles" is interpreted as a minimum of 2 vehicles.
+# "Near" is interpreted as being within a 10-meter distance threshold, a common default.
+# The 'near_objects' function filters the 'track_uuid' (motorcycles_changing_left)
+# based on their proximity to 'candidate_uuids' (vehicles).
+motorcycles_changing_left_near_multiple_vehicles = near_objects(
+    track_uuid=motorcycles_changing_left,
+    candidate_uuids=vehicles,
+    log_dir=log_dir,
+    distance_thresh=10,  # Maximum distance in meters to be considered "near".
+    min_objects=2        # Minimum number of vehicles to be considered "multiple".
+)
+
+# Output the resulting scenario.
+# This will save the instances of motorcycles that meet all the defined criteria.
+output_scenario(motorcycles_changing_left_near_multiple_vehicles, description, log_dir, output_dir)

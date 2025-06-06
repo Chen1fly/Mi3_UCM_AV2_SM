@@ -1,0 +1,23 @@
+description = 'moving vehicles that are not on the road'
+
+# Get all objects of category 'VEHICLE'
+# This will be our base set of objects to filter.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter for vehicles that are "moving".
+# "moving" is interpreted as not stationary (i.e., not parked or inactive for their entire observation period).
+# The 'stationary' function identifies objects that moved less than 2m over their length of observation.
+# 'scenario_not(stationary)' will thus return vehicles that are generally active in the scenario.
+moving_vehicles = scenario_not(stationary)(vehicles, log_dir)
+
+# Filter for moving vehicles that are not on the road.
+# The 'on_road' function identifies objects on a road or bike lane.
+# Applying 'scenario_not(on_road)' to 'moving_vehicles' will select those vehicles
+# from the 'moving_vehicles' set, but only at timestamps where they are not on a road.
+# This means if a moving vehicle is sometimes on the road and sometimes off-road,
+# only the off-road timestamps will be kept.
+moving_vehicles_not_on_road = scenario_not(on_road)(moving_vehicles, log_dir)
+
+# Output the scenario
+# This will save the identified instances of moving vehicles that are not on the road.
+output_scenario(moving_vehicles_not_on_road, description, log_dir, output_dir)

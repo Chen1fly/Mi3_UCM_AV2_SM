@@ -1,0 +1,27 @@
+description = 'vehicle turning right with pedestrian in front'
+
+# Get all vehicle objects from the logs
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Get all pedestrian objects from the logs
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Filter for vehicles that are turning right
+right_turning_vehicles = turning(vehicles, log_dir, direction='right')
+
+# Identify vehicles turning right that have at least one pedestrian in front of them.
+# We'll define "in front" as within 15 meters longitudinally and within a 2-meter lateral corridor
+# (i.e., not too far to the sides of the vehicle's forward path).
+# min_number=1 ensures we find instances where there's at least one pedestrian.
+vehicles_turning_right_with_ped_in_front = has_objects_in_relative_direction(
+    track_candidates=right_turning_vehicles,
+    related_candidates=pedestrians,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    within_distance=15,  # Maximum distance in front for the pedestrian
+    lateral_thresh=2     # Maximum lateral distance from the vehicle's sides
+)
+
+# Output the scenario
+output_scenario(vehicles_turning_right_with_ped_in_front, description, log_dir, output_dir)

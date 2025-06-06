@@ -1,0 +1,41 @@
+description = "wheeled rider crossing between moving vehicles"
+
+# Get all wheeled riders from the dataset.
+# WHEELED_RIDER: "Person actively riding or being carried by a wheeled device."
+wheeled_riders = get_objects_of_category(log_dir, category='WHEELED_RIDER')
+
+# Get all vehicles from the dataset.
+# VEHICLE is a superclass including various types of motorized vehicles.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter for vehicles that are not stationary (i.e., are "moving" or active in traffic).
+# `stationary` identifies objects that moved very little over their observation, typically parked.
+# `scenario_not(stationary)` gives us vehicles that are part of active traffic, even if temporarily stopped.
+moving_vehicles = scenario_not(stationary)(all_vehicles, log_dir)
+
+# Identify wheeled riders that are crossing a moving vehicle.
+# `being_crossed_by(tracked_objects, crossing_objects)` identifies `tracked_objects` that are crossed by `crossing_objects`.
+# The default `direction='forward'` means the `crossing_object` crosses the front midplane of the `tracked_object`.
+# `forward_thresh=10` and `lateral_thresh=5` are default parameters defining the crossing zone.
+# We want to identify the `wheeled_riders` (crossing_objects) that perform the crossing.
+# `reverse_relationship` will make the `wheeled_riders` the primary keys in the output dictionary.
+# So, this will return a scenario dict of wheeled riders who cross the forward path of a moving vehicle.
+wheeled_riders_crossing_a_moving_vehicle = reverse_relationship(being_crossed_by)(moving_vehicles, wheeled_riders, log_dir)
+
+# Identify wheeled riders that are near at least two moving vehicles.
+# This condition helps establish that the wheeled rider is "between" vehicles or in a dense vehicle environment.
+# `near_objects(tracks, candidates, ..., min_objects)` filters `tracks` that are near at least `min_objects` from `candidates`.
+# `distance_thresh=7` (meters): Defines the maximum distance for objects to be considered "near". This value might need tuning.
+# `min_objects=2`: The wheeled rider must be near at least two moving vehicles.
+wheeled_riders_near_at_least_two_moving_vehicles = near_objects(wheeled_riders, moving_vehicles, log_dir, distance_thresh=7, min_objects=2)
+
+# Combine the conditions using scenario_and.
+# We want wheeled riders who are:
+# 1. Actively crossing a moving vehicle (from `wheeled_riders_crossing_a_moving_vehicle`).
+# 2. Simultaneously in an environment with at least two moving vehicles nearby (from `wheeled_riders_near_at_least_two_moving_vehicles`).
+#    One of these nearby vehicles will be the one being crossed; the `min_objects=2` ensures the presence of at least one other vehicle,
+#    thus satisfying the "between" condition.
+wheeled_rider_crossing_between_moving_vehicles_scenario = scenario_and([wheeled_riders_crossing_a_moving_vehicle, wheeled_riders_near_at_least_two_moving_vehicles])
+
+# Output the resulting scenario.
+output_scenario(wheeled_rider_crossing_between_moving_vehicles_scenario, description, log_dir, output_dir)

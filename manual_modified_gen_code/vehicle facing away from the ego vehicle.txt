@@ -1,0 +1,39 @@
+# description of the scenario
+description = 'vehicle facing away from the ego vehicle'
+
+# Get all vehicle objects. These are the primary objects whose orientation we are interested in.
+vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Get the ego vehicle object. The orientation of other vehicles is relative to the ego vehicle's position.
+ego_vehicle = get_objects_of_category(log_dir, category="EGO_VEHICLE")
+
+# Find vehicles that have the ego vehicle in their "backward" direction.
+# This function identifies 'track_candidates' (vehicles) that have at least 'min_number' of
+# 'related_candidates' (ego_vehicle) in the specified 'direction' from their point of view.
+# - track_candidates: The set of vehicles to analyze.
+# - related_candidates: The ego_vehicle. We check if it's behind any of the 'vehicles'.
+# - direction="backward": We are looking for the ego_vehicle in the region behind a 'vehicle'.
+#                         This implies the 'vehicle' is facing away from the ego_vehicle.
+# - min_number=1: We need to find the ego_vehicle (at least one instance) behind the 'vehicle'.
+# - max_number=1: Since there is only one ego_vehicle, we are interested in forming a relationship if it's found.
+#                 This ensures we are specific about the ego_vehicle.
+# - within_distance=50: (Default) The maximum longitudinal distance (in meters) the ego_vehicle can be
+#                       behind the 'vehicle' to be considered.
+# - lateral_thresh=np.inf: (Default) The maximum lateral distance the ego_vehicle can be from the sides
+#                          of the 'vehicle'. With np.inf, it means the ego_vehicle can be anywhere
+#                          laterally, as long as it's longitudinally behind the 'vehicle' and within
+#                          'within_distance'. This covers a 180-degree sector behind the vehicle.
+# The result is a dictionary where keys are UUIDs of vehicles that are "facing away" from the ego vehicle.
+vehicles_facing_away_from_ego = has_objects_in_relative_direction(
+    track_candidates=vehicles,
+    related_candidates=ego_vehicle,
+    log_dir=log_dir,
+    direction="backward",
+    min_number=1,
+    max_number=1,
+    within_distance=50,  # Default value, suitable for typical interaction ranges.
+    lateral_thresh=np.inf  # Default value, implies ego can be anywhere in the rear half-plane.
+)
+
+# Output the scenario, which contains the vehicles found to be facing away from the ego vehicle.
+output_scenario(vehicles_facing_away_from_ego, description, log_dir, output_dir)

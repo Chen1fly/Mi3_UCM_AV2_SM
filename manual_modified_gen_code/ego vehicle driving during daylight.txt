@@ -1,0 +1,33 @@
+# Description of the scenario to find.
+description = 'ego vehicle driving during daylight'
+
+# Get all instances of the EGO_VEHICLE.
+# The EGO_VEHICLE is the vehicle collecting the data for the dataset.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# To determine if the ego vehicle is "driving", we can infer this by checking if it's not stationary and is on a road.
+# First, identify ego vehicles that are not stationary.
+# The 'stationary' function identifies objects that moved less than 2m over their observation length.
+# 'scenario_not(stationary)' will thus return objects that are considered active or moving.
+moving_ego_vehicle = scenario_not(stationary)(ego_vehicle, log_dir)
+
+# Next, ensure the moving ego vehicle is on a road.
+# The 'on_road' function identifies objects that are on a road or bike lane,
+# distinguishing from parking lots or other drivable areas.
+driving_ego_vehicle = on_road(moving_ego_vehicle, log_dir)
+
+# Regarding the "daylight" condition:
+# The provided set of functions does not include a direct way to determine ambient light conditions (e.g., daylight vs. nighttime).
+# Therefore, this script will identify instances of the "ego vehicle driving" based on movement and road presence,
+# but it cannot filter these instances by whether it is "daylight".
+# The resulting scenario will include all instances of the ego vehicle driving, regardless of the time of day.
+# If a function like `is_daylight(log_dir)` existed, it could be combined using `scenario_and`.
+# For example:
+#   daylight_instances = is_daylight(log_dir) # Hypothetical function
+#   ego_driving_in_daylight = scenario_and([driving_ego_vehicle, daylight_instances])
+#   output_scenario(ego_driving_in_daylight, description, log_dir, output_dir)
+# Since such a function is not available, we proceed with the definition of "ego vehicle driving".
+
+# Output the scenario.
+# This will contain the UUID of the ego vehicle and the timestamps when it is considered to be driving.
+output_scenario(driving_ego_vehicle, description, log_dir, output_dir)

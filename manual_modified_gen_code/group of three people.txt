@@ -1,0 +1,19 @@
+description = 'group of three people'
+# Get all pedestrians from the dataset
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Find pedestrians that are near at least two other pedestrians.
+# This means the 'track_candidate' pedestrian plus at least two 'related_candidate' pedestrians,
+# forming a group of at least three.
+# We use a distance_thresh of 3 meters to define "near" for a group.
+# include_self is False by default, so the track_candidate itself is not counted in min_objects.
+groups_of_three_people = near_objects(
+    track_uuid=pedestrians,
+    candidate_uuids=pedestrians,
+    log_dir=log_dir,
+    distance_thresh=3,  # Pedestrians within 3 meters of each other can be considered a group
+    min_objects=2       # The track_candidate pedestrian must be near at least 2 other pedestrians
+)
+
+# Output the scenario
+output_scenario(groups_of_three_people, description, log_dir, output_dir)

@@ -1,0 +1,26 @@
+description = 'pedestrian crossing at bollard'
+
+# Get all pedestrian objects from the dataset
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get all bollard objects from the dataset
+bollards = get_objects_of_category(log_dir, category='BOLLARD')
+
+# Find pedestrians that are at a pedestrian crossing
+# within_distance=1 means the pedestrian is within 1 meter of the pedestrian crossing boundaries.
+pedestrians_at_crossing = at_pedestrian_crossing(pedestrians, log_dir, within_distance=1)
+
+# From those pedestrians at a crossing, find those that are also near a bollard.
+# distance_thresh=2 means the pedestrian must be within 2 meters of a bollard.
+# min_objects=1 means there must be at least one bollard nearby.
+pedestrians_at_crossing_near_bollard = near_objects(
+    track_uuid=pedestrians_at_crossing,
+    candidate_uuids=bollards,
+    log_dir=log_dir,
+    distance_thresh=2,
+    min_objects=1
+)
+
+# Output the scenario
+# This will identify pedestrians who are simultaneously at a pedestrian crossing and near a bollard.
+output_scenario(pedestrians_at_crossing_near_bollard, description, log_dir, output_dir)

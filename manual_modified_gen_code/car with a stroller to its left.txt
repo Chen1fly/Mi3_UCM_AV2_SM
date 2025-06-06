@@ -1,0 +1,54 @@
+import numpy as np
+
+# Assume log_dir and output_dir are predefined Path objects.
+# (e.g., log_dir = Path("/path/to/logs"), output_dir = Path("/path/to/output"))
+# These variables are expected to be defined in the execution environment.
+
+description = 'car with a stroller to its left'
+
+# 1. Get all objects of category "REGULAR_VEHICLE".
+# "REGULAR_VEHICLE" is the most precise category for "car" as per the provided list:
+# "Any conventionally sized passenger vehicle used for the transportation of people and cargo.
+# This includes Cars, vans, pickup trucks, SUVs, etc."
+cars = get_objects_of_category(log_dir, category="REGULAR_VEHICLE")
+
+# 2. Get all objects of category "STROLLER".
+# "STROLLER": Push-cart with wheels meant to hold a baby or toddler.
+strollers = get_objects_of_category(log_dir, category="STROLLER")
+
+# 3. Find cars that have at least one stroller to their left.
+# We use `has_objects_in_relative_direction` for this.
+# - `track_candidates`: These are the 'cars' we are primarily interested in.
+# - `related_candidates`: These are the 'strollers' we are looking for relative to the cars.
+# - `direction`: "left", as the stroller should be to the car's left.
+# - `min_number`: 1, because we need at least one stroller.
+# - `max_number`: np.inf (default), if multiple strollers satisfy the condition for a car,
+#   relationships to all of them (or up to a practical limit defined by the function if `max_number` were smaller) would be noted.
+#   The main output keys will be the cars having at least `min_number` of such strollers.
+# - `within_distance`: 4.0 meters. This is the maximum longitudinal distance (along the car's path)
+#   the stroller's center can be from the car's center. This keeps the stroller "with" the car.
+# - `lateral_thresh`: 2.0 meters. This is the maximum lateral distance the stroller's center can be
+#   from the car's left side. This ensures the stroller is truly "to the left" and close by,
+#   avoiding false positives where a stroller might be far off to the left.
+#   A typical car is ~2m wide, a stroller ~0.6m. A 2m lateral threshold from the car's side allows
+#   for the stroller to be adjacent or have a small gap.
+cars_with_stroller_left = has_objects_in_relative_direction(
+    track_candidates=cars,
+    related_candidates=strollers,
+    log_dir=log_dir,
+    direction="left",
+    min_number=1,
+    max_number=np.inf,
+    within_distance=4.0,
+    lateral_thresh=2.0
+)
+
+# 4. Output the resulting scenario.
+# The `cars_with_stroller_left` dictionary contains UUIDs of cars that meet the condition
+# as keys.
+output_scenario(
+    scenario=cars_with_stroller_left,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

@@ -1,0 +1,25 @@
+# Description: ego vehicle near construction barrel
+description = 'ego vehicle near construction barrel'
+
+# Get all EGO_VEHICLE objects.
+# The EGO_VEHICLE is the vehicle collecting the data.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all CONSTRUCTION_BARREL objects.
+# Construction Barrel is a movable traffic barrel used to alert drivers to a hazard.
+construction_barrels = get_objects_of_category(log_dir, category='CONSTRUCTION_BARREL')
+
+# Find instances where the ego vehicle is near at least one construction barrel.
+# "near_objects" identifies timestamps when a tracked object is near a specified set of related objects.
+# We'll use the default distance_thresh of 10 meters, which is a reasonable distance to be considered "near".
+# We need at least one construction barrel, so min_objects=1 (which is the default).
+ego_near_construction_barrel = near_objects(
+    track_uuid=ego_vehicle,
+    candidate_uuids=construction_barrels,
+    log_dir=log_dir,
+    distance_thresh=10,  # Maximum distance in meters to be considered "near"
+    min_objects=1  # Minimum number of construction barrels to be near the ego vehicle
+)
+
+# Output the defined scenario.
+output_scenario(ego_near_construction_barrel, description, log_dir, output_dir)

@@ -1,0 +1,60 @@
+# Assume log_dir and output_dir are predefined.
+
+description = 'bicycle facing toward moving traffic'
+
+# Step 1: Identify all bicycle objects.
+# These are the primary objects whose behavior (facing toward traffic) we want to identify.
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Step 2: Define and identify "moving traffic".
+# "Traffic" in this context typically refers to motorized vehicles that form the bulk of road flow.
+# The 'VEHICLE' supercategory is defined to include REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, 
+# BOX_TRUCK, BUS, SCHOOL_BUS, ARTICULATED_BUS, TRUCK, and RAILED_VEHICLE.
+# We also include 'MOTORCYCLE' as they are a common part of traffic.
+vehicle_superclass_objects = get_objects_of_category(log_dir, category='VEHICLE')
+motorcycle_objects = get_objects_of_category(log_dir, category='MOTORCYCLE')
+
+# Combine these categories to create a set of objects that could constitute "traffic".
+# A traffic object can be EITHER a 'VEHICLE' OR a 'MOTORCYCLE'.
+potential_traffic_objects = scenario_or([vehicle_superclass_objects, motorcycle_objects])
+
+# For objects to be considered "traffic", they should be on a road.
+# The `on_road` function filters for objects on a road or bike lane.
+traffic_on_road = on_road(potential_traffic_objects, log_dir)
+
+# For "moving traffic", these on-road objects must have a significant velocity.
+# The `has_velocity` function filters objects based on their speed.
+# According to its docstring, stationary objects might show velocity up to 0.5 m/s due to jitter.
+# Therefore, a `min_velocity` of 0.6 m/s is chosen to ensure the objects are genuinely moving.
+moving_traffic = has_velocity(
+    traffic_on_road,
+    log_dir,
+    min_velocity=0.6,  # m/s
+    max_velocity=np.inf # No upper limit on speed for it to be "traffic"
+)
+
+# Step 3: Find bicycles that are "facing toward" this "moving traffic".
+# The `facing_toward` function is used here. It identifies objects in `track_candidates` (our bicycles)
+# that are oriented towards objects in `related_candidates` (our moving_traffic).
+# The default parameters for `facing_toward` are:
+#   `within_angle`: 22.5 degrees. This means the related traffic object must lie within a 
+#                   cone of +/- 22.5 degrees from the bicycle's forward direction. (Total 45 degree FOV)
+#   `max_distance`: 50 meters. The traffic object must be within this distance from the bicycle.
+# These default values are deemed appropriate for the description "facing toward".
+bicycles_facing_moving_traffic = facing_toward(
+    track_candidates=bicycles,
+    related_candidates=moving_traffic,
+    log_dir=log_dir
+    # Using default within_angle=22.5 and max_distance=50
+)
+
+# Step 4: Output the resulting scenario.
+# The `output_scenario` function will save the identified instances.
+# The output will consist of bicycle UUIDs and timestamps where they are facing moving traffic.
+output_scenario(
+    bicycles_facing_moving_traffic,
+    description,
+    log_dir,
+    output_dir,
+    visualize=False # As per instruction "Do not provide any visualization kwargs"
+)

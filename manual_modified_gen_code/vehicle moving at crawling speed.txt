@@ -1,0 +1,22 @@
+description = 'vehicle moving at crawling speed'
+
+# Get all objects of category 'VEHICLE'
+# The 'VEHICLE' superclass includes REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, BOX_TRUCK, BUS, SCHOOL_BUS, ARTICULATED_BUS, TRUCK, and RAILED_VEHICLE.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter vehicles that are moving at a crawling speed.
+# "Crawling speed" is defined as a speed greater than what might be considered stationary due to sensor jitter (0.5 m/s)
+# and less than a slow walking/shuffling speed (e.g., 1.5 m/s).
+# - min_velocity=0.5: According to has_velocity documentation, stationary objects may have velocity up to 0.5 m/s due to jitter.
+#                       Setting min_velocity slightly above this ensures we capture actual movement.
+# - max_velocity=1.5: This is an estimation for "crawling speed". 1.5 m/s is approximately 5.4 km/h or 3.35 mph.
+#                       This range should capture vehicles that are moving very slowly but are not stopped.
+crawling_speed_vehicles = has_velocity(
+    track_candidates=all_vehicles,
+    log_dir=log_dir,
+    min_velocity=0.5,  # Exclude stationary objects with jitter
+    max_velocity=1.5   # Define upper limit for "crawling speed"
+)
+
+# Output the scenario
+output_scenario(crawling_speed_vehicles, description, log_dir, output_dir)

@@ -1,0 +1,40 @@
+description = "ego vehicle near stroller on sidewalk"
+
+# 1. Get the EGO_VEHICLE.
+# The EGO_VEHICLE is the vehicle collecting the data. There should typically be only one.
+ego_vehicles = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# 2. Get all STROLLER objects from the dataset.
+all_strollers = get_objects_of_category(log_dir, category='STROLLER')
+
+# 3. Identify strollers that are "on sidewalk".
+# We define "on sidewalk" as not being on the road AND not being in a (vehicle) drivable area.
+# This helps distinguish sidewalks from roads, parking lots, etc.
+
+# Get strollers that are not on a road (road or bike lane).
+strollers_not_on_road = scenario_not(on_road)(all_strollers, log_dir)
+
+# Get strollers that are not in a drivable area.
+strollers_not_in_drivable_area = scenario_not(in_drivable_area)(all_strollers, log_dir)
+
+# Combine these conditions: a stroller is on the "sidewalk" if it's not on the road AND not in a drivable area.
+# This should filter out strollers on roads, in parking lots (which are drivable), etc.
+strollers_on_sidewalk = scenario_and([strollers_not_on_road, strollers_not_in_drivable_area])
+
+# 4. Find instances where the ego vehicle is near such a stroller on the sidewalk.
+# We use the near_objects function for this.
+# - track_candidates: The ego_vehicle(s).
+# - related_candidates: The strollers identified as being on a sidewalk.
+# - distance_thresh: Defines "near". Let's set it to 5 meters.
+# - min_objects: We are looking for at least one stroller.
+ego_near_stroller_on_sidewalk = near_objects(
+    track_candidates=ego_vehicles,
+    related_candidates=strollers_on_sidewalk,
+    log_dir=log_dir,
+    distance_thresh=5,  # Maximum distance in meters to be considered "near"
+    min_objects=1       # Must be near at least one stroller on the sidewalk
+)
+
+# 5. Output the resulting scenario.
+# This will save the instances where the ego vehicle is near a stroller on a sidewalk.
+output_scenario(ego_near_stroller_on_sidewalk, description, log_dir, output_dir)

@@ -1,0 +1,56 @@
+description = "ego vehicle with vehicles on both sides"
+
+# Get the ego vehicle
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all other vehicles in the scenario
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# --- Find instances where the ego vehicle has at least one vehicle to its left ---
+# 'within_distance=5.0': The center of the other vehicle must be within 5.0 meters longitudinally
+# (forward or backward) from the ego vehicle's center. This ensures they are roughly parallel.
+# 'lateral_thresh=2.5': The center of the other vehicle must be within 2.5 meters laterally
+# from the side of the ego vehicle. This typically means it's in an adjacent lane.
+# 'min_number=1': We need at least one such vehicle on the left.
+ego_has_vehicle_on_left = has_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=all_vehicles,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1,
+    # max_number=np.inf by default, meaning all such vehicles will be listed if min_number is met.
+    within_distance=5.0,  # Longitudinal distance tolerance
+    lateral_thresh=2.5    # Lateral distance tolerance from the side of the ego
+)
+
+# --- Find instances where the ego vehicle has at least one vehicle to its right ---
+# Using the same parameters as for the left side.
+ego_has_vehicle_on_right = has_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=all_vehicles,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,
+    # max_number=np.inf by default.
+    within_distance=5.0,  # Longitudinal distance tolerance
+    lateral_thresh=2.5    # Lateral distance tolerance from the side of the ego
+)
+
+# --- Combine the conditions using scenario_and ---
+# This will find ego vehicles that are present in both `ego_has_vehicle_on_left`
+# and `ego_has_vehicle_on_right` for the same timestamps.
+# The resulting dictionary will be keyed by the ego vehicle's UUID.
+ego_with_vehicles_on_both_sides = scenario_and([
+    ego_has_vehicle_on_left,
+    ego_has_vehicle_on_right
+])
+
+# Output the scenario
+# The `ego_with_vehicles_on_both_sides` dictionary contains the ego vehicle UUIDs
+# and the timestamps when it has vehicles on both its left and right sides simultaneously.
+output_scenario(
+    ego_with_vehicles_on_both_sides,
+    description,
+    log_dir,
+    output_dir
+)

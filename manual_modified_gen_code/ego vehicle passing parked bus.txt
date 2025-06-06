@@ -1,0 +1,49 @@
+description = 'ego vehicle passing parked bus'
+
+# Get the ego vehicle anD all buses from the dataset
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+buses = get_objects_of_category(log_dir, category='BUS')
+
+# Identify buses that are parked.
+# The stationary() function defines "parked" as objects that moved less than 2m
+# over their entire observation period in the scenario.
+parked_buses = stationary(buses, log_dir)
+
+# Find instances where the ego vehicle is passing a parked bus.
+# "Passing" is defined as the ego vehicle (related_candidate) crossing the midplane of the parked bus (track_candidate).
+# We use reverse_relationship to make the ego vehicle the primary subject of the output scenario.
+
+# Case 1: Ego vehicle passes the parked bus on the bus's left side.
+# - track_candidates: parked_buses (the objects being passed).
+# - related_candidates: ego_vehicle (the object doing the passing). The motion of the ego vehicle
+#   is implied by the act of "crossing" in the being_crossed_by function.
+# - direction="left": The ego crosses the bus's left half-midplane.
+# - in_direction="clockwise": This assumes the ego and bus are roughly co-oriented (both facing "forward").
+#   When ego passes on the bus's left, moving forward, the crossing is 'clockwise' relative to the bus's midplane.
+#   This helps ensure it's a forward passing maneuver, not reversing or other unusual motion.
+# Default values for forward_thresh (10m) and lateral_thresh (5m) are used.
+ego_passing_bus_on_its_left = reverse_relationship(being_crossed_by)(
+    track_candidates=parked_buses,
+    related_candidates=ego_vehicle,
+    log_dir=log_dir,
+    direction="left",
+    in_direction="clockwise"
+)
+
+# Case 2: Ego vehicle passes the parked bus on the bus's right side.
+# - direction="right": The ego crosses the bus's right half-midplane.
+# - in_direction="counterclockwise": For a forward pass on the bus's right, the crossing is 'counterclockwise'.
+ego_passing_bus_on_its_right = reverse_relationship(being_crossed_by)(
+    track_candidates=parked_buses,
+    related_candidates=ego_vehicle,
+    log_dir=log_dir,
+    direction="right",
+    in_direction="counterclockwise"
+)
+
+# Combine both scenarios (passing on the left OR passing on the right)
+# The ego vehicle could pass on either side of the parked bus.
+ego_passing_a_parked_bus = scenario_or([ego_passing_bus_on_its_left, ego_passing_bus_on_its_right])
+
+# Output the resulting scenario
+output_scenario(ego_passing_a_parked_bus, description, log_dir, output_dir)

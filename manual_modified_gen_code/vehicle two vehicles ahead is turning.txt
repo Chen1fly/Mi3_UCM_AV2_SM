@@ -1,0 +1,56 @@
+# Define the description for the scenario
+description = 'vehicle two vehicles ahead is turning'
+
+# Get all vehicles in the scene.
+# The 'VEHICLE' category includes various types of vehicles but not EGO_VEHICLE by default.
+# This means we are looking for non-ego vehicles that observe this scenario.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify all vehicles that are currently turning.
+# The `turning` function without a specific direction will find vehicles turning either left or right.
+turning_vehicles = turning(
+    track_candidates=all_vehicles,
+    log_dir=log_dir
+)
+
+# Find vehicles (let's call them "v1") that have a "turning_vehicle" (v2) directly in front of them.
+# "Directly in front" is interpreted as being the closest vehicle in the forward direction,
+# within a certain longitudinal distance and a small lateral offset (to imply same-lane or close proximity).
+# `has_objects_in_relative_direction` returns the `track_candidates` (v1) that meet the criteria.
+vehicles_with_turning_vehicle_ahead = has_objects_in_relative_direction(
+    track_candidates=all_vehicles,  # These are potential v1s
+    related_candidates=turning_vehicles,  # These are potential v2s (must be turning)
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,       # At least one such turning vehicle
+    max_number=1,       # Consider only the closest one (the one immediately ahead)
+    within_distance=50, # Maximum longitudinal distance for "ahead" (e.g., 50 meters)
+    lateral_thresh=2    # Maximum lateral distance from centerline (e.g., 2 meters, to stay roughly in lane)
+)
+# `vehicles_with_turning_vehicle_ahead` now contains the UUIDs of vehicles (v1)
+# that have a turning vehicle (v2) immediately in front of them.
+
+# Now, find the observer vehicles that have one of these `vehicles_with_turning_vehicle_ahead` (v1)
+# directly in front of them.
+# The `track_candidates` for this call are the potential observer vehicles.
+# The `related_candidates` are the v1s we just found.
+observer_vehicles_scenario = has_objects_in_relative_direction(
+    track_candidates=all_vehicles,  # These are the potential observer vehicles
+    related_candidates=vehicles_with_turning_vehicle_ahead, # These are the v1s (which have a turning v2 ahead of them)
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,       # At least one such v1
+    max_number=1,       # Consider only the closest v1
+    within_distance=50, # Maximum longitudinal distance for "ahead"
+    lateral_thresh=2    # Maximum lateral distance from centerline
+)
+# `observer_vehicles_scenario` now contains the UUIDs of observer vehicles
+# such that: observer -> v1 -> v2 (turning), where "->" means "directly ahead of".
+
+# Output the scenario
+output_scenario(
+    observer_vehicles_scenario,
+    description,
+    log_dir,
+    output_dir
+)

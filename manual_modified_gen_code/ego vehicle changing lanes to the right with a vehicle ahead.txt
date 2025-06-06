@@ -1,0 +1,57 @@
+# Description for the scenario
+description = 'ego vehicle changing lanes to the right with a vehicle ahead'
+
+# 1. Get the EGO_VEHICLE.
+# This identifies the specific vehicle whose behavior we are interested in.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# 2. Identify timestamps when the EGO_VEHICLE is changing lanes to the right.
+# The `changing_lanes` function filters the `ego_vehicle` tracks for this specific maneuver.
+# The result `ego_changing_lanes_right` will be a scenario dictionary containing the ego vehicle's UUID
+# and the timestamps when it is changing lanes to the right.
+ego_changing_lanes_right = changing_lanes(
+    track_candidates=ego_vehicle,
+    log_dir=log_dir,
+    direction='right'
+)
+
+# 3. Get all objects categorized as 'VEHICLE'.
+# These will serve as the candidates for "a vehicle ahead".
+# The 'VEHICLE' superclass includes REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, BOX_TRUCK,
+# BUS, SCHOOL_BUS, ARTICULATED_BUS, TRUCK, and RAILED_VEHICLE.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# 4. Filter for instances where the EGO_VEHICLE (while changing lanes to the right)
+#    has at least one vehicle from `all_vehicles` ahead of it.
+# The `has_objects_in_relative_direction` function takes the `ego_changing_lanes_right`
+# (which are instances of the ego vehicle changing lanes right) and checks if, during those times,
+# there is at least one vehicle from `all_vehicles` in the 'forward' direction.
+# - `track_candidates=ego_changing_lanes_right`: We are interested in the ego vehicle when it's performing this maneuver.
+# - `related_candidates=all_vehicles`: The objects to look for are other vehicles.
+# - `direction='forward'`: Specifies that the related vehicle must be ahead of the ego vehicle.
+# - `min_number=1`: Ensures there is at least one such vehicle ("a vehicle ahead").
+# - `within_distance=50`: Sets a maximum longitudinal distance of 50 meters for the vehicle to be considered "ahead".
+#   This is the default value, specified here for clarity.
+# - `lateral_thresh=3.0`: Sets a maximum lateral distance of 3.0 meters from the sides of the ego vehicle.
+#   This helps ensure the vehicle "ahead" is in a
+#   longitudinally aligned position (e.g., in the same lane or an immediately adjacent lane),
+#   improving precision and reducing false positives from vehicles that are forward but far to the side.
+scenario_ego_lane_change_right_with_vehicle_ahead = has_objects_in_relative_direction(
+    track_candidates=ego_changing_lanes_right,
+    related_candidates=all_vehicles,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    within_distance=50,
+    lateral_thresh=3.0
+)
+
+# Output the resulting scenario.
+# This function will save the identified instances (ego vehicle changing lanes right with a vehicle ahead)
+# in the required format.
+output_scenario(
+    scenario_ego_lane_change_right_with_vehicle_ahead,
+    description,
+    log_dir,
+    output_dir
+)

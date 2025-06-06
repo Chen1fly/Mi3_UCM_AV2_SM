@@ -1,0 +1,11 @@
+# description: stationary object
+# Get all objects in the scenario
+all_objects = get_objects_of_category(log_dir, category="ANY")
+
+# Identify stationary objects from all objects
+# The stationary() function returns objects that moved less than 2m over their length of observation.
+# This is suitable for identifying objects that are genuinely stationary for a significant period.
+stationary_objects = stationary(all_objects, log_dir)
+
+# Output the scenario
+output_scenario(stationary_objects, description, log_dir, output_dir)

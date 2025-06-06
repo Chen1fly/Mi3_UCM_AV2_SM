@@ -1,0 +1,20 @@
+# Define the description of the scenario
+description = 'vehicle near message board trailer'
+
+# Get all objects of category "VEHICLE"
+# The "VEHICLE" superclass includes REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, BOX_TRUCK, BUS, SCHOOL_BUS, ARTICULATED_BUS, TRUCK, and RAILED_VEHICLE.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Get all objects of category "MESSAGE_BOARD_TRAILER"
+# MESSAGE_BOARD_TRAILER is defined as a trailer carrying a large, mounted, electronic sign to display messages.
+message_board_trailers = get_objects_of_category(log_dir, category='MESSAGE_BOARD_TRAILER')
+
+# Find instances where a vehicle is near a message board trailer.
+# The near_objects function identifies timestamps when a tracked object (vehicle) is near a specified set of related objects (message_board_trailers).
+# Default distance_thresh is 10 meters, which is a reasonable interpretation of "near" in this context.
+# Default min_objects is 1, which means at least one message board trailer must be near the vehicle.
+vehicles_near_message_board_trailer = near_objects(vehicles, message_board_trailers, log_dir, distance_thresh=10, min_objects=1)
+
+# Output the scenario
+# This will save the identified instances for evaluation or visualization.
+output_scenario(vehicles_near_message_board_trailer, description, log_dir, output_dir)

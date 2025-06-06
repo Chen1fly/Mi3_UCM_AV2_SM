@@ -1,0 +1,42 @@
+description = 'unattended dog'
+
+# Step 1: Get all objects categorized as 'DOG'.
+# These are the primary subjects we are interested in.
+dogs = get_objects_of_category(log_dir, category='DOG')
+
+# Step 2: Filter the dogs to include only those located within a 'drivable area'.
+# This helps to focus on scenarios relevant to an autonomous vehicle,
+# as an unattended dog in a drivable area (which can include roads, parking lots, etc.)
+# poses a potential hazard.
+dogs_in_relevant_area = in_drivable_area(dogs, log_dir)
+
+# Step 3: Get all objects categorized as 'PEDESTRIAN'.
+# Pedestrians are assumed to be the primary attendants or supervisors of dogs.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Step 4: Identify dogs from 'dogs_in_relevant_area' that are "unattended".
+# An "unattended" dog is defined as one that does not have any pedestrians nearby.
+# - 'near_objects' is used to find dogs that *do* have pedestrians nearby.
+#   - track_candidates: dogs_in_relevant_area (dogs we are checking for attendance)
+#   - related_candidates: pedestrians (the potential attendants)
+#   - distance_thresh=10: Defines "nearby" as within a 10-meter radius. This is a reasonable
+#     distance to infer potential supervision. If a pedestrian is further,
+#     the dog might be considered unattended.
+#   - min_objects=1: 'near_objects' will return dogs that have at least one pedestrian nearby.
+# - 'scenario_not' is then applied to this result. It returns the difference between
+#   the input 'dogs_in_relevant_area' and the output of 'near_objects'.
+#   This effectively gives us dogs in relevant areas for which the condition of having
+#   at least one pedestrian nearby is FALSE (i.e., zero pedestrians are nearby).
+unattended_dogs_scenario = scenario_not(near_objects)(
+    track_candidates=dogs_in_relevant_area,
+    related_candidates=pedestrians,
+    log_dir=log_dir,
+    distance_thresh=10, # Maximum distance for a pedestrian to be considered "attending"
+    min_objects=1       # Condition for 'near_objects' is >=1, so 'scenario_not' gives <1 (i.e., 0)
+)
+
+# Step 5: Output the identified scenario.
+# The 'unattended_dogs_scenario' dictionary will contain the UUIDs of dogs
+# that are in a drivable area and have no pedestrians within a 10-meter radius,
+# along with the timestamps when these conditions are met.
+output_scenario(unattended_dogs_scenario, description, log_dir, output_dir)

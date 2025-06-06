@@ -1,0 +1,76 @@
+description = "pedestrian between moving vehicles on both sides"
+
+# Get all pedestrian objects from the dataset
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get all vehicle objects from the dataset
+# VEHICLE is a superclass including REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK, BUS, etc.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter for vehicles that are actually moving.
+# The 'stationary' function identifies objects that moved very little over their observation.
+# 'has_velocity' can be used to set a specific speed threshold.
+# Stationary objects may have a velocity up to 0.5 m/s due to annotation jitter.
+# We'll consider vehicles "moving" if their speed is at least 1.0 m/s (3.6 km/h).
+# This helps to exclude vehicles that are parked or stopped in traffic for a significant duration.
+moving_vehicles = has_velocity(all_vehicles, log_dir, min_velocity=1.0)
+
+# Define parameters for detecting vehicles on the side of a pedestrian.
+# These parameters will be used with the `has_objects_in_relative_direction` function.
+# 'within_distance': This is the maximum distance in the specified direction (e.g., 'left' or 'right')
+#                    that a related object (vehicle) can be from the track candidate (pedestrian).
+#                    For a vehicle to be considered "on the left/right side", it should be in a nearby lane.
+#                    A value of 4.0 meters implies the center of the vehicle is within 4m laterally from the pedestrian.
+# 'lateral_thresh': This is the maximum lateral distance the related object can be from the sides
+#                   of the tracked object that are parallel to the specified direction.
+#                   If the direction is 'left' (pedestrian's Y-axis, assuming X-axis is forward),
+#                   the sides parallel to this are the pedestrian's front and back.
+#                   So, this threshold controls how far the vehicle can be offset longitudinally
+#                   (along the pedestrian's X-axis) from the pedestrian.
+#                   A value of 5.0 meters allows the pedestrian to be aligned with any part of a
+#                   typical 5-meter-long car (e.g., ped near front, middle, or rear of the vehicle).
+
+# Find pedestrians that have at least one moving vehicle to their left.
+# `has_objects_in_relative_direction` returns a dictionary keyed by the track_candidates (pedestrians)
+# that meet the condition.
+peds_with_moving_vehicle_on_left = has_objects_in_relative_direction(
+    track_candidates=pedestrians,
+    related_candidates=moving_vehicles,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1,  # At least one moving vehicle must be to the left.
+    # max_number defaults to np.inf, meaning all such vehicles up to within_distance are considered for relationship.
+    # The function mainly checks if min_number is met.
+    within_distance=4.0,
+    lateral_thresh=5.0
+)
+
+# Find pedestrians that have at least one moving vehicle to their right.
+peds_with_moving_vehicle_on_right = has_objects_in_relative_direction(
+    track_candidates=pedestrians,
+    related_candidates=moving_vehicles,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,  # At least one moving vehicle must be to the right.
+    within_distance=4.0,
+    lateral_thresh=5.0
+)
+
+# Combine the two conditions using scenario_and.
+# This will result in a scenario dictionary containing only those pedestrians (and their timestamps)
+# that are present in BOTH `peds_with_moving_vehicle_on_left` AND `peds_with_moving_vehicle_on_right`.
+# This means these pedestrians have moving vehicles on both their left and right sides simultaneously.
+pedestrians_between_moving_vehicles_on_sides = scenario_and([
+    peds_with_moving_vehicle_on_left,
+    peds_with_moving_vehicle_on_right
+])
+
+# Output the resulting scenario.
+# This will save the instances of pedestrians found to be between moving vehicles on both sides.
+output_scenario(
+    pedestrians_between_moving_vehicles_on_sides,
+    description,
+    log_dir,
+    output_dir
+    # visualize=False by default
+)

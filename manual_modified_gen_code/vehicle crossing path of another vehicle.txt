@@ -1,0 +1,87 @@
+description = 'vehicle crossing path of another vehicle'
+
+# Get all objects of category VEHICLE. This includes cars, trucks, buses, etc.
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Define the set of vehicles that could BE CROSSED.
+# These are vehicles that are generally part of traffic, meaning they are not parked for the entire scenario duration.
+# They could be temporarily stopped (e.g., at a traffic light or stop sign) when their path is crossed.
+# The `stationary` function identifies objects that moved very little throughout the scenario.
+# `scenario_not(stationary)` gives us vehicles that are not classified as "parked".
+vehicles_susceptible_to_being_crossed = scenario_not(stationary)(all_vehicles, log_dir)
+
+# Define the set of vehicles that could DO THE CROSSING.
+# These vehicles should be actively moving at the time of the crossing.
+# `has_velocity` with min_velocity=0.5 m/s is used to filter for objects that are currently in motion,
+# distinguishing them from stationary objects that might have slight positional jitter in annotations.
+vehicles_actively_crossing = has_velocity(all_vehicles, log_dir, min_velocity=0.5)
+
+
+# --- Part 1: A moving vehicle crossing in front of another (potentially stopped) active vehicle ---
+# We use `being_crossed_by` to define the geometric condition of crossing.
+# `track_candidates` are the vehicles being crossed.
+# `related_candidates` are the vehicles performing the crossing.
+# `reverse_relationship` is used because we want to identify the vehicle *doing* the crossing,
+# which is the `related_candidate` in the `being_crossed_by` function call.
+
+# For `direction="forward"`:
+# `forward_thresh`: Defines how far in front of the crossed vehicle's edge the crossing is detected.
+#                   A value of 7 meters means the crossing vehicle's centroid passes through a plane
+#                   up to 7 meters ahead of the crossed vehicle.
+# `lateral_thresh`: Defines half the width of the "crossing gate" centered on the crossed vehicle's path.
+#                   A value of 2.0 meters means the gate is 4 meters wide. This ensures the crossing
+#                   is relatively direct and not far off to the side.
+crossing_in_front = reverse_relationship(being_crossed_by)(
+    track_candidates=vehicles_susceptible_to_being_crossed,
+    related_candidates=vehicles_actively_crossing,
+    log_dir=log_dir,
+    direction="forward",
+    forward_thresh=7,
+    lateral_thresh=2.0
+)
+
+# --- Part 2: A moving vehicle crossing from the left of another (potentially stopped) active vehicle ---
+# For `direction="left"` (or "right"):
+# `forward_thresh`: Defines how far out from the side of the crossed vehicle the crossing is detected.
+#                   A value of 3 meters means the crossing vehicle's centroid passes through a plane
+#                   up to 3 meters from the left/right side of the crossed vehicle.
+# `lateral_thresh`: Defines half the length of the "crossing gate" along the side of the crossed vehicle.
+#                   A value of 3 meters means the gate is 6 meters long, centered on the crossed vehicle.
+#                   This captures crossings that occur near the main body of the crossed vehicle.
+crossing_from_left = reverse_relationship(being_crossed_by)(
+    track_candidates=vehicles_susceptible_to_being_crossed,
+    related_candidates=vehicles_actively_crossing,
+    log_dir=log_dir,
+    direction="left",
+    forward_thresh=3,
+    lateral_thresh=3
+)
+
+# --- Part 3: A moving vehicle crossing from the right of another (potentially stopped) active vehicle ---
+crossing_from_right = reverse_relationship(being_crossed_by)(
+    track_candidates=vehicles_susceptible_to_being_crossed,
+    related_candidates=vehicles_actively_crossing,
+    log_dir=log_dir,
+    direction="right",
+    forward_thresh=3,
+    lateral_thresh=3
+)
+
+# Combine all types of crossing events using `scenario_or`.
+# This will create a scenario dictionary containing all instances where a vehicle from
+# `vehicles_actively_crossing` crosses the path of a vehicle from
+# `vehicles_susceptible_to_being_crossed` in any of the defined manners (front, left, right).
+vehicles_crossing_path = scenario_or([
+    crossing_in_front,
+    crossing_from_left,
+    crossing_from_right
+])
+
+# Output the resulting scenario.
+# The `vehicles_crossing_path` dictionary will have UUIDs of the vehicles that performed the crossing as keys.
+output_scenario(
+    scenario=vehicles_crossing_path,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

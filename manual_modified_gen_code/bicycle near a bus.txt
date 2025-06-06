@@ -1,0 +1,30 @@
+# Description of the scenario to be identified.
+description = "bicycle near a bus"
+
+# Get all bicycle objects from the dataset.
+# 'BICYCLE' is the category for non-motorized, two-wheeled vehicles propelled by human power.
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Get all bus objects from the dataset.
+# 'BUS' is the category for standard city buses designed to carry a large number of people.
+buses = get_objects_of_category(log_dir, category='BUS')
+
+# Find instances where a bicycle (from track_candidates) is near a bus (from candidate_uuids).
+# The 'near_objects' function identifies track candidates that are within a certain distance (distance_thresh)
+# of a minimum number (min_objects) of related candidates.
+# We choose a distance_thresh of 5.0 meters to define "near" more precisely and reduce potential false positives
+# compared to the default 10.0 meters.
+# min_objects=1 ensures that the bicycle is near at least one bus.
+# Based on the function signature provided (track_uuid, candidate_uuids), we pass bicycles as the first argument
+# and buses as the second.
+bicycles_near_bus = near_objects(
+    bicycles,  # Corresponds to track_uuid (tracked objects, i.e., bicycles)
+    buses,     # Corresponds to candidate_uuids (objects to check proximity to, i.e., buses)
+    log_dir,
+    distance_thresh=5.0,  # Maximum distance in meters to be considered "near".
+    min_objects=1         # Minimum number of buses the bicycle must be near.
+)
+
+# Output the identified scenario.
+# This function will save the results in an evaluation-ready format.
+output_scenario(bicycles_near_bus, description, log_dir, output_dir)

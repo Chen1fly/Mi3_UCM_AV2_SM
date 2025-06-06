@@ -1,0 +1,56 @@
+# Get all vehicles in the scenario
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Get all active (non-stationary) vehicles
+# Stationary objects may have a velocity up to 0.5 m/s.
+# scenario_not(stationary) will give us vehicles that moved more than 2m,
+# which is a good proxy for "active" in many contexts.
+# If a more fine-grained definition of active (e.g. currently moving) is needed,
+# has_velocity could be used with scenario_not.
+active_vehicles = scenario_not(stationary)(all_vehicles, log_dir)
+
+# Step 1: Identify V2 ("the vehicle ahead").
+# These are vehicles that are in front of any other vehicle (V1).
+# We use has_objects_in_relative_direction(V1_candidates, V2_potential_candidates, direction='forward')
+# This returns {V1_id: {V2_id: timestamps}}.
+# We then use reverse_relationship to make V2_id the key.
+# So, intermediate_vehicles_ahead will be a scenario dictionary where keys are V2_ids.
+# Parameters:
+# - within_distance=30: V2 is within 30 meters in front of V1.
+# - max_number=1: We are interested in *the* single vehicle directly ahead.
+# - lateral_thresh=2: The center of V2 should be within 2 meters of the sides of V1.
+#   This means V2 is roughly in the same or immediately adjacent lane as V1.
+intermediate_vehicles_ahead = reverse_relationship(has_objects_in_relative_direction)(
+    all_vehicles,  # These are the V1 candidates (track_candidates for the inner call)
+    all_vehicles,  # These are the V2 potential candidates (related_candidates for the inner call)
+    log_dir,
+    direction='forward',
+    min_number=1,       # V1 must have at least one vehicle (V2) in front.
+    max_number=1,       # V1 has exactly one V2 (the closest one within distance).
+    within_distance=30, # V2 is within 30 meters of V1.
+    lateral_thresh=2    # V2 is laterally close to V1.
+)
+
+# Step 2: Identify V3 ("the active vehicle in front of" V2).
+# These are active vehicles (V3) that are in front of the V2s identified in the previous step.
+# We use has_objects_in_relative_direction(V2_candidates, V3_potential_candidates, direction='forward')
+# V2_candidates are the keys from intermediate_vehicles_ahead.
+# V3_potential_candidates are active_vehicles.
+# This returns {V2_id: {V3_id: timestamps}}.
+# We then use reverse_relationship to make V3_id the key.
+# So, final_target_vehicles will be a scenario dictionary where keys are V3_ids.
+final_target_vehicles = reverse_relationship(has_objects_in_relative_direction)(
+    intermediate_vehicles_ahead,  # These are the V2 candidates (track_candidates for the inner call)
+    active_vehicles,              # These are the V3 potential candidates (related_candidates for the inner call, must be active)
+    log_dir,
+    direction='forward',
+    min_number=1,       # V2 must have at least one active vehicle (V3) in front.
+    max_number=1,       # V2 has exactly one V3 (the closest one within distance).
+    within_distance=30, # V3 is within 30 meters of V2.
+    lateral_thresh=2    # V3 is laterally close to V2.
+)
+
+# Output the scenario
+# The keys of final_target_vehicles are the UUIDs of "the active vehicle in front of the vehicle ahead".
+description = 'the active vehicle in front of the the vehicle ahead'
+output_scenario(final_target_vehicles, description, log_dir, output_dir)

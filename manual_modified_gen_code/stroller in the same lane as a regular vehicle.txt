@@ -1,0 +1,17 @@
+# Define the description of the scenario
+description = 'stroller in the same lane as a regular vehicle'
+
+# Get all stroller objects from the dataset
+strollers = get_objects_of_category(log_dir, category='STROLLER')
+
+# Get all regular vehicle objects from the dataset
+regular_vehicles = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+# Find instances where a stroller is in the same lane as a regular vehicle
+# The `in_same_lane` function takes `track_candidates` (strollers) and `related_candidates` (regular_vehicles).
+# It will return a scenario dictionary where the keys are the UUIDs of strollers
+# that are found to be in the same lane as at least one regular vehicle at certain timestamps.
+stroller_in_same_lane_as_regular_vehicle = in_same_lane(strollers, regular_vehicles, log_dir)
+
+# Output the identified scenario
+output_scenario(stroller_in_same_lane_as_regular_vehicle, description, log_dir, output_dir)

@@ -1,0 +1,13 @@
+# Define the description of the scenario
+description = 'vehicle changing lanes'
+
+# Get all objects of category 'VEHICLE'
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are changing lanes
+# The changing_lanes function with direction=None will identify lane changes in either left or right direction.
+lane_changes = changing_lanes(vehicles, log_dir)
+
+# Output the scenario
+# This function will save the identified instances for evaluation or visualization.
+output_scenario(lane_changes, description, log_dir, output_dir)

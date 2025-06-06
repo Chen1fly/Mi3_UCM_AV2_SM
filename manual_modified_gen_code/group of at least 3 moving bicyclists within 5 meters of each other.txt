@@ -1,0 +1,32 @@
+description = "group of at least 3 moving bicyclists within 5 meters of each other"
+
+# Get all objects of the category 'BICYCLIST'
+# BICYCLIST is defined as a "Person actively riding a bicycle..."
+all_bicyclists = get_objects_of_category(log_dir, category='BICYCLIST')
+
+# Filter for bicyclists that are currently moving.
+# The has_velocity function's docstring mentions: "Stationary objects may have a velocity up to 0.5 m/s due to annotation jitter."
+# To ensure bicyclists are genuinely moving, we set a minimum velocity slightly above this threshold.
+moving_bicyclists = has_velocity(all_bicyclists, log_dir, min_velocity=0.6)
+
+# Identify moving bicyclists that are near at least 2 other moving bicyclists within a 5-meter radius.
+# This effectively finds individual bicyclists who are part of a group of 3 or more.
+# - track_uuid: The set of moving bicyclists to analyze one by one.
+# - candidate_uuids: The set of other moving bicyclists to check for proximity.
+# - distance_thresh: The maximum distance (5 meters) for bicyclists to be considered near each other.
+# - min_objects: A bicyclist (from track_uuid) is considered part of the group if they are near at least 2 other bicyclists (from candidate_uuids).
+#   This means the bicyclist itself + 2 others form a group of at least 3.
+# - include_self: False (default) ensures that a bicyclist is not counted as being near itself.
+bicyclists_in_group = near_objects(
+    track_uuid=moving_bicyclists,
+    candidate_uuids=moving_bicyclists,
+    log_dir=log_dir,
+    distance_thresh=5.0,
+    min_objects=2
+)
+
+# Output the scenario
+# The 'bicyclists_in_group' dictionary will contain the UUIDs of each bicyclist
+# that meets the criteria of being part of a group of at least 3 moving bicyclists
+# within 5 meters of each other, along with the timestamps when this condition is met.
+output_scenario(bicyclists_in_group, description, log_dir, output_dir)

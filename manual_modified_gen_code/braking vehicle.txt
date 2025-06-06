@@ -1,0 +1,11 @@
+# description: braking vehicle
+# Get all objects of category VEHICLE
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are braking.
+# According to the 'accelerating' function_docstring, "Values under -1 reliably indicates braking."
+# So, we set max_accel to -1.0 and min_accel to negative infinity.
+braking_vehicles = accelerating(vehicles, log_dir, min_accel=-np.inf, max_accel=-1.0)
+
+# Output the scenario
+output_scenario(braking_vehicles, description, log_dir, output_dir)

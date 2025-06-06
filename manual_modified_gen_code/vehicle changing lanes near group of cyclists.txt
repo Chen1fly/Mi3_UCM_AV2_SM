@@ -1,0 +1,37 @@
+description = 'vehicle changing lanes near group of cyclists'
+
+# Get all vehicle objects from the dataset.
+# "VEHICLE" is a superclass including REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK, BUS, etc.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Get all cyclist objects from the dataset.
+# "BICYCLIST" refers to a person riding a bicycle.
+cyclists = get_objects_of_category(log_dir, category='BICYCLIST')
+
+# Identify vehicles that are in the process of changing lanes.
+# This function will return vehicles and the timestamps during which they are changing lanes.
+# The direction parameter is None, meaning it will detect both left and right lane changes.
+lane_changing_vehicles = changing_lanes(vehicles, log_dir, direction=None)
+
+# Identify instances where a vehicle, already identified as changing lanes,
+# is near a "group" of cyclists.
+# - 'track_candidates' are the 'lane_changing_vehicles'. The function will filter these
+#   vehicles based on proximity to cyclists.
+# - 'candidate_uuids' are the 'cyclists'.
+# - 'distance_thresh=15.0': Defines "near" as being within 15.0 meters. This is an approximate
+#   value chosen to capture relevant interactions.
+# - 'min_objects=3': Defines a "group of cyclists" as at least 3 cyclists being near the
+#   lane-changing vehicle at the same time. If min_objects was 1, it would be "near a cyclist".
+#   Using 2 would mean "near at least two cyclists". 3 signifies a more definite group.
+vehicle_changing_lanes_near_cyclist_group = near_objects(
+    track_candidates=lane_changing_vehicles,
+    candidate_uuids=cyclists,
+    log_dir=log_dir,
+    distance_thresh=15.0,
+    min_objects=3
+)
+
+# Output the resulting scenario.
+# This will include vehicles that were changing lanes AND were near a group of at least 3 cyclists
+# during the timestamps of their lane change.
+output_scenario(vehicle_changing_lanes_near_cyclist_group, description, log_dir, output_dir)

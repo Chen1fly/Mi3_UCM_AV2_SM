@@ -1,0 +1,32 @@
+description = 'at least active 2 vehicles within 15 meters behind ego vehicle'
+
+# Get the ego vehicle
+ego_vehicle = get_objects_of_category(log_dir, category="EGO_VEHICLE")
+
+# Get all vehicles
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Filter for active vehicles (vehicles that are not stationary)
+# The stationary() function identifies vehicles that moved less than 2m over their observation length.
+# scenario_not(stationary) will thus give us vehicles that are not parked or stationary for a long period.
+active_vehicles = scenario_not(stationary)(all_vehicles, log_dir)
+
+# Find instances where the ego vehicle has at least 2 active vehicles behind it within 15 meters.
+# track_candidates: The ego vehicle, as we are looking for a condition relative to it.
+# related_candidates: The active vehicles that could be behind the ego vehicle.
+# direction: "backward" from the ego vehicle's perspective.
+# min_number: 2, as per the "at least 2" requirement.
+# within_distance: 15 meters.
+ego_with_vehicles_behind = has_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=active_vehicles,
+    log_dir=log_dir,
+    direction="backward",
+    min_number=2,
+    max_number=float('inf'), # We want all vehicles if there are more than min_number, though the core condition is just meeting min_number.
+    within_distance=15.0,
+    lateral_thresh=float('inf') # No specific lateral constraint mentioned other than "behind".
+)
+
+# Output the scenario
+output_scenario(ego_with_vehicles_behind, description, log_dir, output_dir)

@@ -1,0 +1,65 @@
+# Define the description of the scenario
+description = 'pedestrian walking alongside stopped bus'
+
+# Get all bus objects from the logs
+buses = get_objects_of_category(log_dir, category='BUS')
+
+# Get all pedestrian objects from the logs
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Filter for buses that are stopped
+# A bus is considered stopped if its velocity is very low (e.g., <= 0.5 m/s).
+# We set min_velocity to 0.0 to include buses that are completely stationary.
+stopped_buses = has_velocity(buses, log_dir, min_velocity=0.0, max_velocity=0.5)
+
+# Filter for pedestrians that are walking
+# A pedestrian is considered walking if their velocity is above a threshold that accounts for sensor jitter (e.g., > 0.5 m/s).
+walking_pedestrians = has_velocity(pedestrians, log_dir, min_velocity=0.5)
+
+# We want to find pedestrians (subject) who have a stopped bus (related object) alongside them.
+# We use reverse_relationship to make 'walking_pedestrians' the primary subject of the query.
+# The has_objects_in_relative_direction function will be called internally with walking_pedestrians as track_candidates
+# and stopped_buses as related_candidates.
+ped_centric_alongside_query = reverse_relationship(has_objects_in_relative_direction)
+
+# Scenario 1: Pedestrian has a stopped bus on their left side.
+# - track_candidates (internal): walking_pedestrians
+# - related_candidates (internal): stopped_buses
+# - direction='left': The bus is to the left of the pedestrian (from pedestrian's POV).
+# - min_number=1, max_number=1: We are looking for one such bus.
+# - within_distance=8: The longitudinal distance between pedestrian's centroid and bus's centroid is at most 8 meters.
+#   A bus can be 12-15m long. 8m allows the pedestrian to be alongside any part of the bus (near its front, middle, or rear).
+# - lateral_thresh=2.0: The bus's centroid must be within 2.0 meters laterally from the pedestrian's left side.
+#   Calculation: lateral_thresh >= Gap + BusWidth/2.
+#   Assuming PedWidth~0.5m, BusWidth~2.5m. If Gap (ped_side to bus_side) is max 0.75m,
+#   then lateral_thresh >= 0.75m + 2.5m/2 = 0.75m + 1.25m = 2.0m. This ensures closeness.
+peds_with_bus_on_left = ped_centric_alongside_query(
+    stopped_buses,  # This will be related_candidates in the internal call
+    walking_pedestrians,  # This will be track_candidates in the internal call
+    log_dir,
+    direction='left',
+    min_number=1,
+    max_number=1,
+    within_distance=8,  # Longitudinally, bus center can be +/- 8m from ped center
+    lateral_thresh=2.0  # Laterally, bus center is within 2m of ped's side
+)
+
+# Scenario 2: Pedestrian has a stopped bus on their right side.
+# Parameters are analogous to the 'left' case.
+peds_with_bus_on_right = ped_centric_alongside_query(
+    stopped_buses,
+    walking_pedestrians,
+    log_dir,
+    direction='right',
+    min_number=1,
+    max_number=1,
+    within_distance=8,
+    lateral_thresh=2.0
+)
+
+# Combine the two scenarios: pedestrians who have a bus on their left OR on their right.
+# The resulting dictionary will have pedestrian UUIDs as keys.
+pedestrian_walking_alongside_stopped_bus = scenario_or([peds_with_bus_on_left, peds_with_bus_on_right])
+
+# Output the scenario
+output_scenario(pedestrian_walking_alongside_stopped_bus, description, log_dir, output_dir)

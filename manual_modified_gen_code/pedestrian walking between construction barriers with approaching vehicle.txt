@@ -1,0 +1,94 @@
+import numpy as np
+from pathlib import Path
+from typing import Literal
+
+# Assume log_dir and output_dir are predefined Path objects.
+# log_dir: Path = Path("path/to/log_dir") # Example path
+# output_dir: Path = Path("path/to/output_dir") # Example path
+
+# Description of the scenario
+description = 'pedestrian walking between construction barriers with approaching vehicle'
+
+# 1. Identify Pedestrians
+all_pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# 2. Filter for "walking" pedestrians
+# A typical human walking speed is around 1.4 m/s (5 km/h).
+# We set a range to capture walking, excluding stationary or very fast-moving (running) pedestrians.
+# min_velocity=0.5 m/s helps to filter out stationary pedestrians that might have minor positional jitter.
+# max_velocity=2.5 m/s allows for a brisk walk or slow jog.
+walking_pedestrians = has_velocity(all_pedestrians, log_dir, min_velocity=0.5, max_velocity=2.5)
+
+# 3. Identify Construction Barriers
+# Construction barriers are typically cones or barrels.
+construction_cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+construction_barrels = get_objects_of_category(log_dir, category='CONSTRUCTION_BARREL')
+
+# Combine cones and barrels into a single scenario dictionary representing all relevant construction barriers.
+construction_barriers = scenario_or([construction_cones, construction_barrels])
+
+# 4. Find pedestrians "between" construction barriers.
+# "Between" implies the pedestrian has barriers on both their left and right sides, forming a sort of channel.
+# We use has_objects_in_relative_direction twice: once for barriers to the left, once for barriers to the right.
+# For directions 'left'/'right':
+#   `within_distance` is interpreted as the maximum lateral distance from the pedestrian's centerline to the barrier's center.
+#   `lateral_thresh` is interpreted as the maximum longitudinal distance (along the pedestrian's path) the barrier can be.
+# These parameters define a detection zone on each side of the pedestrian.
+
+# Pedestrians with at least one construction barrier to their left.
+# Barrier's center must be within 1.5m laterally (to the left).
+# Barrier must be within a 5m longitudinal window (e.g., 2.5m in front to 2.5m behind the pedestrian).
+pedestrians_with_barrier_to_left = has_objects_in_relative_direction(
+    track_candidates=walking_pedestrians,
+    related_candidates=construction_barriers,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1,  # At least one barrier required on this side.
+    max_number=np.inf, # No upper limit on how many barriers can be there.
+    within_distance=1.5,  # Max lateral distance to the barrier.
+    lateral_thresh=5.0    # Max longitudinal extent for the barrier to be considered "alongside".
+)
+
+# Pedestrians with at least one construction barrier to their right.
+# Parameters are symmetrical to the "left" case.
+pedestrians_with_barrier_to_right = has_objects_in_relative_direction(
+    track_candidates=walking_pedestrians,
+    related_candidates=construction_barriers,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,
+    max_number=np.inf,
+    within_distance=1.5,
+    lateral_thresh=5.0
+)
+
+# Pedestrians satisfying both conditions (barriers on left AND right simultaneously).
+pedestrians_between_barriers = scenario_and([pedestrians_with_barrier_to_left, pedestrians_with_barrier_to_right])
+
+# 5. Identify Vehicles that could be approaching.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# 6. Find pedestrians (from the group "between barriers") who have an "approaching vehicle".
+# "Approaching" is defined by a vehicle heading towards the pedestrian with a certain speed and proximity.
+# We use `reverse_relationship(heading_toward)` because `heading_toward(vehicles, pedestrians, ...)` would return
+# the vehicles. `reverse_relationship` will return the pedestrians who are being headed towards.
+# `track_candidates` for `reverse_relationship(heading_toward)` are the pedestrians we're focusing on.
+# `related_candidates` are the vehicles that might be approaching them.
+pedestrians_being_approached_by_vehicle = reverse_relationship(heading_toward)(
+    track_candidates=pedestrians_between_barriers, # The pedestrians already identified as being between barriers.
+    related_candidates=all_vehicles,               # All vehicles are potential approachers.
+    log_dir=log_dir,
+    angle_threshold=30.0,      # Vehicle's velocity vector must be within 30 degrees of the vector pointing from vehicle to pedestrian.
+    minimum_speed=1.0,         # Vehicle must have a component of velocity towards the pedestrian greater than 1.0 m/s.
+    max_distance=50.0          # Vehicle must be within 50 meters of the pedestrian.
+)
+
+# The final scenario focuses on the pedestrian.
+# `pedestrians_being_approached_by_vehicle` contains pedestrians who are:
+#   1. Walking
+#   2. Between construction barriers (one left, one right)
+#   3. Being approached by a vehicle
+final_scenario = pedestrians_being_approached_by_vehicle
+
+# Output the resulting scenario.
+output_scenario(final_scenario, description, log_dir, output_dir)

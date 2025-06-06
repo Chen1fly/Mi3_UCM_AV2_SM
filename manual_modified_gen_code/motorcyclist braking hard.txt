@@ -1,0 +1,40 @@
+# Description of the scenario
+description = 'motorcyclist braking hard'
+
+# Get all motorcycle objects from the logs.
+# We are interested in the 'MOTORCYCLE' category, as physical attributes like acceleration
+# are typically associated with the vehicle itself. The description "motorcyclist braking hard"
+# refers to the action of the rider causing the motorcycle to brake.
+# The 'MOTORCYCLE' category is defined as: "Motorized vehicle with two wheels where the rider
+# straddles the engine. These are capable of high speeds similar to a car."
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+
+# Identify motorcycles that are braking hard.
+# The 'accelerating' function can find objects with acceleration within a given range.
+# For braking, the forward acceleration is negative.
+# The function's documentation states: "Values under -1 reliably indicates braking."
+# To be precise for "hard braking" and avoid false positives of gentle braking,
+# we define "hard braking" as a forward acceleration less than or equal to -2.5 m/s^2
+# (i.e., a deceleration of at least 2.5 m/s^2).
+
+# Parameters for 'accelerating' function:
+# - track_candidates: The motorcycle objects we identified.
+# - log_dir: Path to scenario logs.
+# - min_accel = -np.inf: This means there is no lower limit to how strong the deceleration can be
+#   (e.g., -3.0 m/s^2, -4.0 m/s^2, etc., are all more negative than -2.5 m/s^2).
+# - max_accel = -2.5: This sets the upper bound for the acceleration. An object's
+#   acceleration 'a' must satisfy: min_accel <= a <= max_accel.
+#   So, a <= -2.5 m/s^2. This ensures that only accelerations corresponding to
+#   hard braking are included. For example, an acceleration of -1.5 m/s^2 (moderate braking)
+#   would not be included, but -3.0 m/s^2 (hard braking) would.
+hard_braking_motorcycles = accelerating(
+    track_candidates=motorcycles,
+    log_dir=log_dir,
+    min_accel=-np.inf,
+    max_accel=-2.5
+)
+
+# Output the resulting scenario.
+# This will create a file containing the UUIDs of motorcycles that meet the "hard braking"
+# criteria, along with the timestamps when this condition is met.
+output_scenario(hard_braking_motorcycles, description, log_dir, output_dir)

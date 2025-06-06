@@ -1,0 +1,80 @@
+description = "pedestrian crossing between stopped buses"
+
+# Get all pedestrian objects from the logs.
+all_pedestrians = get_objects_of_category(log_dir, category="PEDESTRIAN")
+
+# Filter for pedestrians that are actively moving, to capture the "crossing" aspect.
+# According to documentation, stationary objects can have velocity up to 0.5 m/s due to jitter.
+# We set min_velocity slightly higher to ensure the pedestrian is indeed in motion.
+moving_pedestrians = has_velocity(all_pedestrians, log_dir, min_velocity=0.6)
+
+# Get all categories of buses.
+# The term "buses" can include standard buses, school buses, and articulated buses.
+standard_buses = get_objects_of_category(log_dir, category="BUS")
+school_buses = get_objects_of_category(log_dir, category="SCHOOL_BUS")
+articulated_buses = get_objects_of_category(log_dir, category="ARTICULATED_BUS")
+
+# Combine all bus types into a single scenario dictionary.
+all_bus_types = scenario_or([standard_buses, school_buses, articulated_buses])
+
+# Filter for buses that are "stopped".
+# We use has_velocity with a low max_velocity to include buses that are temporarily stopped (e.g., at a bus stop, in traffic),
+# as these are common situations for pedestrians to cross between them.
+# max_velocity=0.5 m/s is consistent with the threshold for stationary object jitter.
+stopped_buses = has_velocity(all_bus_types, log_dir, max_velocity=0.5)
+# An alternative, for buses stopped for longer durations (e.g. parked), would be:
+# stationary_buses = stationary(all_bus_types, log_dir)
+
+# Define parameters for identifying relative positions.
+# A pedestrian is "between" two buses if one is to their left and another to their right.
+
+# within_distance: Max distance from the pedestrian's side to the bus.
+# This defines how wide the "channel" formed by the buses can be.
+# A pedestrian is ~0.5m wide. Buses are ~2.5m wide.
+# If a pedestrian crosses a 2m gap between two buses, each bus edge is 1m from the pedestrian's center.
+# The bus center would be 1m (half gap) + 1.25m (half bus width) = 2.25m from pedestrian's center.
+# Distance from pedestrian's side (0.25m from center) to bus center is 2.25m - 0.25m = 2.0m.
+# Setting within_distance to 2.5m provides some margin.
+distance_to_bus_laterally = 2.5  # meters
+
+# lateral_thresh: For 'left'/'right' directions, this is the tolerance along the pedestrian's forward/backward axis.
+# It ensures the bus is longitudinally aligned with the pedestrian, not far ahead or behind.
+# The pedestrian's depth is ~0.5m. A lateral_thresh of 1.0m means the bus must be
+# within a longitudinal slice extending 1m from the pedestrian's front and 1m from their back.
+longitudinal_alignment_tolerance = 1.0  # meters
+
+# Identify moving pedestrians that have a stopped bus to their left.
+# min_number=1 and max_number=1 ensure we consider the single closest bus satisfying the criteria.
+peds_with_bus_on_left = has_objects_in_relative_direction(
+    track_candidates=moving_pedestrians,
+    related_candidates=stopped_buses,
+    log_dir=log_dir,
+    direction="left",
+    min_number=1,
+    max_number=1,
+    within_distance=distance_to_bus_laterally,
+    lateral_thresh=longitudinal_alignment_tolerance
+)
+
+# Identify moving pedestrians that have a stopped bus to their right.
+peds_with_bus_on_right = has_objects_in_relative_direction(
+    track_candidates=moving_pedestrians,
+    related_candidates=stopped_buses,
+    log_dir=log_dir,
+    direction="right",
+    min_number=1,
+    max_number=1,
+    within_distance=distance_to_bus_laterally,
+    lateral_thresh=longitudinal_alignment_tolerance
+)
+
+# A pedestrian is considered "crossing between stopped buses" if they meet both conditions:
+# having a bus to their left AND a bus to their right simultaneously.
+# scenario_and will find pedestrians (the primary track_candidates) that are keys in both
+# peds_with_bus_on_left and peds_with_bus_on_right for the same timestamps.
+# The specific bus UUIDs are part of the relationships in the intermediate dicts but scenario_and focuses on the primary track.
+# The geometry (one left, one right) implies two distinct buses in typical scenarios.
+peds_crossing_between_stopped_buses = scenario_and([peds_with_bus_on_left, peds_with_bus_on_right])
+
+# Output the resulting scenario.
+output_scenario(peds_crossing_between_stopped_buses, description, log_dir, output_dir)

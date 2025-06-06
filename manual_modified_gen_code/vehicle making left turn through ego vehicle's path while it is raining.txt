@@ -1,0 +1,36 @@
+description = "vehicle making left turn through ego vehicle's path while it is raining"
+
+# Get all non-ego vehicles. The 'VEHICLE' supercategory, as defined in the prompt,
+# does not include 'EGO_VEHICLE'.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter for vehicles that are making a left turn.
+left_turning_vehicles = turning(all_vehicles, log_dir, direction='left')
+
+# Get the ego vehicle.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Identify instances where a left-turning vehicle (related_candidates)
+# crosses the forward path of the ego vehicle (track_candidates).
+# The `direction="forward"` is relative to the `track_candidates` (ego_vehicle),
+# meaning the ego vehicle is being crossed from its front.
+# `forward_thresh` is the distance in front of the ego vehicle the crossing must occur within.
+# `lateral_thresh` defines half the width of the "path" of the ego vehicle.
+# A `lateral_thresh` of 2.0m means the path is considered to be 4.0m wide,
+# which is a reasonable approximation for the ego vehicle's immediate lane.
+# `reverse_relationship` is used to make the left-turning vehicle (the actor)
+# the primary key in the resulting scenario dictionary.
+ltv_crossing_ego_path = reverse_relationship(being_crossed_by)(
+    track_candidates=ego_vehicle,
+    related_candidates=left_turning_vehicles,
+    log_dir=log_dir,
+    direction="forward",
+    forward_thresh=10.0,  # Crossing must occur within 10 meters in front of the ego vehicle.
+    lateral_thresh=2.0   # Defines a 4-meter wide path for the ego vehicle.
+)
+
+# The condition "while it is raining" cannot be programmatically determined
+# using the provided set of functions, as there are no functions related to weather detection.
+# The scenario will find instances of the geometric interaction regardless of weather.
+
+output_scenario(ltv_crossing_ego_path, description, log_dir, output_dir)

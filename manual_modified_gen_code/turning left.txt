@@ -1,0 +1,18 @@
+# Define the description of the scenario
+description = 'turning left'
+
+# Get all objects of the category 'VEHICLE'
+# The 'turning' function is most relevant for vehicles, and the example provided uses 'VEHICLE'.
+# Using 'VEHICLE' helps to be precise and avoid potential false positives from other object types
+# whose 'turning' might not be as meaningful in a driving context.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are turning left
+# The 'turning' function filters the 'vehicles' dictionary to include only those
+# that are performing a left turn at certain timestamps.
+vehicles_turning_left = turning(vehicles, log_dir, direction='left')
+
+# Output the scenario
+# This will save the identified instances of vehicles turning left.
+# Visualization is turned off by default as per the instructions ("Do not provide any visualization kwargs").
+output_scenario(vehicles_turning_left, description, log_dir, output_dir)

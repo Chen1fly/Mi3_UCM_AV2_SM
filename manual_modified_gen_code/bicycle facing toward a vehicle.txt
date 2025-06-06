@@ -1,0 +1,19 @@
+description = 'bicycle facing toward a vehicle'
+
+# Get all bicycle objects from the dataset
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Get all vehicle objects from the dataset.
+# 'VEHICLE' is a superclass including REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, BOX_TRUCK, BUS, SCHOOL_BUS, ARTICULATED_BUS, TRUCK, and RAILED_VEHICLE.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Find bicycles that are facing toward any of the vehicles.
+# The `facing_toward` function identifies objects in the first set (track_candidates, here bicycles)
+# that are oriented towards objects in the second set (related_candidates, here vehicles).
+# The default `within_angle` is 22.5 degrees, meaning the vehicle must be within a 45-degree cone in front of the bicycle.
+# The default `max_distance` is 50 meters.
+bicycles_facing_vehicles = facing_toward(bicycles, vehicles, log_dir)
+
+# Output the scenario
+# This will save the identified instances for evaluation or visualization.
+output_scenario(bicycles_facing_vehicles, description, log_dir, output_dir)

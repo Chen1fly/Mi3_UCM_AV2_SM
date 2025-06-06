@@ -1,0 +1,40 @@
+# Define the description of the scenario
+description = 'vehicle with multiple construction cones on the left side'
+
+# Get all vehicle objects from the logs
+# 'VEHICLE' is a superclass including REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, etc.
+vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Get all construction cone objects from the logs
+# 'CONSTRUCTION_CONE' is a specific category for movable traffic cones.
+construction_cones = get_objects_of_category(log_dir, category="CONSTRUCTION_CONE")
+
+# Identify vehicles that have multiple (at least 2) construction cones on their left side.
+# We define "on the left side" with specific distance thresholds to be precise:
+# - direction='left': We are looking for cones to the left of the vehicle.
+# - min_number=2: We require at least two cones ("multiple").
+# - within_distance=5.0: Cones must be within 5 meters to the left of the vehicle.
+#   This helps ensure the cones are in an adjacent area/lane and not several lanes away.
+# - lateral_thresh=2.0: Cones must be longitudinally within 2 meters of the vehicle's front or rear.
+#   This means the cones are positioned alongside the vehicle, not far ahead or far behind its physical span.
+#   The total longitudinal zone for cones is effectively vehicle_length + 2 * lateral_thresh.
+vehicles_with_multiple_cones_on_left = has_objects_in_relative_direction(
+    track_candidates=vehicles,
+    related_candidates=construction_cones,
+    log_dir=log_dir,
+    direction='left',
+    min_number=2,
+    # max_number is left to its default (np.inf), as we are primarily concerned with meeting min_number.
+    within_distance=5.0,  # Max distance for cones to be considered "to the left"
+    lateral_thresh=2.0  # Max longitudinal distance from vehicle's front/rear for cones
+)
+
+# Output the identified scenario instances.
+# The 'visualize' parameter is set to False as per instructions ("Do not provide any visualization kwargs").
+output_scenario(
+    vehicles_with_multiple_cones_on_left,
+    description,
+    log_dir,
+    output_dir,
+    visualize=False
+)

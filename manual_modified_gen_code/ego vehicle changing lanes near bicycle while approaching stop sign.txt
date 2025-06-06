@@ -1,0 +1,61 @@
+# Define the description of the scenario
+description = "ego vehicle changing lanes near bicycle while approaching stop sign"
+
+# Step 1: Get the EGO_VEHICLE
+# The EGO_VEHICLE is the primary actor in this scenario.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Step 2: Get BICYCLE objects
+# These are the objects the ego vehicle needs to be near.
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Step 3: Identify when the ego vehicle is changing lanes.
+# The changing_lanes function will return a scenario dictionary for the ego_vehicle
+# with timestamps indicating when it is performing a lane change.
+ego_changing_lanes = changing_lanes(ego_vehicle, log_dir)
+
+# Step 4: Identify when the ego vehicle is near a bicycle.
+# We define "near" as being within a 15-meter radius.
+# We are interested if there's at least one bicycle nearby.
+# We assume near_objects returns a dict keyed by ego_vehicle's UUIDs
+# with values as lists of timestamps when the condition is met.
+ego_near_bicycle = near_objects(
+    track_uuid=ego_vehicle,
+    candidate_uuids=bicycles,
+    log_dir=log_dir,
+    distance_thresh=15,  # Define "near" as within 15 meters
+    min_objects=1        # At least one bicycle
+)
+
+# Step 5: Identify when the ego vehicle is approaching/at a stop sign.
+# The at_stop_sign function identifies objects within 15m of a stop sign
+# and in its corresponding lane. The forward_thresh specifies the distance
+# in front of the stop sign. A value of 15m implies the vehicle is close
+# and in the region leading up to the stop line.
+ego_approaching_stop_sign = at_stop_sign(
+    track_candidates=ego_vehicle,
+    log_dir=log_dir,
+    forward_thresh=15  # Within 15 meters in the forward direction of the stop sign
+)
+
+# Step 6: Combine all conditions using scenario_and.
+# The final scenario occurs when the ego vehicle is simultaneously:
+# 1. Changing lanes
+# 2. Near a bicycle
+# 3. Approaching a stop sign
+# scenario_and will find the intersection of timestamps for the ego_vehicle's UUID
+# across all these conditions.
+final_scenario = scenario_and([
+    ego_changing_lanes,
+    ego_near_bicycle,
+    ego_approaching_stop_sign
+])
+
+# Step 7: Output the resulting scenario.
+# This will save the identified instances of the scenario.
+output_scenario(
+    scenario=final_scenario,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

@@ -1,0 +1,26 @@
+# Define the description of the scenario
+description = 'vehicle near multiple bollards'
+
+# Get all objects of category 'VEHICLE'
+# This will be our main objects of interest (track_candidates)
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Get all objects of category 'BOLLARD'
+# These are the objects we want to check the proximity of to the vehicles (related_candidates)
+bollards = get_objects_of_category(log_dir, category='BOLLARD')
+
+# Find vehicles that are near multiple bollards
+# 'near_objects' identifies timestamps when a tracked object (vehicle) is near a specified set of related objects (bollards).
+# We set 'min_objects=2' because the description specifies "multiple bollards", meaning at least two.
+# The 'distance_thresh' parameter defaults to 10 meters, which is a reasonable distance for "near" in this context.
+vehicles_near_multiple_bollards = near_objects(
+    track_uuid=vehicles,
+    candidate_uuids=bollards,
+    log_dir=log_dir,
+    min_objects=2,  # Specify that we need at least 2 bollards
+    distance_thresh=10 # Default is 10m, explicitly stating for clarity or future adjustment
+)
+
+# Output the identified scenario
+# This function will save the results in a format suitable for evaluation or further analysis.
+output_scenario(vehicles_near_multiple_bollards, description, log_dir, output_dir)

@@ -1,0 +1,53 @@
+description = "vehicle two vehicles ahead is at a stop sign"
+
+# Get all non-ego vehicles in the scenario
+# The "VEHICLE" category is assumed to exclude EGO_VEHICLE based on category descriptions and examples.
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Get the EGO vehicle
+ego_vehicle = get_objects_of_category(log_dir, category="EGO_VEHICLE")
+
+# Step 1: Find V2 - vehicles that are at a stop sign.
+# These are the vehicles that are two positions ahead of the "vehicle" (ego) we are trying to identify.
+# The default forward_thresh for at_stop_sign is 10m, meaning the vehicle is within 10m of the stop line.
+vehicles_at_stop_sign_v2 = at_stop_sign(track_candidates=all_vehicles, log_dir=log_dir)
+
+# Step 2: Find V1 - vehicles that have a V2 (a vehicle at a stop sign) directly in front of them.
+# These are vehicles immediately behind a vehicle that is at a stop sign.
+# track_candidates are potential V1s.
+# related_candidates are the V2s found in Step 1.
+# within_distance: V1 is likely close to V2 if V2 is at a stop sign (e.g., queued). 15m allows for a car length or two.
+# lateral_thresh: To ensure V2 is in the same lane in front of V1. 1.0m means V2's centerline is within 1.0m of V1's centerline.
+vehicles_v1 = has_objects_in_relative_direction(
+    track_candidates=all_vehicles,
+    related_candidates=vehicles_at_stop_sign_v2,
+    log_dir=log_dir,
+    direction="forward",
+    min_number=1,  # V1 must have at least one such V2.
+    max_number=1,  # We are interested in the V2 immediately in front of V1.
+    within_distance=15.0,
+    lateral_thresh=1.0
+)
+# vehicles_v1 is a scenario_dict: {v1_uuid: {v2_uuid: [timestamps]}}
+# The keys are the UUIDs of vehicles fitting the description of V1.
+
+# Step 3: Find EGO vehicles that have a V1 (a vehicle identified in Step 2) directly in front of them.
+# The "vehicle" in the main description "vehicle two vehicles ahead..." refers to this ego vehicle.
+# track_candidates is the ego_vehicle.
+# related_candidates are the V1s found in Step 2.
+# within_distance: Ego can be a bit further from V1, as it might be approaching the queue. 30m allows for several car lengths.
+# lateral_thresh: To ensure V1 is in the same lane in front of Ego. 1.0m for centerline-to-centerline offset.
+vehicle_two_vehicles_ahead_is_at_stop_sign = has_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=vehicles_v1,
+    log_dir=log_dir,
+    direction="forward",
+    min_number=1,  # Ego must have at least one such V1.
+    max_number=1,  # We are interested in the V1 immediately in front of Ego.
+    within_distance=30.0,
+    lateral_thresh=1.0
+)
+# The result is a scenario_dict: {ego_uuid: {v1_uuid: [timestamps]}}
+# This identifies the EGO vehicle when the condition "the vehicle two vehicles ahead of it is at a stop sign" is met.
+
+output_scenario(vehicle_two_vehicles_ahead_is_at_stop_sign, description, log_dir, output_dir)

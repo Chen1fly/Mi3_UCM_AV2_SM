@@ -1,0 +1,16 @@
+# Description: ego vehicle near mobile pedestrian sign
+description = 'ego vehicle near mobile pedestrian sign'
+
+# Get all instances of the EGO_VEHICLE
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all instances of MOBILE_PEDESTRIAN_SIGN
+mobile_ped_signs = get_objects_of_category(log_dir, category='MOBILE_PEDESTRIAN_SIGN')
+
+# Find instances where the ego vehicle is near a mobile pedestrian sign.
+# A distance_thresh of 15 meters is chosen as a reasonable proximity for a mobile pedestrian sign to be relevant to the ego vehicle.
+# min_objects is 1 because we are interested in the ego vehicle being near at least one mobile pedestrian sign.
+ego_near_mobile_ped_sign = near_objects(ego_vehicle, mobile_ped_signs, log_dir, distance_thresh=15, min_objects=1)
+
+# Output the scenario
+output_scenario(ego_near_mobile_ped_sign, description, log_dir, output_dir)

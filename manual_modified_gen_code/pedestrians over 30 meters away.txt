@@ -1,0 +1,28 @@
+description = 'pedestrians over 30 meters away'
+
+# Get all pedestrian objects from the logs.
+# These are the objects we want to filter.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get the ego vehicle object. This will be the reference object
+# from which the distance is measured.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# The function `near_objects(track_uuid, candidate_uuids, log_dir, distance_thresh)`
+# identifies objects in `track_uuid` that are within `distance_thresh` of any object
+# in `candidate_uuids`.
+# So, `near_objects(pedestrians, ego_vehicle, log_dir, distance_thresh=30)`
+# would return a scenario dictionary of pedestrians that are *within* 30 meters of the ego vehicle.
+
+# We want pedestrians that are *over* 30 meters away.
+# This is equivalent to pedestrians that are NOT (within 30 meters of the ego vehicle).
+# The `scenario_not(func)` wrapper can be used for this.
+# `scenario_not(near_objects)(pedestrians, ego_vehicle, log_dir, distance_thresh=30)`
+# will first compute `near_objects(pedestrians, ego_vehicle, log_dir, distance_thresh=30)`
+# (let's call its result `peds_within_30m`) and then return a scenario dictionary
+# containing pedestrians from the original `pedestrians` set that are *not* in `peds_within_30m`.
+pedestrians_over_30m_away = scenario_not(near_objects)(pedestrians, ego_vehicle, log_dir, distance_thresh=30)
+
+# Output the resulting scenario.
+# This scenario will contain pedestrians that are more than 30 meters away from the ego vehicle.
+output_scenario(pedestrians_over_30m_away, description, log_dir, output_dir)

@@ -1,0 +1,53 @@
+# Define the description of the scenario
+description = 'left lane change while there is a vehicle to the left'
+
+# Get all objects of category 'VEHICLE'
+# This includes REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, BOX_TRUCK, BUS, SCHOOL_BUS, ARTICULATED_BUS, TRUCK, and RAILED_VEHICLE.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are performing a lane change to the left.
+# The 'changing_lanes' function returns a scenario dictionary of vehicles
+# and the timestamps at which they are changing lanes in the specified direction.
+left_lane_changing_vehicles = changing_lanes(
+    track_candidates=all_vehicles,
+    log_dir=log_dir,
+    direction='left'
+)
+
+# From the vehicles that are changing lanes to the left,
+# find those that have at least one other vehicle to their immediate left during the lane change.
+# 'has_objects_in_relative_direction' will filter 'left_lane_changing_vehicles'
+# and return only those tracks (and their timestamps) that satisfy the condition.
+#
+# Parameters for has_objects_in_relative_direction:
+# - track_candidates: The vehicles already identified as changing lanes to the left.
+# - related_candidates: All vehicles, to check for presence to the left.
+# - direction='left': We are looking for vehicles in the left direction relative to the track_candidate.
+# - min_number=1: We need to find at least one vehicle to the left.
+# - within_distance=5 (meters): The center of the related vehicle must be within 5 meters
+#   in the 'left' direction from the center of the track_candidate.
+#   This distance is chosen to primarily capture vehicles in the adjacent left lane (typical lane width ~3.5m).
+# - lateral_thresh=10 (meters): The center of the related vehicle can be longitudinally offset
+#   (i.e., forward or backward along the track_candidate's path) by at most 10 meters
+#   from the center of the track_candidate. This ensures the vehicle to the left is reasonably "alongside"
+#   or in near proximity during the lane change, rather than very far ahead or behind.
+vehicles_making_left_lane_change_with_vehicle_to_left = has_objects_in_relative_direction(
+    track_candidates=left_lane_changing_vehicles,
+    related_candidates=all_vehicles,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1,
+    max_number=1, # We only care about the presence of one, but can get the closest one. Max_number=np.inf is also fine if we just need min_number.
+    within_distance=5.0,
+    lateral_thresh=10.0
+)
+
+# Output the resulting scenario.
+# This scenario will contain vehicles that were changing lanes to the left
+# AND, at those specific times, had another vehicle to their left.
+output_scenario(
+    scenario=vehicles_making_left_lane_change_with_vehicle_to_left,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

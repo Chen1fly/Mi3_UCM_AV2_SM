@@ -1,0 +1,40 @@
+# description: group of pedestrians ahead of the ego vehicle
+
+# Define the description of the scenario
+description = 'group of pedestrians ahead of the ego vehicle'
+
+# Get the EGO_VEHICLE from the dataset
+# The EGO_VEHICLE is the vehicle collecting the data.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all PEDESTRIAN objects from the dataset
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Find instances where the ego_vehicle has a group of pedestrians ahead of it.
+# "group" is interpreted as at least 2 pedestrians.
+# "ahead" is defined by the 'forward' direction.
+# `within_distance` specifies the maximum longitudinal distance for pedestrians to be considered.
+# `lateral_thresh` specifies the maximum lateral distance pedestrians can be from the sides of the ego vehicle.
+# A lateral_thresh of 1.5m means pedestrians should be within a corridor roughly the width of the ego vehicle plus 3 meters (1.5m on each side).
+# If the ego vehicle is ~2m wide, this results in a ~5m wide corridor, which should capture pedestrians directly ahead or in immediately adjacent paths.
+ego_vehicle_with_ped_group_ahead = has_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=pedestrians,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=2,  # A "group" implies at least 2 pedestrians
+    max_number=np.inf, # Consider all pedestrians in the group if more than min_number are found
+    within_distance=50.0,  # Default distance, up to 50 meters ahead
+    lateral_thresh=1.5  # Pedestrians' centers must be within 1.5m of the ego's extended sides.
+                        # This helps ensure pedestrians are reasonably "in front" and not too far laterally.
+)
+
+# Output the scenario
+# The resulting scenario dictionary will have EGO_VEHICLE UUIDs as keys.
+# The values will indicate the timestamps and the UUIDs of the pedestrians forming the group ahead.
+output_scenario(
+    ego_vehicle_with_ped_group_ahead,
+    description,
+    log_dir,
+    output_dir
+)

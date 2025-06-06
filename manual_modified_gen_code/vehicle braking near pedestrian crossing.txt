@@ -1,0 +1,30 @@
+# Define the description of the scenario
+description = 'vehicle braking near pedestrian crossing'
+
+# Get all objects categorized as 'VEHICLE'
+# The 'VEHICLE' superclass includes various types of vehicles like cars, trucks, buses.
+vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Identify vehicles that are braking.
+# Braking is defined as having a forward (longitudinal) acceleration less than or equal to -1.0 m/s^2.
+# The 'accelerating' function is used here with a negative range for acceleration.
+# min_accel = -np.inf means any deceleration up to -1.0 m/s^2.
+# max_accel = -1.0 m/s^2 ensures we capture significant braking events, as per the function's documentation
+# ("Values under -1 reliably indicates braking").
+braking_vehicles = accelerating(vehicles, log_dir, min_accel=-np.inf, max_accel=-1.0)
+
+# Identify vehicles that are near a pedestrian crossing.
+# "Near" is defined as being within 10 meters of a pedestrian crossing's boundaries.
+# The 'at_pedestrian_crossing' function checks the proximity of objects to pedestrian crossing map features.
+# A within_distance of 10 meters is chosen to capture vehicles that are close to the crossing,
+# which could be approaching, at, or just past the crossing.
+vehicles_near_ped_crossing = at_pedestrian_crossing(vehicles, log_dir, within_distance=10)
+
+# Combine the two conditions using scenario_and.
+# We are looking for vehicles that are *both* braking *and* near a pedestrian crossing.
+# The resulting scenario will contain only those vehicles that satisfy both criteria at the same timestamps.
+vehicle_braking_near_ped_crossing = scenario_and([braking_vehicles, vehicles_near_ped_crossing])
+
+# Output the resulting scenario.
+# This function will save the identified instances for evaluation or visualization.
+output_scenario(vehicle_braking_near_ped_crossing, description, log_dir, output_dir)
