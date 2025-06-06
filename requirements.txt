@@ -1,0 +1,15 @@
+av2
+anthropic
+transformers
+google-genai
+pathos
+ipykernel
+huggingface_hub
+pyvista
+vtk
+imageio
+imageio-ffmpeg
+pycocotools
+tabulate
+evalai
+--extra-index-url https://wheels.vtk.org vtk-egl
