@@ -1,0 +1,13 @@
+# Description: vehicle accelerating more than two meters per second
+
+# Get all objects of category 'VEHICLE'
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are accelerating with a forward acceleration greater than 2 m/s^2.
+# The accelerating function's default min_accel is 0.65, and values over 1.0 reliably indicate acceleration.
+# We set min_accel to 2.0 to match the description "more than two meters per second".
+# It's assumed "meters per second" in the description refers to the unit of acceleration (m/s^2).
+accelerating_vehicles = accelerating(vehicles, log_dir, min_accel=2.0)
+
+# Output the scenario
+output_scenario(accelerating_vehicles, description, log_dir, output_dir)

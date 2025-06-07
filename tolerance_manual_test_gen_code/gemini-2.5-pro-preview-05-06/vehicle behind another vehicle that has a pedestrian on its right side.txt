@@ -1,0 +1,74 @@
+# Assume log_dir and output_dir are predefined Path objects.
+# Assume all the provided functions like get_objects_of_category, has_objects_in_relative_direction, etc., are defined and available.
+# Assume numpy (as np) is available in the environment if functions use np.inf by default,
+# though this specific solution uses concrete numbers for max_number.
+
+description = "vehicle behind another vehicle that has a pedestrian on its right side"
+
+# Step 1: Get all vehicles and all pedestrians from the logs.
+# These are the raw sets of objects we will be working with.
+all_vehicles_raw = get_objects_of_category(log_dir, category='VEHICLE')
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Step 2: Filter for moving vehicles.
+# The scenario "vehicle behind another vehicle" typically implies active, moving participants
+# rather than parked vehicles. This helps in being more precise and avoiding false positives
+# from static configurations.
+all_moving_vehicles = scenario_not(stationary)(all_vehicles_raw, log_dir)
+
+# Step 3: Identify "another vehicle" (referred to as vehicle_A).
+# This vehicle_A must be a moving vehicle and must have a pedestrian on its right side.
+# - `track_candidates=all_moving_vehicles`: We are looking for vehicle_A from the set of all moving vehicles.
+# - `related_candidates=pedestrians`: The object to the right of vehicle_A must be a pedestrian.
+# - `direction='right'`: The pedestrian must be located to the right of vehicle_A, from vehicle_A's perspective.
+# - `min_number=1`: There must be at least one pedestrian satisfying the condition.
+# - `max_number=1`: If multiple pedestrians are on the right, associate with the closest one.
+#   This aligns with "a pedestrian" implying a singular, specific instance.
+# - `within_distance=3.0`: The pedestrian should be within 3 meters from vehicle_A's right side.
+#   This ensures the pedestrian is relatively close (e.g., on an adjacent sidewalk or edge of the road).
+# - `lateral_thresh=3.0`: The pedestrian's longitudinal position (along vehicle_A's length)
+#   should be within +/-3 meters of vehicle_A's center. This ensures the pedestrian is "beside"
+#   vehicle_A, not significantly in front or behind it while still being to its right.
+#   A 3m threshold covers most vehicle lengths (e.g. a vehicle up to 6m long).
+vehicles_A_with_ped_on_right = has_objects_in_relative_direction(
+    track_candidates=all_moving_vehicles,
+    related_candidates=pedestrians,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,
+    max_number=1,
+    within_distance=3.0,
+    lateral_thresh=3.0
+)
+
+# Step 4: Identify the main "vehicle" of interest (referred to as vehicle_B).
+# This vehicle_B must be a moving vehicle and must be positioned behind one of the
+# `vehicles_A_with_ped_on_right` identified in Step 3.
+# The final output of the scenario will consist of these vehicles_B.
+# - `track_candidates=all_moving_vehicles`: We are searching for vehicle_B from the set of all moving vehicles.
+# - `related_candidates=vehicles_A_with_ped_on_right`: Vehicle_B must be behind one of these vehicle_A's.
+# - `direction='forward'`: Vehicle_A (the one with a pedestrian on its right) must be in the
+#   forward direction relative to vehicle_B (from vehicle_B's perspective).
+# - `min_number=1`: Vehicle_B must be behind at least one such vehicle_A.
+# - `max_number=1`: If vehicle_B is behind multiple such vehicle_A's (e.g., if vehicle_A's are in
+#   adjacent lanes ahead), associate with the closest vehicle_A in front.
+# - `within_distance=25.0`: Vehicle_A should be within 25 meters (longitudinally) in front of vehicle_B.
+#   This defines a reasonable following distance.
+# - `lateral_thresh=2.0`: Vehicle_A (in front) should be within +/- 2.0 meters laterally
+#   from vehicle_B's line of travel. This ensures they are relatively aligned,
+#   likely in the same lane or an immediately adjacent one.
+final_vehicles_B = has_objects_in_relative_direction(
+    track_candidates=all_moving_vehicles,
+    related_candidates=vehicles_A_with_ped_on_right,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=1,
+    within_distance=25.0,
+    lateral_thresh=2.0
+)
+
+# Step 5: Output the resulting scenario.
+# The `final_vehicles_B` dictionary contains the UUIDs of vehicles that meet the full description,
+# along with timestamps and related object information.
+output_scenario(final_vehicles_B, description, log_dir, output_dir)

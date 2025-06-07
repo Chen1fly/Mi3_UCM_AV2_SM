@@ -1,0 +1,31 @@
+# The goal is to identify pedestrians who are moving quickly and crossing in front of moving vehicles.
+
+
+# Get all pedestrians and vehicles from the logs.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+
+# Filter for vehicles that are actively moving, representing "traffic".
+# We exclude stationary vehicles to focus on dynamic traffic situations.
+moving_vehicles = scenario_not(stationary)(vehicles, log_dir)
+
+
+# Identify pedestrians that are moving at a high speed, which indicates a "darting" motion.
+# A normal walking speed is around 1.4 m/s, so a threshold of 2.5 m/s captures running or darting.
+darting_pedestrians = has_velocity(pedestrians, log_dir, min_velocity=2.5)
+
+
+# Ensure the darting pedestrians are on the road surface.
+darting_pedestrians_on_road = on_road(darting_pedestrians, log_dir)
+
+
+# Find instances where these darting pedestrians cross in front of moving vehicles.
+# 'being_crossed_by' identifies the vehicles being crossed. By reversing the relationship,
+# we make the pedestrian who is performing the crossing the primary object of the scenario.
+# We set a forward_thresh of 20m to capture pedestrians crossing a short distance ahead of the vehicle.
+pedestrian_darting_through_traffic = reverse_relationship(being_crossed_by)(moving_vehicles, darting_pedestrians_on_road, log_dir, direction="forward", forward_thresh=20)
+
+
+# Output the final scenario with a descriptive name.
+output_scenario(pedestrian_darting_through_traffic, "pedestrian darting through traffic", log_dir, output_dir)

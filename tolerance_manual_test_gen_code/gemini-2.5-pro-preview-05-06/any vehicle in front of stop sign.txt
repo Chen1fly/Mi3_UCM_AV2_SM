@@ -1,0 +1,25 @@
+description = 'any vehicle in front of stop sign'
+
+# First, get all objects that are categorized as 'VEHICLE'.
+# The 'VEHICLE' category is a superclass that includes various types of vehicles
+# such as REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK, BUS, etc.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Next, identify which of these vehicles are "in front of a stop sign".
+# The function `at_stop_sign` is specifically designed for this purpose.
+# It identifies track_candidates (in this case, vehicles) that are:
+#   1. In a lane that is governed or controlled by a stop sign.
+#   2. Within a specified forward distance (`forward_thresh`) from that stop sign,
+#      measured in the stop sign's front-facing direction.
+# The default `forward_thresh` is 10 meters, which is a reasonable distance
+# for a vehicle to be considered "in front of" or "at" a stop sign.
+# This function is precise because it considers the stop sign's orientation and
+# the lane context, avoiding false positives like vehicles on different roads
+# that might be geometrically in front but not interacting with the stop sign.
+# The function returns a scenario dictionary where keys are the UUIDs of vehicles
+# meeting these criteria, and values are lists of timestamps.
+vehicles_in_front_of_stop_sign = at_stop_sign(vehicles, log_dir)
+
+# Finally, output the resulting scenario.
+# This will save the data in the required format for evaluation or further use.
+output_scenario(vehicles_in_front_of_stop_sign, description, log_dir, output_dir)

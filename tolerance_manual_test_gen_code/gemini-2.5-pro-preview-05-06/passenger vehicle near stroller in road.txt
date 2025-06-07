@@ -1,0 +1,38 @@
+# Scenario: passenger vehicle near stroller in road
+description = 'passenger vehicle near stroller in road'
+
+# -----------------------------
+# 1. Collect object categories
+# -----------------------------
+# All strollers in the scene
+strollers = get_objects_of_category(log_dir, category='STROLLER')
+
+# All conventionally-sized passenger vehicles (cars, vans, SUVs, pickups …)
+passenger_vehicles = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+# -----------------------------
+# 2. Restrict to objects on the road
+# -----------------------------
+strollers_on_road = on_road(strollers, log_dir)
+passenger_vehicles_on_road = on_road(passenger_vehicles, log_dir)
+
+# Optionally drop parked / long-term stationary vehicles to reduce false positives
+active_passenger_vehicles = scenario_not(stationary)(passenger_vehicles_on_road, log_dir)
+
+# -----------------------------
+# 3. Find passenger vehicles near a stroller that is in the road
+# -----------------------------
+# “Near” is defined here as within 10 m of at least one stroller in the road.
+vehicles_near_strollers = near_objects(
+    active_passenger_vehicles,     # track_candidates
+    strollers_on_road,             # related_candidates
+    log_dir,
+    distance_thresh=10,
+    min_objects=1,
+    include_self=False
+)
+
+# -----------------------------
+# 4. Export the scenario
+# -----------------------------
+output_scenario(vehicles_near_strollers, description, log_dir, output_dir)

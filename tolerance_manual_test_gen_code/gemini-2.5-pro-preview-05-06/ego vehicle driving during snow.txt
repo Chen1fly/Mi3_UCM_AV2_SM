@@ -1,0 +1,26 @@
+description = 'ego vehicle driving during snow'
+
+# Get the EGO_VEHICLE object
+# The EGO_VEHICLE category refers to the data collection vehicle itself.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Filter for instances where the ego vehicle is "driving".
+# "Driving" implies that the ego vehicle is not stationary.
+# The has_velocity function can be used for this. Stationary objects might have a velocity up to 0.5 m/s due to jitter.
+# So, a minimum velocity slightly above 0.5 m/s will indicate active driving.
+ego_vehicle_driving = has_velocity(ego_vehicle, log_dir, min_velocity=0.51)
+
+# The "during snow" part of the description cannot be directly addressed with the provided functions.
+# There are no functions to detect weather conditions (like snow), ground conditions (snow cover),
+# or atmospheric particles (falling snow).
+# Therefore, the following scenario will identify instances of the "ego vehicle driving"
+# but cannot verify if these instances occur "during snow".
+# The output will include all timestamps where the ego vehicle is driving, regardless of weather.
+# If such weather-related functions or data were available (e.g., a sensor indicating snow,
+# or snow being a detectable object category), they would be used here with scenario_and.
+
+# The scenario representing "ego vehicle driving" is ego_vehicle_driving.
+# We acknowledge the limitation regarding "during snow".
+scenario_ego_driving_with_snow_caveat = ego_vehicle_driving
+
+output_scenario(scenario_ego_driving_with_snow_caveat, description, log_dir, output_dir)

@@ -1,0 +1,75 @@
+description = 'ego vehicle merging between two regular vehicles'
+
+# Get the ego vehicle. The EGO_VEHICLE category represents the data collection vehicle.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all regular vehicles. REGULAR_VEHICLE includes common passenger cars, SUVs, etc.
+regular_vehicles = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+# Identify instances where the ego vehicle is changing lanes.
+# This is interpreted as "merging". direction=None captures lane changes to both left and right.
+ego_merging = changing_lanes(ego_vehicle, log_dir, direction=None)
+
+# Define parameters for identifying vehicles in the slot into which the ego is merging.
+# These parameters are used with has_objects_in_relative_direction.
+
+# MERGE_SLOT_LONGITUDINAL_DISTANCE: The maximum distance (in meters) in front of or behind the ego
+# to consider a regular vehicle as part of the "between" condition.
+# A typical car length is about 5 meters. 20 meters allows for a few car lengths of space.
+MERGE_SLOT_LONGITUDINAL_DISTANCE = 20.0
+
+# MERGE_SLOT_LATERAL_THRESHOLD: The maximum lateral distance (in meters) from the sides of the ego
+# vehicle to the center of a related regular vehicle.
+# This threshold is crucial for identifying vehicles in the adjacent (target) lane during a merge.
+# Assuming an average lane width of ~3.5m and ego vehicle width of ~2m:
+# The ego's side is roughly 1m from its centerline.
+# The centerline of an adjacent lane is ~3.5m from the ego's current lane centerline.
+# So, the distance from the ego's side to the centerline of a vehicle in the adjacent lane
+# is approximately 3.5m - 1m = 2.5m.
+MERGE_SLOT_LATERAL_THRESHOLD = 2.5
+
+# Find instances where the merging ego vehicle has a regular vehicle in front of it.
+# The 'track_candidates' are the ego vehicles already identified as merging.
+# The 'related_candidates' are the regular vehicles.
+# 'direction="forward"' looks for vehicles in front of the ego.
+# 'min_number=1' ensures at least one such vehicle is found.
+# 'max_number=1' focuses on the closest vehicle (though the function primarily filters on min_number
+# for determining if the track_candidate meets the condition).
+# The thresholds ensure the vehicle is relatively close and in what is likely the target lane.
+ego_with_vehicle_ahead = has_objects_in_relative_direction(
+    track_candidates=ego_merging,
+    related_candidates=regular_vehicles,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=1,
+    within_distance=MERGE_SLOT_LONGITUDINAL_DISTANCE,
+    lateral_thresh=MERGE_SLOT_LATERAL_THRESHOLD
+)
+
+# Find instances where the merging ego vehicle has a regular vehicle behind it.
+# Similar logic as above, but 'direction="backward"' looks for vehicles behind the ego.
+ego_with_vehicle_behind = has_objects_in_relative_direction(
+    track_candidates=ego_merging,
+    related_candidates=regular_vehicles,
+    log_dir=log_dir,
+    direction='backward',
+    min_number=1,
+    max_number=1,
+    within_distance=MERGE_SLOT_LONGITUDINAL_DISTANCE,
+    lateral_thresh=MERGE_SLOT_LATERAL_THRESHOLD
+)
+
+# Combine the conditions to find the final scenario.
+# We need ego vehicles that are:
+# 1. Merging (already filtered into ego_merging, which is the basis for ego_with_vehicle_ahead/behind)
+# 2. Have a regular vehicle ahead (as per ego_with_vehicle_ahead criteria)
+# 3. Have a regular vehicle behind (as per ego_with_vehicle_behind criteria)
+# scenario_and finds track UUIDs (ego vehicle in this case) and timestamps that are common to all input dictionaries.
+# Since ego_with_vehicle_ahead and ego_with_vehicle_behind are derived from ego_merging,
+# an ego vehicle instance in both these resulting sets implicitly satisfies the "merging" condition
+# and the "between two vehicles" condition.
+ego_merging_between_two_regulars = scenario_and([ego_with_vehicle_ahead, ego_with_vehicle_behind])
+
+# Output the identified scenario.
+output_scenario(ego_merging_between_two_regulars, description, log_dir, output_dir)

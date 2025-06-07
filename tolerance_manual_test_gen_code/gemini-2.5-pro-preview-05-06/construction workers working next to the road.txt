@@ -1,0 +1,33 @@
+description='construction workers working next to the road'
+# This scenario aims to identify pedestrians who are likely construction workers
+# by checking their proximity to construction-related objects and their position relative to the road.
+
+# First, we identify potential "workers". The 'PEDESTRIAN' category is a good general class for this.
+# 'OFFICIAL_SIGNALER' is too specific, as not all construction workers are signalers.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Next, we identify objects typically found in a construction zone.
+# Construction cones and barrels are strong indicators of such an environment.
+construction_cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+construction_barrels = get_objects_of_category(log_dir, category='CONSTRUCTION_BARREL')
+
+# We combine these construction-related objects into a single group.
+construction_objects = scenario_or([construction_cones, construction_barrels])
+
+# We then find pedestrians who are near these construction objects.
+# This filters our initial set of pedestrians down to those who are likely construction workers.
+# A distance of 5 meters is used to define "near".
+likely_workers = near_objects(pedestrians, construction_objects, log_dir, distance_thresh=5, min_objects=1)
+
+# To be "next to the road", the workers should be close to where vehicles are driving.
+# So, we first get all vehicles that are on the road.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+vehicles_on_road = on_road(vehicles, log_dir)
+
+# Finally, we find the "likely workers" who are in close proximity to the vehicles on the road.
+# A small threshold of 3 meters ensures they are on the road's shoulder or edge, rather than far away.
+# This gives us our final set of construction workers working next to the road.
+workers_next_to_road = near_objects(likely_workers, vehicles_on_road, log_dir, distance_thresh=3, min_objects=1)
+
+# Output the final scenario.
+output_scenario(workers_next_to_road, description, log_dir, output_dir)

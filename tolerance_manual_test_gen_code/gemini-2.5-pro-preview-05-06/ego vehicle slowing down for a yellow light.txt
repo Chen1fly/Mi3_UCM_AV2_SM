@@ -1,0 +1,24 @@
+# The user wants to find instances of the ego vehicle slowing down for a yellow light.
+# The provided functions do not allow for identifying the color of a traffic light.
+# As a proxy, I will identify scenarios where the ego vehicle is slowing down in the vicinity of a traffic light.
+description = "ego vehicle slowing down for a yellow light"
+
+# Get the ego vehicle.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# There is no specific category for traffic lights. The closest is "TRAFFIC_LIGHT_TRAILER".
+# This will only find portable traffic lights, which are often used in construction zones.
+traffic_lights = get_objects_of_category(log_dir, category='TRAFFIC_LIGHT_TRAILER')
+
+# Identify when the ego vehicle is slowing down.
+# The documentation for accelerating() states that values under -1 reliably indicate braking.
+slowing_ego = accelerating(ego_vehicle, log_dir, max_accel=-1.0)
+
+# Identify when the ego vehicle is near a traffic light.
+# A distance of 50 meters is a reasonable distance for a vehicle to begin slowing down for a light.
+ego_near_traffic_light = near_objects(ego_vehicle, traffic_lights, log_dir, distance_thresh=50)
+
+# Find the instances where the ego vehicle is both slowing down and near a traffic light.
+ego_slowing_for_light = scenario_and([slowing_ego, ego_near_traffic_light])
+
+output_scenario(ego_slowing_for_light, description, log_dir, output_dir)

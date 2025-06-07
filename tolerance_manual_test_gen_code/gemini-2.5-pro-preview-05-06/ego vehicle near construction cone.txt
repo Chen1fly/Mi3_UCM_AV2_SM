@@ -1,0 +1,28 @@
+# ------------------------------------------------------------------
+# Scenario description: ego vehicle near construction cone
+# ------------------------------------------------------------------
+description = 'ego vehicle near construction cone'
+
+# ------------------------------------------------------------------
+# 1) Gather all ego-vehicle track objects and construction cones
+# ------------------------------------------------------------------
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+construction_cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+
+# ------------------------------------------------------------------
+# 2) Find timestamps where the ego vehicle has at least one
+#    construction cone within 10 m (adjustable if needed).
+#    near_objects(track_candidates, candidate_uuids, …)
+# ------------------------------------------------------------------
+ego_near_cones = near_objects(
+    ego_vehicle,          # track_candidates
+    construction_cones,   # related_candidates
+    log_dir,
+    distance_thresh=10,   # “near” = within 10 m
+    min_objects=1         # at least one cone
+)
+
+# ------------------------------------------------------------------
+# 3) Output the scenario in the required evaluation format
+# ------------------------------------------------------------------
+output_scenario(ego_near_cones, description, log_dir, output_dir)

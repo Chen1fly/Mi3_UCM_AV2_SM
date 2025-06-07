@@ -1,0 +1,44 @@
+# Description for the submission/evaluation file
+description = 'vehicle following another vehicle too closely'
+
+# -------------------------------------------------------------------------------------------------
+# 1) Collect all vehicle tracks present in the scenario
+# -------------------------------------------------------------------------------------------------
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# -------------------------------------------------------------------------------------------------
+# 2) Keep only vehicles that are clearly moving (exclude parked / long-term stationary vehicles)
+#    “stationary()” classifies objects that move < 2 m over their entire trajectory.
+# -------------------------------------------------------------------------------------------------
+active_vehicles = scenario_not(stationary)(vehicles, log_dir)
+
+# -------------------------------------------------------------------------------------------------
+# 3) Of the active vehicles, find those that are *already* classified as “following” another
+#    vehicle by the helper function `following()`.  
+#    – `followers` → keys are the follower-vehicle UUIDs  
+#    – nested values hold the UUID(s) of the lead vehicle(s) plus timestamps
+# -------------------------------------------------------------------------------------------------
+followers = following(active_vehicles, active_vehicles, log_dir)
+
+# -------------------------------------------------------------------------------------------------
+# 4) From the follower set, keep only those that are *too close* to their lead vehicle:
+#    – direction='forward'      → lead must be in front of the follower  
+#    – within_distance=8 m      → < 8 m headway (≈ 0.5 s at 15 m/s) = “tail-gating”  
+#    – lateral_thresh=1.5 m     → ensure the lead is essentially in the same lane
+#    – min_number=1 / max_number=1 → exactly one closest lead vehicle considered
+# -------------------------------------------------------------------------------------------------
+close_following = has_objects_in_relative_direction(
+    followers,           # track_candidates: the potential tail-gaters
+    active_vehicles,     # related_candidates: all active vehicles (includes the leads)
+    log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=1,
+    within_distance=8,   # tighten / loosen as desired
+    lateral_thresh=1.5   # ~½ lane width for same-lane constraint
+)
+
+# -------------------------------------------------------------------------------------------------
+# 5) Write the scenario to disk in evaluation-ready format
+# -------------------------------------------------------------------------------------------------
+output_scenario(close_following, description, log_dir, output_dir)

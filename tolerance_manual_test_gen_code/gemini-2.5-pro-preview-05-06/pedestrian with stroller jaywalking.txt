@@ -1,0 +1,33 @@
+# Scenario: pedestrian with stroller jaywalking
+description = 'pedestrian with stroller jaywalking'
+
+# --- Retrieve relevant object categories ---
+peds = get_objects_of_category(log_dir, category='PEDESTRIAN')
+strollers = get_objects_of_category(log_dir, category='STROLLER')
+
+# --- Identify pedestrians that are near (likely pushing) a stroller ---
+# A 2 m threshold is chosen to capture pedestrians in direct contact with, or immediately beside, the stroller.
+peds_with_stroller = near_objects(
+    track_uuid=peds,
+    candidate_uuids=strollers,
+    log_dir=log_dir,
+    distance_thresh=2,      # tight radius to reduce false positives
+    min_objects=1
+)
+
+# --- Restrict to pedestrians who are actually on the road surface ---
+peds_with_stroller_on_road = on_road(peds_with_stroller, log_dir)
+
+# --- Jaywalking: on road but NOT within a marked pedestrian crossing ---
+peds_with_stroller_jaywalking = scenario_not(at_pedestrian_crossing)(
+    peds_with_stroller_on_road,
+    log_dir
+)
+
+# --- Output the final scenario ---
+output_scenario(
+    peds_with_stroller_jaywalking,
+    description,
+    log_dir,
+    output_dir
+)

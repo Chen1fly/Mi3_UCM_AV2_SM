@@ -1,0 +1,19 @@
+# description: box truck in the same lane as a school bus
+
+# Get all box trucks from the dataset
+box_trucks = get_objects_of_category(log_dir, category='BOX_TRUCK')
+
+# Get all school buses from the dataset
+school_buses = get_objects_of_category(log_dir, category='SCHOOL_BUS')
+
+# Find instances where a box truck is in the same lane as a school bus.
+# The resulting scenario dictionary will have box truck UUIDs as keys.
+box_truck_in_same_lane_as_school_bus = in_same_lane(box_trucks, school_buses, log_dir)
+
+# Output the scenario
+output_scenario(
+    box_truck_in_same_lane_as_school_bus,
+    description = 'box truck in the same lane as a school bus',
+    log_dir=log_dir,
+    output_dir=output_dir
+)

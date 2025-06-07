@@ -1,0 +1,90 @@
+description = 'vehicle surrounded by bicycles on all sides'
+
+# Get all vehicle objects from the dataset
+# The "VEHICLE" category is a superclass that includes regular cars, trucks, buses, etc.
+vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Get all bicycle objects from the dataset
+bicycles = get_objects_of_category(log_dir, category="BICYCLE")
+
+# Define the proximity thresholds for a bicycle to be considered "surrounding" the vehicle.
+# within_distance: Max distance in the primary direction (e.g., forward, left).
+# lateral_thresh_longitudinal: Max lateral distance for forward/backward checks (i.e., how far to the side).
+# lateral_thresh_lateral: Max "lateral" (i.e., longitudinal along vehicle length) distance for left/right checks.
+# These values aim for precision to avoid false positives for "surrounded".
+# A vehicle is roughly 2m wide and 5m long.
+# "within_distance=5" means the bicycle is within 5 meters in the specified direction (e.g. 5m in front).
+# For forward/backward checks:
+#   "lateral_thresh_longitudinal=2" means the bicycle is within 2 meters from the side of the vehicle.
+# For left/right checks:
+#   "lateral_thresh_lateral=3" means the bicycle is within 3 meters from the front/back of the vehicle,
+#   along its length, when the bicycle is to its side.
+
+prox_distance = 5  # Primary distance in the direction of interest
+lat_thresh_for_front_back = 2.0 # Max distance from vehicle's side for objects in front/back
+lat_thresh_for_sides = 3.0    # Max distance from vehicle's front/back for objects to its sides
+
+# Find vehicles that have at least one bicycle in front of them within the defined proximity
+vehicles_with_bicycle_in_front = has_objects_in_relative_direction(
+    track_candidates=vehicles,
+    related_candidates=bicycles,
+    log_dir=log_dir,
+    direction="forward",
+    min_number=1,
+    max_number=1, # We only care about existence, but limiting to 1 closest is fine.
+    within_distance=prox_distance,
+    lateral_thresh=lat_thresh_for_front_back
+)
+
+# Find vehicles that have at least one bicycle behind them within the defined proximity
+vehicles_with_bicycle_behind = has_objects_in_relative_direction(
+    track_candidates=vehicles,
+    related_candidates=bicycles,
+    log_dir=log_dir,
+    direction="backward",
+    min_number=1,
+    max_number=1,
+    within_distance=prox_distance,
+    lateral_thresh=lat_thresh_for_front_back
+)
+
+# Find vehicles that have at least one bicycle to their left within the defined proximity
+vehicles_with_bicycle_to_left = has_objects_in_relative_direction(
+    track_candidates=vehicles,
+    related_candidates=bicycles,
+    log_dir=log_dir,
+    direction="left",
+    min_number=1,
+    max_number=1,
+    within_distance=prox_distance,
+    lateral_thresh=lat_thresh_for_sides
+)
+
+# Find vehicles that have at least one bicycle to their right within the defined proximity
+vehicles_with_bicycle_to_right = has_objects_in_relative_direction(
+    track_candidates=vehicles,
+    related_candidates=bicycles,
+    log_dir=log_dir,
+    direction="right",
+    min_number=1,
+    max_number=1,
+    within_distance=prox_distance,
+    lateral_thresh=lat_thresh_for_sides
+)
+
+# Combine all conditions: a vehicle is surrounded if it has bicycles in all four directions simultaneously.
+# scenario_and will find vehicles (and their timestamps) present in all four intermediate results.
+vehicles_surrounded_by_bicycles = scenario_and([
+    vehicles_with_bicycle_in_front,
+    vehicles_with_bicycle_behind,
+    vehicles_with_bicycle_to_left,
+    vehicles_with_bicycle_to_right
+])
+
+# Output the resulting scenario
+output_scenario(
+    vehicles_surrounded_by_bicycles,
+    description,
+    log_dir,
+    output_dir
+)

@@ -1,0 +1,36 @@
+# Scenario: ego vehicle following a vehicle that is being overtaken on its right
+description = 'ego vehicle following vehicle being overtaken on right'
+
+# --- 1. Identify the ego vehicle -------------------------------------------------
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# --- 2. Identify all moving (non-stationary) vehicles in the scene ---------------
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+moving_vehicles = scenario_not(stationary)(vehicles, log_dir)
+
+# --- 3. Find vehicles that are currently being overtaken on their right ----------
+# A “crossing” on the right is treated as an overtake when another vehicle
+# moves through the half-mid-plane extending from the right side of the target.
+# The longitudinal (forward) region is kept tight (±5 m) while allowing
+# some lateral leeway (≤10 m) to avoid spurious matches.
+overtaken_on_right = being_crossed_by(
+    moving_vehicles,           # potential targets being overtaken
+    moving_vehicles,           # other vehicles that could be doing the overtaking
+    log_dir,
+    direction='right',
+    in_direction='either',
+    forward_thresh=5,
+    lateral_thresh=10
+)
+
+# --- 4. From the ego’s point of view, detect when it is following those targets --
+# `following` returns timestamps where the ego is in the same lane, moving in the
+# same direction, and behind the specified lead vehicle(s).
+ego_following_overtaken = following(
+    ego_vehicle,               # tracker: the ego vehicle
+    overtaken_on_right,        # lead vehicles: those being overtaken
+    log_dir
+)
+
+# --- 5. Output the composed scenario --------------------------------------------
+output_scenario(ego_following_overtaken, description, log_dir, output_dir)

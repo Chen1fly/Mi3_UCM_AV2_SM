@@ -1,0 +1,55 @@
+import numpy as np
+from pathlib import Path
+from typing import Literal
+
+# Assume log_dir and output_dir are predefined Path objects.
+# log_dir: Path
+# output_dir: Path
+
+description = 'vehicle braking at pedestrian crossing'
+
+# 1. Get all objects of category 'VEHICLE'.
+# This includes various types of vehicles like cars, trucks, buses, etc.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# 2. Identify vehicles that are braking.
+# The 'accelerating' function can identify objects with forward acceleration.
+# Braking is negative forward acceleration.
+# According to the 'accelerating' function's docstring: "Values under -1 reliably indicates braking."
+# So, we set max_accel to -1.0 m/s^2 to capture significant braking events.
+# min_accel is set to -np.inf to include any acceleration value below -1.0 m/s^2.
+braking_vehicles = accelerating(
+    track_candidates=vehicles,
+    log_dir=log_dir,
+    min_accel=-np.inf,  # No lower bound for braking deceleration.
+    max_accel=-1.0     # Upper bound for acceleration to be considered braking.
+)
+
+# 3. Identify vehicles that are at a pedestrian crossing.
+# The 'at_pedestrian_crossing' function identifies objects near or on a pedestrian crossing.
+# The 'within_distance' parameter (default is 1.0 meter) specifies how close the object
+# needs to be to the crossing. A distance of 1.0m means the object's reference point
+# is within 1 meter of the boundary of a pedestrian crossing. This seems a reasonable
+# interpretation for "at" the crossing, as braking may occur just as the vehicle
+# reaches or enters the crossing area.
+vehicles_at_ped_crossing = at_pedestrian_crossing(
+    track_candidates=vehicles,
+    log_dir=log_dir,
+    within_distance=1.0  # Default is 1.0m, explicitly stated for clarity.
+)
+
+# 4. Find vehicles that meet both conditions simultaneously.
+# We use 'scenario_and' to find instances (track UUIDs and timestamps) where a vehicle
+# is both braking AND at a pedestrian crossing.
+vehicle_braking_at_crossing = scenario_and([braking_vehicles, vehicles_at_ped_crossing])
+
+# 5. Output the resulting scenario.
+# This will save the identified instances to a file.
+# Visualization is disabled by default as per general instructions for these problems.
+output_scenario(
+    scenario=vehicle_braking_at_crossing,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir,
+    visualize=False
+)

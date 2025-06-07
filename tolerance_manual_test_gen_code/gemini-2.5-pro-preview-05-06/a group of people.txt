@@ -1,0 +1,30 @@
+description = 'a group of people'
+
+# Get all objects of category PEDESTRIAN.
+# "People" in this context is best represented by the PEDESTRIAN category.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Identify pedestrians that are part of a group.
+# We define "a group of people" as a collection of at least 3 pedestrians in close proximity.
+# Therefore, a pedestrian is considered part of such a group if they are near at least 2 OTHER pedestrians.
+# We set a distance threshold of 3 meters to define "close proximity" for being in a group.
+# The near_objects function with pedestrians as both track_candidates and related_candidates achieves this.
+# - track_candidates: pedestrians (we are identifying which pedestrians are in a group)
+# - related_candidates: pedestrians (we are checking proximity to other pedestrians)
+# - distance_thresh=3: defines "near" as within 3 meters.
+# - min_objects=2: requires a pedestrian to be near at least 2 *other* pedestrians.
+#   This ensures the total group size is at least 3 (the pedestrian itself + 2 others).
+#   This interpretation of "group" (3 or more) is consistent with common usage and examples
+#   (e.g., 'vehicle near multiple pedestrians' where 'multiple' was min_objects=2,
+#   and 'vehicles_near_ped_group' where the group was implicitly >=3).
+a_group_of_people = near_objects(
+    track_candidates=pedestrians,
+    related_candidates=pedestrians,
+    log_dir=log_dir,
+    distance_thresh=3,
+    min_objects=2
+)
+
+# Output the scenario.
+# The resulting 'a_group_of_people' dictionary will contain pedestrians who are members of a group of 3 or more.
+output_scenario(a_group_of_people, description, log_dir, output_dir)

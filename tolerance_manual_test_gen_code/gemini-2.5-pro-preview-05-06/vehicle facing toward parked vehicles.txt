@@ -1,0 +1,28 @@
+# Define the description for the scenario
+description = 'vehicle facing toward parked vehicles'
+
+# Get all objects of category "VEHICLE"
+# These are the potential vehicles that could be facing parked vehicles.
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Identify parked vehicles
+# The stationary() function is used to find vehicles that have moved very little,
+# which serves as a proxy for "parked" vehicles in this context.
+# These parked vehicles are a subset of all_vehicles.
+parked_vehicles = stationary(all_vehicles, log_dir)
+
+# Find vehicles that are facing toward parked vehicles
+# The facing_toward() function identifies objects in its first argument (track_candidates)
+# that are oriented towards objects in its second argument (related_candidates).
+# We use the default 'within_angle' (22.5 degrees) and 'max_distance' (50 meters)
+# as reasonable criteria for "facing toward".
+vehicles_facing_parked_ones = facing_toward(
+    track_candidates=all_vehicles,
+    related_candidates=parked_vehicles,
+    log_dir=log_dir
+)
+
+# Output the scenario
+# This will save the identified instances (vehicles facing parked vehicles)
+# in the specified output directory.
+output_scenario(vehicles_facing_parked_ones, description, log_dir, output_dir)

@@ -1,0 +1,44 @@
+description: "bus pulling back onto road in front of ego vehicle after stopping"
+
+# The scenario is a bus that was likely stopped (e.g., at a bus stop) and is now re-entering a lane of traffic,
+# ending up in front of the ego vehicle. This can be identified by a combination of behaviors from the bus:
+# 1. It must be a bus.
+# 2. It should be moving at a relatively low speed, consistent with starting from a stop.
+# 3. It must be accelerating forward.
+# 4. It must have some lateral movement, likely to the left, to merge back into the traffic lane.
+# 5. The ego vehicle must be behind this bus.
+
+# First, get all objects categorized as 'BUS'.
+buses = get_objects_of_category(log_dir, category="BUS")
+
+# Get the ego vehicle object.
+ego_vehicle = get_objects_of_category(log_dir, category="EGO_VEHICLE")
+
+# Identify buses that are moving at a low speed. A bus pulling onto the road would have just started moving.
+# We'll set a range from 0.5 m/s (to exclude fully stationary buses) to 10 m/s (about 22 mph).
+slow_moving_buses = has_velocity(buses, log_dir, min_velocity=0.5, max_velocity=10)
+
+# Identify buses that are clearly accelerating. A value greater than 1.0 m/s^2 is a reliable indicator.
+accelerating_buses = accelerating(buses, log_dir, min_accel=1.0)
+
+# Identify buses that are moving or swerving to the left. This is a key part of pulling out from the side of the road.
+# Positive lateral acceleration indicates movement to the left.
+buses_moving_left = has_lateral_acceleration(buses, log_dir, min_accel=0.5)
+
+# Combine the above conditions to find buses that exhibit the "pulling out" behavior.
+# The bus must be moving slowly, accelerating forward, and moving to the left simultaneously.
+pulling_out_buses = scenario_and([slow_moving_buses, accelerating_buses, buses_moving_left])
+
+# Finally, filter these 'pulling_out_buses' to find only those that have the ego vehicle behind them.
+# This places the bus in front of the ego, fulfilling the entire scenario description.
+# We'll check for the ego vehicle within a 50-meter distance behind the bus.
+bus_in_front_of_ego = has_objects_in_relative_direction(
+    track_candidates=pulling_out_buses,
+    related_candidates=ego_vehicle,
+    log_dir=log_dir,
+    direction="backward",
+    within_distance=50
+)
+
+# Output the resulting scenario.
+output_scenario(bus_in_front_of_ego, description, log_dir, output_dir)

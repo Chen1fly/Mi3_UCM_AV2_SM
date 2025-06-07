@@ -1,0 +1,31 @@
+# Goal: Find instances of a vehicle inside an intersection waiting to turn.
+#
+# This can be broken down into a few steps:
+# 1. Get all the vehicles in the scenario.
+# 2. Identify which of these vehicles are inside an intersection.
+# 3. From the vehicles in the intersection, identify those that are turning.
+# 4. From the turning vehicles in the intersection, identify those that are nearly stationary, which implies they are "waiting".
+# 5. Combine these conditions to get the final set of vehicles.
+
+
+# Get all objects of category 'VEHICLE'.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+
+# Find all vehicles that are on an intersection.
+vehicles_on_intersection = on_intersection(vehicles, log_dir)
+
+
+# Find all vehicles that are turning. The direction is set to None to capture both left and right turns.
+turning_vehicles = turning(vehicles_on_intersection, log_dir, direction=None)
+
+
+# A vehicle that is "waiting" will have a very low velocity.
+# We can use has_velocity with a low max_velocity to find these vehicles.
+# A value of 1 m/s is chosen to account for potential annotation noise while still capturing effectively stationary vehicles.
+waiting_vehicles = has_velocity(turning_vehicles, log_dir, max_velocity=1)
+
+
+# By this point, `waiting_vehicles` contains vehicles that are on an intersection, turning, and have a very low speed.
+# This matches the description of a "vehicle inside intersection waiting to turn".
+output_scenario(waiting_vehicles, "vehicle inside intersection waiting to turn", log_dir, output_dir)

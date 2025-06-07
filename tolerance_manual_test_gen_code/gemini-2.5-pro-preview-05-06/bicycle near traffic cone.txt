@@ -1,0 +1,18 @@
+description = 'bicycle near traffic cone'
+# First, get all objects of category BICYCLE
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Next, get all objects of category CONSTRUCTION_CONE
+traffic_cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+
+# Find instances where bicycles are near traffic cones.
+# We'll define "near" as being within 10 meters, and we need at least one traffic cone.
+# The near_objects function is suitable here.
+# track_candidates will be the bicycles.
+# candidate_uuids will be the traffic_cones.
+# distance_thresh defines what "near" means in meters.
+# min_objects is the minimum number of related_candidates (traffic_cones) that need to be near a track_candidate (bicycle).
+bicycles_near_cones = near_objects(bicycles, traffic_cones, log_dir, distance_thresh=10, min_objects=1)
+
+# Output the scenario
+output_scenario(bicycles_near_cones, description, log_dir, output_dir)

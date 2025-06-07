@@ -1,0 +1,52 @@
+# description = 'truck cab with trailer sharing lane with regular vehicle'
+
+# Get all TRUCK_CAB objects from the logs. These are the primary objects of interest.
+truck_cabs = get_objects_of_category(log_dir, category='TRUCK_CAB')
+
+# Get all VEHICULAR_TRAILER objects from the logs. These will be related to the truck cabs.
+trailers = get_objects_of_category(log_dir, category='VEHICULAR_TRAILER')
+
+# Get all REGULAR_VEHICLE objects. These are the vehicles the truck cab (with trailer) might be sharing a lane with.
+regular_vehicles = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+# Identify truck cabs that have a vehicular trailer directly behind them.
+# This aims to identify truck cabs that are currently "with a trailer".
+# - direction='backward': The trailer should be behind the truck cab.
+# - min_number=1, max_number=1: We expect one trailer to be directly attached or very close.
+# - within_distance=5: The trailer should be within 5 meters (e.g., centroid to centroid, or rear of cab to trailer).
+#   This distance ensures the trailer is closely associated with the cab, typical for an articulated setup.
+# - lateral_thresh=1.5: The trailer's centerline should be within 1.5 meters laterally of the truck cab's centerline.
+#   This ensures the trailer is properly aligned behind the cab, not in an adjacent lane.
+truck_cabs_with_trailer = has_objects_in_relative_direction(
+    track_candidates=truck_cabs,
+    related_candidates=trailers,
+    log_dir=log_dir,
+    direction='backward',
+    min_number=1,
+    max_number=1,
+    within_distance=5,  # Meters, for close proximity indicating attachment or towing
+    lateral_thresh=1.5  # Meters, for lateral alignment
+)
+
+# Now, from the truck cabs that have a trailer, find those that are sharing a lane with a regular vehicle.
+# The 'in_same_lane' function will return the truck_cabs (from truck_cabs_with_trailer)
+# that are in the same lane as any of the 'regular_vehicles'.
+# The timestamps will be those where both conditions are met:
+# 1. The truck cab has a trailer directly behind it.
+# 2. The truck cab (and by extension, its trailer) is in the same lane as a regular vehicle.
+scenario_truck_cab_with_trailer_sharing_lane_with_regular_vehicle = in_same_lane(
+    track_candidates=truck_cabs_with_trailer,
+    related_candidates=regular_vehicles,
+    log_dir=log_dir
+)
+
+# Output the scenario.
+# The 'scenario_truck_cab_with_trailer_sharing_lane_with_regular_vehicle' dictionary
+# will contain truck_cab UUIDs as keys, and lists of timestamps when they,
+# while having a trailer, were sharing a lane with a regular vehicle.
+output_scenario(
+    scenario_truck_cab_with_trailer_sharing_lane_with_regular_vehicle,
+    description = 'truck cab with trailer sharing lane with regular vehicle',
+    log_dir=log_dir,
+    output_dir=output_dir
+)

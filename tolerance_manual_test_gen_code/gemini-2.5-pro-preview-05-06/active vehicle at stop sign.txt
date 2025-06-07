@@ -1,0 +1,26 @@
+# Define the description for the scenario
+description = 'active vehicle at stop sign'
+
+# Get all objects of category 'VEHICLE'
+# 'VEHICLE' is a superclass including REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, BOX_TRUCK, BUS, etc.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter for 'active' vehicles.
+# 'Active' here means vehicles that are not 'stationary'.
+# The 'stationary' function identifies objects that moved very little, typically indicating parked vehicles.
+# 'scenario_not(stationary)' will thus return vehicles that are part of active traffic,
+# including those that might be temporarily stopped (e.g., at a stop sign or traffic light).
+active_vehicles = scenario_not(stationary)(vehicles, log_dir)
+
+# Identify active vehicles that are at a stop sign.
+# The 'at_stop_sign' function identifies objects in a lane corresponding to a stop sign
+# and within a certain proximity (default forward_thresh=10m from the stop sign in its front direction,
+# and within 15m overall proximity).
+# By passing 'active_vehicles' to this function, we ensure that we are only considering
+# vehicles that are not parked.
+active_vehicles_at_stop_sign = at_stop_sign(active_vehicles, log_dir)
+
+# Output the resulting scenario.
+# This will save the track UUIDs and corresponding timestamps for vehicles that meet
+# the criteria of being an "active vehicle at a stop sign".
+output_scenario(active_vehicles_at_stop_sign, description, log_dir, output_dir)

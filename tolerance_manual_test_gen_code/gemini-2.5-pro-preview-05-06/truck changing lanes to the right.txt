@@ -1,0 +1,19 @@
+# description: truck changing lanes to the right
+description = 'truck changing lanes to the right'
+
+# Get all objects of the specific category 'TRUCK'.
+# According to the provided category definitions, "TRUCK" is:
+# TRUCK: Vehicles that are clearly defined as a truck but does not fit into any more specific subclass.
+# Examples include common delivery vehicles (UPS, FedEx), mail trucks, garbage trucks, utility trucks, ambulances, dump trucks, etc.
+# This category explicitly does not include "BOX_TRUCK" or "TRUCK_CAB".
+# Using this specific category is the most direct interpretation of "truck" given it's a defined category name.
+trucks = get_objects_of_category(log_dir, category='TRUCK')
+
+# Filter these trucks to find those that are changing lanes to the right.
+# The changing_lanes function identifies lane change events for the given track_candidates.
+# We specify direction='right' to find only right lane changes.
+trucks_changing_lanes_right = changing_lanes(trucks, log_dir, direction='right')
+
+# Output the scenario.
+# This function will save the identified instances for evaluation or visualization.
+output_scenario(trucks_changing_lanes_right, description, log_dir, output_dir)

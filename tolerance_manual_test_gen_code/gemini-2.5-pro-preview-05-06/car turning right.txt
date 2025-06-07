@@ -1,0 +1,12 @@
+# Define the description of the scenario
+description = 'car turning right'
+
+# Get all objects of the category 'REGULAR_VEHICLE' (which corresponds to "car")
+cars = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+# Identify cars that are turning right
+cars_turning_right = turning(cars, log_dir, direction='right')
+
+# Output the scenario
+# The 'visualize' parameter is set to False as per the instructions ("Do not provide any visualization kwargs").
+output_scenario(cars_turning_right, description, log_dir, output_dir, visualize=False)

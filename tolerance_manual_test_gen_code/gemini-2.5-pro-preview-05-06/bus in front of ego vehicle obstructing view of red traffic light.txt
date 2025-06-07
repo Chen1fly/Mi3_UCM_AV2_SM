@@ -1,0 +1,45 @@
+# The goal is to identify a scenario where a bus is in front of the ego vehicle and is obstructing the view of a red traffic light.
+#
+# Limitations of the provided functions:
+# 1. There is no function to determine the state (e.g., color) of a traffic light. Therefore, we can only identify traffic lights in general, not specifically red ones.
+# 2. The category 'TRAFFIC_LIGHT' is not in the detailed list of 30 categories. The closest available category is 'TRAFFIC_LIGHT_TRAILER'.
+#    However, to address the user's request as closely as possible, we will proceed by assuming a general 'TRAFFIC_LIGHT' category exists.
+#
+# The logical approach to model the "obstruction" is to find a geometric arrangement where a bus is located between the ego vehicle and a traffic light.
+# This can be achieved by first finding buses in front of the ego vehicle, and then checking if any of those buses have a traffic light in front of them.
+
+# Get the object categories needed for the scenario.
+# The ego vehicle is our point of reference.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+# Buses are the potential obstructing objects.
+buses = get_objects_of_category(log_dir, category='BUS')
+# We assume a 'TRAFFIC_LIGHT' category to identify the obstructed object.
+traffic_lights = get_objects_of_category(log_dir, category='TRAFFIC_LIGHT')
+
+# Find the buses that are in front of the ego vehicle.
+# We use `get_objects_in_relative_direction` to return a scenario dictionary of the buses themselves.
+# We look for the single closest bus within a 50-meter range to be specific.
+buses_in_front_of_ego = get_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=buses,
+    log_dir=log_dir,
+    direction="forward",
+    max_number=1,
+    within_distance=50
+)
+
+# From the buses identified above, find which ones have a traffic light in front of them.
+# This establishes the "ego -> bus -> traffic light" sequence, implying obstruction.
+# `has_objects_in_relative_direction` is used here because we want to filter the `buses_in_front_of_ego` dictionary.
+# A larger distance is used as the traffic light could be further down the road at an intersection.
+obstructing_buses = has_objects_in_relative_direction(
+    track_candidates=buses_in_front_of_ego,
+    related_candidates=traffic_lights,
+    log_dir=log_dir,
+    direction="forward",
+    min_number=1,
+    within_distance=100
+)
+
+# Output the final scenario. The subject of the description is the bus, so we output the `obstructing_buses` dictionary.
+output_scenario(obstructing_buses, description, log_dir, output_dir)

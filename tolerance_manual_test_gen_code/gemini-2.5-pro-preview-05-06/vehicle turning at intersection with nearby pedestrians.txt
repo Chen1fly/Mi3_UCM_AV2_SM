@@ -1,0 +1,40 @@
+# Scenario: vehicle turning at intersection with nearby pedestrians
+
+description = 'vehicle turning at intersection with nearby pedestrians'
+
+# ------------------------------------------------------------------
+# 1. Retrieve all vehicles and pedestrians annotated in the scenario
+# ------------------------------------------------------------------
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# ------------------------------------------------------------------
+# 2. Select vehicles that are currently executing a turn
+#    (direction=None captures both left‐ and right‐hand turns)
+# ------------------------------------------------------------------
+turning_vehicles = turning(vehicles, log_dir)  # any turning motion
+
+# ------------------------------------------------------------------
+# 3. Keep only those turning vehicles that are actually on an
+#    intersection when the turn occurs
+# ------------------------------------------------------------------
+turning_vehicles_on_intersection = on_intersection(turning_vehicles, log_dir)
+
+# ------------------------------------------------------------------
+# 4. Of those, require at least one pedestrian within 10 m.
+#    The tight distance threshold helps avoid distant, unrelated
+#    pedestrians and reduces false positives.
+# ------------------------------------------------------------------
+vehicles_with_nearby_pedestrians = near_objects(
+    turning_vehicles_on_intersection,
+    pedestrians,
+    log_dir,
+    distance_thresh=10,   # metres
+    min_objects=1,        # at least one pedestrian close by
+    include_self=False
+)
+
+# ------------------------------------------------------------------
+# 5. Export the composed scenario
+# ------------------------------------------------------------------
+output_scenario(vehicles_with_nearby_pedestrians, description, log_dir, output_dir)

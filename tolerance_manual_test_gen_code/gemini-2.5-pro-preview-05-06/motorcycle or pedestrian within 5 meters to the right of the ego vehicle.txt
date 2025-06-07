@@ -1,0 +1,46 @@
+# Define the description for the scenario
+description = 'motorcycle or pedestrian within 5 meters to the right of the ego vehicle'
+
+# Get all "MOTORCYCLE" objects from the logs
+# These are one part of the objects we are interested in.
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+
+# Get all "PEDESTRIAN" objects from the logs
+# These are the other part of the objects we are interested in.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Combine the motorcycle and pedestrian dictionaries.
+# scenario_or creates a new dictionary containing all unique objects from both inputs.
+# This combined dictionary represents all potential "motorcycle or pedestrian" candidates.
+motorcycle_or_pedestrian_candidates = scenario_or([motorcycles, pedestrians])
+
+# Get the "EGO_VEHICLE" object.
+# The EGO_VEHICLE is the reference point for the "to the right of" condition.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Find motorcycles or pedestrians that are to the right of the ego vehicle.
+# We use `get_objects_in_relative_direction` because the "referred objects" are the motorcycles/pedestrians.
+# - track_candidates: The ego_vehicle, as the direction 'right' is relative to its frame of reference.
+# - related_candidates: The combined set of motorcycles and pedestrians. These are the objects we want to identify if they meet the criteria.
+# - direction: 'right', specifying the spatial relationship.
+# - min_number: 1. This means we are interested if there's at least one motorcycle or pedestrian to the right of the ego vehicle at a given timestamp.
+#               The function will then return those specific motorcycles/pedestrians.
+# - within_distance: 5.0. This is the maximum distance (in meters) in the 'right' direction for an object to be considered.
+# - lateral_thresh: 2.5. This constrains how far forward or backward (longitudinally) an object can be while still being considered "to the right".
+#                   A value of 2.5m aims to capture objects that are reasonably "beside" the ego vehicle, assuming an ego vehicle length
+#                   of around 4-5m. This helps in being precise and avoiding objects that are primarily in front-right or back-right.
+#                   It means the related object should be within a longitudinal band relative to the ego vehicle's side.
+objects_to_right_of_ego = get_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=motorcycle_or_pedestrian_candidates,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,
+    max_number=np.inf, # Default, but explicit: find all such objects, not just a limited number
+    within_distance=5.0,
+    lateral_thresh=2.5
+)
+
+# Output the scenario.
+# This will save the identified motorcycles or pedestrians (and the timestamps when they meet the condition) to a file.
+output_scenario(objects_to_right_of_ego, description, log_dir, output_dir)

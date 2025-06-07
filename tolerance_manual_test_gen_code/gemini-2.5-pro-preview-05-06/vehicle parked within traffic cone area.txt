@@ -1,0 +1,14 @@
+description = "vehicle parked within traffic cone area"
+# Get all vehicles and traffic cones from the logs.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+traffic_cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+
+# A parked vehicle is considered stationary.
+parked_vehicles = stationary(vehicles, log_dir)
+
+# Find parked vehicles that are near at least two traffic cones.
+# A distance_thresh of 3 meters is used to consider the vehicle "within" the cone area.
+# min_objects=2 ensures we are looking for an area denoted by multiple cones.
+vehicle_in_cone_area = near_objects(parked_vehicles, traffic_cones, log_dir, distance_thresh=3, min_objects=2)
+
+output_scenario(vehicle_in_cone_area, description, log_dir, output_dir)

@@ -1,0 +1,20 @@
+# The user wants to find instances of a car following the ego vehicle and getting closer.
+# I can break this down into two main conditions:
+# 1. A vehicle is following the ego vehicle.
+# 2. That same vehicle is getting closer to the ego vehicle.
+
+# First, I'll get all the vehicles and the ego vehicle from the dataset.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# The `following` function can be used to identify vehicles that are following the ego vehicle.
+# The function defines following as moving in the same direction and the same lane.
+vehicles_following_ego = following(vehicles, ego_vehicle, log_dir)
+
+# To determine if the following vehicle is "getting closer", I can use the `heading_toward` function.
+# If a vehicle that is already following the ego vehicle is also heading towards it,
+# it implies that the distance between them is decreasing.
+car_following_and_getting_closer = heading_toward(vehicles_following_ego, ego_vehicle, log_dir)
+
+# Finally, I will output the resulting scenario.
+output_scenario(car_following_and_getting_closer, description, log_dir, output_dir)

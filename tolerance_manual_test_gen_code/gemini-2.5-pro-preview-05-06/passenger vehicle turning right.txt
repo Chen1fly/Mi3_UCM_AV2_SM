@@ -1,0 +1,10 @@
+# description: passenger vehicle turning right
+
+# Get all objects of category "REGULAR_VEHICLE" which corresponds to passenger vehicles
+passenger_vehicles = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+# Filter for passenger vehicles that are turning right
+passenger_vehicles_turning_right = turning(passenger_vehicles, log_dir, direction='right')
+
+# Output the scenario
+output_scenario(passenger_vehicles_turning_right, description, log_dir, output_dir)

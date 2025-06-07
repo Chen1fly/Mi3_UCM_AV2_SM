@@ -1,0 +1,9 @@
+description = 'motorcycle in bike lane'
+# Get all objects of category MOTORCYCLE
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+
+# Filter motorcycles that are on a bike lane
+motorcycles_in_bike_lane = on_lane_type(motorcycles, log_dir, lane_type='BIKE')
+
+# Output the scenario
+output_scenario(motorcycles_in_bike_lane, description, log_dir, output_dir)

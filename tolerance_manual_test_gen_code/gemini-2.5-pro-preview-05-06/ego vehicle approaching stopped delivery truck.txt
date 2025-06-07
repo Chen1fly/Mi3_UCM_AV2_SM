@@ -1,0 +1,66 @@
+# Define the description of the scenario
+description = 'ego vehicle approaching stopped delivery truck'
+
+# Get the ego vehicle
+# The EGO_VEHICLE category represents the vehicle collecting the data.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Define what constitutes a "delivery truck".
+# We'll consider TRUCK and BOX_TRUCK categories as types of delivery trucks.
+# TRUCK: "Vehicles that are clearly defined as a truck but does not fit into the subclasses of Box Truck or Truck Cab. Examples include common delivery vehicles (UPS, FedEx), mail trucks, garbage trucks, utility trucks, ambulances, dump trucks, etc."
+# BOX_TRUCK: "Chassis cab truck with an enclosed cube shaped cargo area."
+trucks_category = get_objects_of_category(log_dir, category='TRUCK')
+box_trucks_category = get_objects_of_category(log_dir, category='BOX_TRUCK')
+
+# Combine these categories into a single dictionary representing all potential delivery trucks.
+all_delivery_trucks = scenario_or([trucks_category, box_trucks_category])
+
+# Filter for delivery trucks that are "stopped".
+# A stopped vehicle is defined as having a velocity at or below 0.5 m/s.
+# This threshold accounts for minor movements due to annotation jitter even when an object is stationary.
+stopped_delivery_trucks = has_velocity(
+    track_candidates=all_delivery_trucks,
+    log_dir=log_dir,
+    min_velocity=0.0,  # Can be completely stationary
+    max_velocity=0.5   # Upper bound for being considered 'stopped'
+)
+
+# Ensure the ego vehicle is "approaching", which implies it is moving.
+# We define a moving ego vehicle as having a velocity greater than 0.5 m/s.
+moving_ego_vehicle = has_velocity(
+    track_candidates=ego_vehicle,
+    log_dir=log_dir,
+    min_velocity=0.5  # Ego must be moving to be "approaching"
+)
+
+# Find instances where the moving ego vehicle has a stopped delivery truck in its forward path.
+# The 'has_objects_in_relative_direction' function identifies 'track_candidates' (moving_ego_vehicle)
+# that have 'related_candidates' (stopped_delivery_trucks) in the specified 'direction'.
+
+# Parameters for has_objects_in_relative_direction:
+# - direction='forward': The stopped truck must be in front of the ego vehicle.
+# - min_number=1: At least one stopped delivery truck must be present in front.
+# - within_distance=50.0: The truck must be within 50 meters ahead of the ego to be considered "approaching".
+# - lateral_thresh=1.5: Maximum lateral distance (in meters) the truck can be from the sides of the ego vehicle.
+#   A value of 1.5m is chosen to be precise, capturing trucks in the ego's lane or an immediately adjacent lane.
+#   For example, if ego is 2m wide and truck is 2.5m wide, and they are in adjacent standard lanes,
+#   the typical gap between their sides might be around 1.25m. lateral_thresh=1.5 covers this.
+ego_approaching_stopped_truck = has_objects_in_relative_direction(
+    track_candidates=moving_ego_vehicle,
+    related_candidates=stopped_delivery_trucks,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    within_distance=50.0,
+    lateral_thresh=1.5
+)
+
+# Output the identified scenario instances.
+# The 'ego_approaching_stopped_truck' dictionary will contain ego vehicle UUIDs as keys
+# for which the specified conditions (approaching a stopped delivery truck) are met.
+output_scenario(
+    scenario=ego_approaching_stopped_truck,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

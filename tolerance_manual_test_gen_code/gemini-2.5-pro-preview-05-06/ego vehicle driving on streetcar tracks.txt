@@ -1,0 +1,22 @@
+# Scenario: ego vehicle driving on streetcar tracks
+# ------------------------------------------------
+# The approach is to flag every time the ego-vehicle shares the *same*
+# roadway lane with any object of category “RAILED_VEHICLE” (streetcars,
+# trams, trolleys, etc.).  
+# If the ego and a rail-bound vehicle occupy the same lane, the ego must
+# be positioned directly on the embedded street-rail tracks, which is the
+# behaviour we want to capture.
+
+description = 'ego vehicle driving on streetcar tracks'
+
+# 1. Ego vehicle track(s)
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# 2. All rail-bound vehicles (trams, streetcars, etc.)
+railed_vehicles = get_objects_of_category(log_dir, category='RAILED_VEHICLE')
+
+# 3. Moments when the ego vehicle occupies the *same road lane* as a rail vehicle
+ego_on_tracks = in_same_lane(ego_vehicle, railed_vehicles, log_dir)
+
+# 4. Export the scenario file in evaluation-ready format
+output_scenario(ego_on_tracks, description, log_dir, output_dir)

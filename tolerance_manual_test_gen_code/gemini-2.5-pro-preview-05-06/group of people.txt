@@ -1,0 +1,30 @@
+description = "group of people"
+
+# First, get all pedestrians from the dataset.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Now, we want to find pedestrians who are part of a group.
+# We define a group as consisting of at least 3 pedestrians.
+# For a pedestrian to be part of such a group, they must be near at least 2 *other* pedestrians.
+# We use `near_objects` with `pedestrians` as both the `track_candidates` and `related_candidates`.
+# - `distance_thresh=5.0`: We define "near" as being within 5 meters. This value is chosen
+#   to ensure the pedestrians are relatively close to form a coherent group. The default is 10m,
+#   which might be too sparse for a "group".
+# - `min_objects=2`: This means a `track_candidate` (a pedestrian) must be near at least 2
+#   `related_candidates` (other pedestrians).
+# - `include_self=False`: This is important. It ensures that the `min_objects` count refers to
+#   *other* pedestrians, not the `track_candidate` pedestrian itself.
+# So, a pedestrian returned by this function will be one that has at least 2 other pedestrians within 5 meters,
+# thus forming a group of at least 1 (itself) + 2 (others) = 3 pedestrians.
+# The resulting `group_members` dictionary will have keys as the UUIDs of pedestrians who meet this condition.
+group_members = near_objects(
+    track_candidates=pedestrians,
+    related_candidates=pedestrians,
+    log_dir=log_dir,
+    distance_thresh=5.0,
+    min_objects=2,
+    include_self=False
+)
+
+# Output the scenario. This will save the pedestrians who are part of a group.
+output_scenario(group_members, description, log_dir, output_dir)

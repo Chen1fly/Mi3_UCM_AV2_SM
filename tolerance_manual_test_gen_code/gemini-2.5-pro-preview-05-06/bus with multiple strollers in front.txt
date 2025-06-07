@@ -1,0 +1,13 @@
+description='bus with multiple strollers in front'
+# First, get all the bus and stroller objects from the logs
+buses = get_objects_of_category(log_dir, category='BUS')
+strollers = get_objects_of_category(log_dir, category='STROLLER')
+# Find all the buses with at least 2 strollers in front of them.
+bus_with_strollers = has_objects_in_relative_direction(
+    buses,
+    strollers,
+    log_dir,
+    direction='forward',
+    min_number=2
+)
+output_scenario(bus_with_strollers, description, log_dir, output_dir)

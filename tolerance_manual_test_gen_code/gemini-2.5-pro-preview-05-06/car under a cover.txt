@@ -1,0 +1,18 @@
+# The provided functions do not have a way to determine if a vehicle is under a cover, as this is a visual attribute
+# not directly captured by the object's category, position, or movement.
+# However, a car under a cover is almost certainly stationary.
+# Therefore, this script will identify all stationary vehicles as a proxy for this scenario.
+# This will find all parked cars, which could then be manually reviewed to find instances of covered cars.
+
+description = 'car under a cover'
+
+# First, get all objects that belong to the 'VEHICLE' superclass.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Next, filter this set of vehicles to only include those that are stationary.
+# A covered car would be parked and therefore stationary.
+stationary_vehicles = stationary(vehicles, log_dir)
+
+# Output the resulting scenario. This will contain all stationary vehicles,
+# which is the closest approximation to "car under a cover" possible with the given functions.
+output_scenario(stationary_vehicles, description, log_dir, output_dir)

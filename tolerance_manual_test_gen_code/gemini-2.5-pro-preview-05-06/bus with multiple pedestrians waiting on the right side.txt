@@ -1,0 +1,42 @@
+description = 'bus with multiple pedestrians waiting on the right side'
+
+# 1. Get all objects of the category 'BUS'.
+# According to the category definitions, 'BUS' refers to standard city buses.
+buses = get_objects_of_category(log_dir, category='BUS')
+
+# 2. Get all pedestrians.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# 3. Filter pedestrians to find those that are "waiting".
+# "Waiting" implies they are stationary or moving very slowly.
+# The `has_velocity` function's documentation suggests that stationary objects
+# may have a velocity up to 0.5 m/s. We use this as the threshold.
+waiting_pedestrians = has_velocity(pedestrians, log_dir, min_velocity=0.0, max_velocity=0.5)
+
+# 4. Find buses that have multiple (at least 2) waiting pedestrians on their right side.
+# The function `has_objects_in_relative_direction` identifies the `track_candidates` (buses)
+# that have the specified number of `related_candidates` (waiting pedestrians) in the given direction.
+# - `track_candidates=buses`: We are looking for buses.
+# - `related_candidates=waiting_pedestrians`: The objects to look for relative to the buses.
+# - `direction='right'`: Pedestrians should be on the right side of the bus.
+# - `min_number=2`: "Multiple pedestrians" implies at least two.
+# - `within_distance=5`: Pedestrians should be relatively close to the bus's side.
+#   This parameter defines the maximum distance outwards (in the 'right' direction) from the bus. 5 meters is a reasonable distance for pedestrians on a sidewalk next to a bus.
+# - `lateral_thresh=15`: This parameter defines the maximum extent along the bus's length (perpendicular to the 'right' direction)
+#   for the zone where pedestrians are counted. A bus can be 10-18 meters long. A value of 15 meters
+#   should ensure that pedestrians alongside most of the bus's length are considered.
+buses_with_multiple_peds_on_right = has_objects_in_relative_direction(
+    track_candidates=buses,
+    related_candidates=waiting_pedestrians,
+    log_dir=log_dir,
+    direction='right',
+    min_number=2,
+    max_number=np.inf, # Default, but explicit for clarity; we care about meeting min_number.
+    within_distance=5.0,
+    lateral_thresh=15.0
+)
+
+# Output the scenario.
+# The `buses_with_multiple_peds_on_right` dictionary will contain the UUIDs of buses
+# meeting the criteria, along with the timestamps and related pedestrian UUIDs.
+output_scenario(buses_with_multiple_peds_on_right, description, log_dir, output_dir)

@@ -1,0 +1,13 @@
+# The provided functions do not have the ability to determine the color of a vehicle.
+# This script will identify all objects categorized as 'REGULAR_VEHICLE', which includes cars,
+# but it cannot filter them based on the color red.
+description = "red cars"
+
+# Get all objects that are regular vehicles.
+# Note: The 'REGULAR_VEHICLE' category encompasses standard passenger cars.
+# It is not possible to filter these by color with the available functions.
+regular_vehicles = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+# Output the scenario containing all regular vehicles found.
+# The description remains "red cars" as requested, but the output will contain all cars regardless of color.
+output_scenario(regular_vehicles, description, log_dir, output_dir)

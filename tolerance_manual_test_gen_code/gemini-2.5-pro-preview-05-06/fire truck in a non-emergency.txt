@@ -1,0 +1,32 @@
+# Scenario: fire truck in a non-emergency
+description = 'fire truck in a non-emergency'
+
+# 1. Retrieve every object that could be annotated as a fire truck.
+#    In the ontology, fire trucks fall under the LARGE_VEHICLE category.
+large_vehicles = get_objects_of_category(log_dir, category='LARGE_VEHICLE')
+
+# 2. Heuristically define “non-emergency” behaviour.
+#    We treat a fire truck as non-emergency when it is either:
+#       • stopped / parked (stationary), OR
+#       • creeping along very slowly (≤ 5 m/s),
+#    regardless of whether its lights are on (lights are not encoded in the dataset).
+#
+#    2a) Fire trucks that remain essentially parked for the duration observed.
+stationary_large_vehicles = stationary(large_vehicles, log_dir)
+
+#    2b) Fire trucks that roll forward only at walking speed.
+slow_large_vehicles = has_velocity(large_vehicles, log_dir, min_velocity=0.5, max_velocity=5)
+
+#    Combine (union) stationary and slow-moving tracks to capture both cases.
+non_emergency_motion = scenario_or([stationary_large_vehicles, slow_large_vehicles])
+
+# 3. Restrict the result to vehicles that are physically on the road
+#    (and not in parking lots or other drivable areas).
+large_vehicles_on_road = on_road(large_vehicles, log_dir)
+
+# 4. A fire truck is considered “non-emergency” only if it satisfies BOTH
+#    the motion condition from step 2 and the spatial constraint from step 3.
+fire_truck_non_emergency = scenario_and([non_emergency_motion, large_vehicles_on_road])
+
+# 5. Save the resulting scenario.
+output_scenario(fire_truck_non_emergency, description, log_dir, output_dir)

@@ -1,0 +1,13 @@
+# description: bus with at least 3 pedestrians within 5 meters
+# First, get all bus objects from the logs.
+buses = get_objects_of_category(log_dir, category='BUS')
+# Next, get all pedestrian objects from the logs.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+# Then, find the buses that have at least 3 pedestrians within a 5-meter distance.
+# 'buses' are the primary objects we are searching for.
+# 'pedestrians' are the related objects we are checking for proximity to the buses.
+# 'distance_thresh=5' sets the maximum distance for a pedestrian to be considered "near".
+# 'min_objects=3' sets the minimum number of pedestrians that must be near a bus.
+bus_near_pedestrians = near_objects(buses, pedestrians, log_dir, distance_thresh=5, min_objects=3)
+# Finally, output the identified scenarios with a clear description.
+output_scenario(bus_near_pedestrians, description, log_dir, output_dir)

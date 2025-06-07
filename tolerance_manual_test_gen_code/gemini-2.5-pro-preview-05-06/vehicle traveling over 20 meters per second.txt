@@ -1,0 +1,12 @@
+description = 'vehicle traveling over 20 meters per second'
+# Get all objects of the category 'VEHICLE'
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter vehicles to find those with a velocity greater than 20 m/s
+# min_velocity is set to 20, max_velocity defaults to infinity which is appropriate here.
+fast_vehicles = has_velocity(vehicles, log_dir, min_velocity=20)
+
+# Output the scenario
+# The fast_vehicles dictionary now contains only vehicles that were traveling over 20 m/s
+# at some point in the scenario, along with the timestamps when this condition was met.
+output_scenario(fast_vehicles, description, log_dir, output_dir)

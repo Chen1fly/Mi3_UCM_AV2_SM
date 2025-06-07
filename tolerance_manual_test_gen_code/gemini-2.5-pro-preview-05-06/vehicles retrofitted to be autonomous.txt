@@ -1,0 +1,5 @@
+# The EGO_VEHICLE is a Ford Fusion Hybrid that has been retrofitted with several cameras, lidars, and other sensors
+# to be an autonomous vehicle. This is the only category that explicitly fits the description.
+description = 'vehicles retrofitted to be autonomous'
+retrofitted_vehicles = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+output_scenario(retrofitted_vehicles, description, log_dir, output_dir)

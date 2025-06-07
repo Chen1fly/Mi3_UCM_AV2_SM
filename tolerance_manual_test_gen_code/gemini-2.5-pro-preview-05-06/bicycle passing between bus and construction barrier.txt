@@ -1,0 +1,107 @@
+description = 'bicycle passing between bus and construction barrier'
+
+# Get all BICYCLE objects. These are the primary objects of interest for this scenario.
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Get all BUS objects.
+buses = get_objects_of_category(log_dir, category='BUS')
+
+# Get CONTRUCTION_CONE and CONSTRUCTION_BARREL objects, as these commonly represent "construction barriers".
+construction_cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+construction_barrels = get_objects_of_category(log_dir, category='CONSTRUCTION_BARREL')
+# Combine cones and barrels into a single scenario dictionary representing any construction obstacle.
+# This allows us to check for either type of object when looking for a "construction barrier".
+construction_obstacles = scenario_or([construction_cones, construction_barrels])
+
+# The term "passing" implies that the bicycle is in motion.
+# We filter the initial set of bicycles to include only those that are not stationary.
+active_bicycles = scenario_not(stationary)(bicycles, log_dir)
+
+# Define parameters to specify what "passing between" means in terms of proximity.
+# 'within_distance': The longitudinal search range (forward/backward along the bicycle's path)
+#                    for detecting the bus or construction barrier. A smaller value ensures
+#                    the objects are roughly alongside the bicycle.
+# 'lateral_thresh': The maximum allowable lateral distance (i.e., gap) from the side of the bicycle
+#                   to the nearest side of the bus or construction barrier. A smaller value indicates
+#                   the bicycle is passing through a narrower space.
+# 'min_number': We require at least one bus/barrier to be present on the respective side.
+# 'max_number': If multiple objects satisfy the condition on a side, this can influence which ones
+#               are stored in relationships, but for filtering tracks, `min_number` is key. We set it to 1.
+distance_threshold_for_side_objects = 5.0  # meters
+lateral_gap_threshold = 1.0  # meters (e.g., bicycle's side is within 1m of the bus/barrier's side)
+
+# We need to consider two main configurations for "passing between":
+# 1. Bus on the left of the bicycle, construction barrier on the right.
+# 2. Construction barrier on the left of the bicycle, bus on the right.
+
+# --- Scenario 1: Bus on LEFT, Construction Barrier on RIGHT ---
+
+# First, identify active bicycles that have a bus to their immediate left.
+# The `track_candidates` are the active bicycles.
+# The `related_candidates` are the buses.
+bicycles_with_bus_on_left = has_objects_in_relative_direction(
+    track_candidates=active_bicycles,
+    related_candidates=buses,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1,
+    max_number=1, # Consider the closest bus if multiple are on the left.
+    within_distance=distance_threshold_for_side_objects,
+    lateral_thresh=lateral_gap_threshold
+)
+
+# Next, from this group of bicycles (those already confirmed to have a bus on their left),
+# we further filter to find those that *also* have a construction obstacle to their immediate right.
+# The `track_candidates` for this step are `bicycles_with_bus_on_left`.
+passing_bus_L_obstacle_R = has_objects_in_relative_direction(
+    track_candidates=bicycles_with_bus_on_left,
+    related_candidates=construction_obstacles,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,
+    max_number=1, # Consider the closest obstacle if multiple are on the right.
+    within_distance=distance_threshold_for_side_objects,
+    lateral_thresh=lateral_gap_threshold
+)
+
+# --- Scenario 2: Construction Barrier on LEFT, Bus on RIGHT ---
+
+# First, identify active bicycles that have a construction obstacle to their immediate left.
+bicycles_with_obstacle_on_left = has_objects_in_relative_direction(
+    track_candidates=active_bicycles,
+    related_candidates=construction_obstacles,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1,
+    max_number=1, # Consider the closest obstacle if multiple are on the left.
+    within_distance=distance_threshold_for_side_objects,
+    lateral_thresh=lateral_gap_threshold
+)
+
+# Next, from this group of bicycles (those with an obstacle on their left),
+# filter to find those that *also* have a bus to their immediate right.
+passing_obstacle_L_bus_R = has_objects_in_relative_direction(
+    track_candidates=bicycles_with_obstacle_on_left,
+    related_candidates=buses,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,
+    max_number=1, # Consider the closest bus if multiple are on the right.
+    within_distance=distance_threshold_for_side_objects,
+    lateral_thresh=lateral_gap_threshold
+)
+
+# --- Combine Scenarios ---
+# A bicycle is considered "passing between a bus and a construction barrier" if it
+# meets the conditions of EITHER Scenario 1 OR Scenario 2.
+# The `scenario_or` function combines these two sets of bicycles.
+final_scenario_bicycles = scenario_or([passing_bus_L_obstacle_R, passing_obstacle_L_bus_R])
+
+# Output the resulting scenario, which contains the UUIDs of bicycles matching the description
+# and the timestamps when the conditions are met.
+output_scenario(
+    scenario=final_scenario_bicycles,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

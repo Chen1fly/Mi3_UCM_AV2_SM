@@ -1,0 +1,80 @@
+# Description of the scenario
+description = 'vehicle passing stopped truck with pedestrian nearby'
+
+# 1. Get all relevant object categories
+# Get all objects categorized as "VEHICLE" which will be the potential passers
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Get all types of trucks. "truck" in the description could refer to various truck types.
+truck_category = get_objects_of_category(log_dir, category="TRUCK")
+box_truck_category = get_objects_of_category(log_dir, category="BOX_TRUCK")
+truck_cab_category = get_objects_of_category(log_dir, category="TRUCK_CAB")
+# Combine these truck types into a single scenario dictionary
+all_truck_objects = scenario_or([truck_category, box_truck_category, truck_cab_category])
+
+# Get all pedestrians
+pedestrians = get_objects_of_category(log_dir, category="PEDESTRIAN")
+
+# 2. Identify stopped trucks
+# A truck is considered "stopped" if its velocity is very low (e.g., <= 0.5 m/s, accounting for annotation jitter).
+stopped_trucks = has_velocity(all_truck_objects, log_dir, max_velocity=0.5)
+
+# 3. Identify moving vehicles (the ones doing the passing)
+# The passing vehicle must be actively moving. A threshold higher than stationary jitter is used (e.g., >= 1.0 m/s).
+moving_vehicles = has_velocity(all_vehicles, log_dir, min_velocity=1.0)
+
+# 4. Identify vehicles that are passing these stopped trucks.
+# A vehicle is "passing" if it (a moving_vehicle) crosses the side of a stopped_truck.
+# The `being_crossed_by` function returns the object *being crossed* (the stopped_truck in this case).
+# We want the *passer* (the moving_vehicle), so we use `reverse_relationship`.
+# `forward_thresh` relates to the length of the interaction zone along the truck's side.
+# An average truck length (e.g., 15m) is used.
+# `lateral_thresh` is how far out laterally the passing vehicle can be from the truck's side plane.
+# A lane width (e.g., 3.5m) is used.
+# `direction` in `being_crossed_by` refers to the side of the `track_candidate` (stopped_truck) being crossed.
+
+# Scenario 1: Moving vehicle crosses the left side of the stopped truck.
+# This means the stopped truck is on the right of the passing vehicle.
+vehicles_passing_trucks_on_trucks_LHS = reverse_relationship(being_crossed_by)(
+    stopped_trucks,       # The objects being crossed (before reverse_relationship)
+    moving_vehicles,      # The objects doing the crossing (before reverse_relationship)
+    log_dir,
+    direction='left',     # Moving vehicle crosses the *truck's* left side plane
+    in_direction='either',# Direction of crossing movement (e.g. front-to-back) doesn't matter
+    forward_thresh=15.0,  # Interaction zone length along the truck's side
+    lateral_thresh=3.5    # Max lateral deviation for the passer from the truck's side plane
+)
+
+# Scenario 2: Moving vehicle crosses the right side of the stopped truck.
+# This means the stopped truck is on the left of the passing vehicle.
+vehicles_passing_trucks_on_trucks_RHS = reverse_relationship(being_crossed_by)(
+    stopped_trucks,
+    moving_vehicles,
+    log_dir,
+    direction='right',    # Moving vehicle crosses the *truck's* right side plane
+    in_direction='either',
+    forward_thresh=15.0,
+    lateral_thresh=3.5
+)
+
+# Combine both passing scenarios to get all vehicles that are passing a stopped truck
+# The keys in `passing_vehicles` will be the UUIDs of the `moving_vehicles` involved in the pass.
+passing_vehicles = scenario_or([vehicles_passing_trucks_on_trucks_LHS, vehicles_passing_trucks_on_trucks_RHS])
+
+# 5. Find instances where these `passing_vehicles` have a `pedestrian` nearby.
+# We check if any of the identified `passing_vehicles` are near at least one pedestrian.
+# `distance_thresh` defines "nearby" (e.g., pedestrian within 10 meters of the passing vehicle).
+vehicles_passing_stopped_truck_with_ped_nearby = near_objects(
+    passing_vehicles,     # The vehicles that are doing the passing
+    pedestrians,          # The pedestrians to check for proximity
+    log_dir,
+    distance_thresh=10.0, # Pedestrian must be within 10 meters of the passing vehicle
+    min_objects=1         # At least one pedestrian must be nearby
+)
+
+# 6. Output the final scenario
+# This scenario dictionary will contain the `passing_vehicles` that meet all criteria:
+# - They are moving.
+# - They are passing a stopped truck (of any combined truck type).
+# - There is at least one pedestrian within 10 meters of them during the pass.
+output_scenario(vehicles_passing_stopped_truck_with_ped_nearby, description, log_dir, output_dir)

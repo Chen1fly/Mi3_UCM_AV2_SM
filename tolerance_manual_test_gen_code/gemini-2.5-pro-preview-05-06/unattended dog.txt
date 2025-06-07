@@ -1,0 +1,27 @@
+# Scenario: "unattended dog"
+
+description = 'unattended dog'
+
+# 1) Retrieve every annotated dog in the log
+dogs = get_objects_of_category(log_dir, category='DOG')
+
+# 2) Keep only the dogs that are actually on the roadway; this focuses the search
+#    on dogs that could interfere with traffic and avoids pets on distant sidewalks/yards.
+dogs_on_road = on_road(dogs, log_dir)
+
+# 3) Retrieve every pedestrian (potential attendant)
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# 4) Remove any dog that has a pedestrian within 7 m.
+#    - near_objects() marks dogs that ARE near a pedestrian,
+#    - scenario_not(near_objects) gives the complementary set: dogs with no pedestrian near.
+unattended_dogs = scenario_not(near_objects)(
+    dogs_on_road,        # track_candidates
+    pedestrians,         # related_candidates
+    log_dir,             # required positional arg
+    distance_thresh=7,   # “near” defined as ≤ 7 m
+    min_objects=1        # one pedestrian nearby is enough to call the dog “attended”
+)
+
+# 5) Output results in evaluation-ready format
+output_scenario(unattended_dogs, description, log_dir, output_dir)

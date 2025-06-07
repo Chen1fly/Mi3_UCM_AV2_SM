@@ -1,0 +1,81 @@
+description = "vehicle approaching and facing a stopped vehicle at an intersection"
+
+# 1. Get all objects of category VEHICLE.
+# This will serve as the base set for identifying specific vehicles involved in the scenario.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# 2. Identify vehicles that are "stopped".
+# According to the `has_velocity` function's documentation, stationary objects (due to annotation jitter)
+# may have a velocity up to 0.5 m/s. Thus, `max_velocity=0.5` is suitable for identifying vehicles
+# that are temporarily stopped (e.g., at a traffic light, stop sign, or in congestion),
+# rather than vehicles that are parked (for which `stationary()` would be used).
+stopped_vehicles = has_velocity(
+    track_candidates=all_vehicles,
+    log_dir=log_dir,
+    max_velocity=0.5  # Vehicles moving at 0.5 m/s or less are considered "stopped".
+)
+
+# 3. Filter the "stopped_vehicles" to include only those that are "at an intersection".
+# The `on_intersection` function identifies objects located on top of a road intersection.
+# These vehicles become the "referred objects" C the ones being approached and faced.
+stopped_vehicles_at_intersection = on_intersection(
+    track_candidates=stopped_vehicles,
+    log_dir=log_dir
+)
+
+# 4. Identify vehicles that are "moving".
+# These will be the candidates for the "approaching vehicle" (the actor in the scenario).
+# `min_velocity=0.5` m/s ensures these vehicles are distinct from the "stopped_vehicles"
+# and are actively in motion.
+moving_vehicles = has_velocity(
+    track_candidates=all_vehicles,
+    log_dir=log_dir,
+    min_velocity=0.5  # Vehicles moving at more than 0.5 m/s.
+)
+
+# 5. Identify moving vehicles that are FACING one of the "stopped vehicles at an intersection".
+# The `facing_toward` function checks if the front of the `track_candidate` (a moving_vehicle)
+# is oriented towards a `related_candidate` (a stopped_vehicle_at_intersection).
+# - `within_angle`: The default is 22.5 degrees, meaning the related candidate must lie within
+#   a +/- 22.5 degree cone from the track_candidate's forward axis. This ensures precision.
+# - `max_distance`: Set to 30.0 meters to define a relevant proximity for the "facing"
+#   condition to be meaningful in an "approaching" context. The default is 50m.
+vehicles_that_are_facing_stopped_at_intersection = facing_toward(
+    track_candidates=moving_vehicles,
+    related_candidates=stopped_vehicles_at_intersection,
+    log_dir=log_dir,
+    within_angle=22.5, # Default, for precision: vehicle's front points fairly directly at the target.
+    max_distance=30.0  # Condition applies if the target is within 30 meters.
+)
+
+# 6. From the vehicles identified in step 5 (those already facing a relevant stopped vehicle),
+# further filter to find those that are also HEADING TOWARD (i.e., "approaching")
+# one of the "stopped vehicles at an intersection".
+# The `heading_toward` function checks if the `track_candidate`'s velocity vector is
+# directed towards a `related_candidate`.
+# - `track_candidates`: These are the vehicles already confirmed to be `facing_toward` a relevant target.
+# - `angle_threshold`: The default is 22.5 degrees, meaning the velocity vector must be within
+#   a +/- 22.5 degree cone of the vector pointing to the related candidate. This ensures precision.
+# - `minimum_speed`: The default is 0.5 m/s for the component of velocity towards the related candidate.
+#   This ensures the vehicle is actively moving towards the target.
+# - `max_distance`: Set to 30.0 meters, consistent with the `facing_toward` condition, to define
+#   the range for "approaching". The default is np.inf.
+vehicles_approaching_and_facing_stopped_at_intersection = heading_toward(
+    track_candidates=vehicles_that_are_facing_stopped_at_intersection,
+    related_candidates=stopped_vehicles_at_intersection,
+    log_dir=log_dir,
+    angle_threshold=22.5, # Default, for precision: velocity vector points fairly directly at the target.
+    minimum_speed=0.5,    # Default, ensures significant motion towards the target.
+    max_distance=30.0     # Condition applies if the target is within 30 meters.
+)
+
+# 7. Output the scenario.
+# The `vehicles_approaching_and_facing_stopped_at_intersection` dictionary will contain the UUIDs
+# of the "approaching vehicles" that meet all specified conditions, along with timestamps and
+# related "stopped vehicle" UUIDs.
+output_scenario(
+    scenario=vehicles_approaching_and_facing_stopped_at_intersection,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

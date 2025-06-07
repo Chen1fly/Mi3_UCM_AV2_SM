@@ -1,0 +1,7 @@
+# description: stroller
+# Get all objects of the category 'STROLLER'
+strollers = get_objects_of_category(log_dir, category='STROLLER')
+
+# Output the scenario, which simply contains all instances of strollers found.
+# No further filtering or relational logic is needed for this simple description.
+output_scenario(strollers, description, log_dir, output_dir)

@@ -1,0 +1,16 @@
+# The user wants to find instances where the ego vehicle is traveling on a cobblestone street.
+# There are no functions available to determine the surface material of the road (e.g., cobblestone, asphalt, dirt).
+# The closest available function is on_road(), which can determine if a vehicle is on a road.
+# This will be a significant false positive, but it is the closest possible solution with the given functions.
+
+description = 'ego vehicle traveling on cobblestone street'
+
+# Get the ego vehicle.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Check when the ego vehicle is on a road. This is used as a proxy for being on a cobblestone street
+# as there is no more specific function available.
+ego_on_cobblestone = on_road(ego_vehicle, log_dir)
+
+# Output the resulting scenario.
+output_scenario(ego_on_cobblestone, description, log_dir, output_dir)

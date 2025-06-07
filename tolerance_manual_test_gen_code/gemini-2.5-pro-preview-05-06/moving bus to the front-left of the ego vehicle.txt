@@ -1,0 +1,75 @@
+# Description: moving bus to the front-left of the ego vehicle
+
+# Get the EGO_VEHICLE. There should be only one.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all objects of category BUS.
+all_buses = get_objects_of_category(log_dir, category='BUS')
+
+# Filter for buses that are moving.
+# Stationary objects can have velocity up to 0.5 m/s.
+# So, min_velocity > 0.5 m/s ensures the bus is actually moving.
+moving_buses = has_velocity(all_buses, log_dir, min_velocity=0.5)
+
+# Define the spatial parameters for "front-left".
+# This means the bus is some distance in front of the ego, and some distance to the left of the ego.
+# From the bus's perspective, the ego vehicle is behind the bus and to the right of the bus.
+
+# Max longitudinal distance for the ego to be behind the bus (bus is in front of ego).
+# e.g., bus's front bumper is up to 20m ahead of ego's front bumper.
+# Considering distances are likely centroid to centroid, and bus length ~12m, car length ~5m.
+# If centroids are 20m apart, and bus is in front, clear distance is ~20 - 12/2 - 5/2 = 20 - 6 - 2.5 = 11.5m.
+max_longitudinal_dist = 20.0  # meters
+
+# Max lateral distance for the ego to be to the right of the bus (bus is to the left of ego).
+# e.g., bus's right side is up to 10m to the left of ego's left side.
+# If centroids are 10m apart laterally, and bus is to the left, clear distance is ~10 - bus_width/2 - ego_width/2
+# bus_width ~2.5m, ego_width ~2m. Clear distance ~10 - 1.25 - 1 = 7.75m.
+max_lateral_dist = 10.0  # meters
+
+# Find moving buses that have the ego vehicle "behind" them.
+# This means the bus is in front of the ego vehicle.
+# track_candidates are 'moving_buses', related_candidates is 'ego_vehicle'.
+# direction='backward' means ego is backward relative to the bus.
+# within_distance here refers to the longitudinal distance (ego behind bus).
+# lateral_thresh here refers to how much the ego can be offset to the sides of the bus's backward path.
+buses_with_ego_behind_them = has_objects_in_relative_direction(
+    track_candidates=moving_buses,
+    related_candidates=ego_vehicle,
+    log_dir=log_dir,
+    direction='backward',
+    min_number=1,  # We need to find the ego vehicle.
+    max_number=1,  # There's only one ego vehicle.
+    within_distance=max_longitudinal_dist,
+    lateral_thresh=max_lateral_dist
+)
+
+# Find moving buses that have the ego vehicle "to their right".
+# This means the bus is to the left of the ego vehicle.
+# track_candidates are 'moving_buses', related_candidates is 'ego_vehicle'.
+# direction='right' means ego is to the right relative to the bus.
+# within_distance here refers to the lateral distance (ego to the right of bus).
+# lateral_thresh here refers to how much the ego can be offset longitudinally from the bus's side.
+buses_with_ego_to_their_right = has_objects_in_relative_direction(
+    track_candidates=moving_buses,
+    related_candidates=ego_vehicle,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,  # We need to find the ego vehicle.
+    max_number=1,  # There's only one ego vehicle.
+    within_distance=max_lateral_dist,
+    lateral_thresh=max_longitudinal_dist
+)
+
+# Combine the two conditions using scenario_and.
+# This will give us buses that are both in front of the ego (ego behind bus)
+# AND to the left of the ego (ego to the right of bus).
+# The resulting dictionary will have moving bus UUIDs as keys.
+moving_bus_front_left_of_ego = scenario_and([
+    buses_with_ego_behind_them,
+    buses_with_ego_to_their_right
+])
+
+# Output the scenario.
+description = 'moving bus to the front-left of the ego vehicle'
+output_scenario(moving_bus_front_left_of_ego, description, log_dir, output_dir)

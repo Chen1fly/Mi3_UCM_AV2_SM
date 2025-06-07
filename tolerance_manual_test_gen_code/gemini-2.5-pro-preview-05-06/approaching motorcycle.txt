@@ -1,0 +1,18 @@
+description = "approaching motorcycle"
+# Get the ego vehicle, which is the reference for the motorcycle's approach.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all motorcycle objects from the dataset.
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+
+# Identify motorcycles that are actively moving to filter out parked ones.
+# A minimum velocity of 0.5 m/s is used to account for potential annotation jitter on stationary objects.
+moving_motorcycles = has_velocity(motorcycles, log_dir, min_velocity=0.5)
+
+# Find motorcycles that are heading toward the ego vehicle.
+# This function checks if the motorcycle's velocity vector is pointed towards the ego vehicle.
+# We keep the default parameters for angle_threshold and max_distance for a general definition of "approaching".
+approaching_motorcycles = heading_toward(moving_motorcycles, ego_vehicle, log_dir)
+
+# Output the final scenario.
+output_scenario(approaching_motorcycles, description, log_dir, output_dir)

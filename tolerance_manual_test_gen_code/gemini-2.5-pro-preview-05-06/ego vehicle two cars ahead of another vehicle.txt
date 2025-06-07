@@ -1,0 +1,109 @@
+import numpy as np # Assuming np is available as it's used in function signatures
+
+description = 'ego vehicle two cars ahead of another vehicle'
+
+# Define parameters for identifying vehicles in a sequence (e.g., in the same lane, following closely)
+# These parameters help in defining what "directly behind" or "in the same lane" means.
+
+# Max distance to be considered "directly" behind another vehicle.
+# A typical car length is ~5m. Following distance (e.g., 1-2 car lengths or 1-2 seconds rule) could be 5-20m.
+# The default value for within_distance in the functions is 50m, which is too large for "directly behind".
+MAX_FOLLOW_DISTANCE = 25.0  # meters; chosen to be a reasonable upper bound for "immediately following".
+
+# Max lateral offset (sideways distance) for a related object to be considered in the same lane.
+# A typical lane width is around 3-3.5m. If the centers of two vehicles are within
+# half a typical lane width of each other, they are very likely in the same lane.
+# The default value for lateral_thresh is np.inf, which means no lateral restriction.
+MAX_LATERAL_OFFSET_FOR_SAME_LANE = 2.0  # meters
+
+# Get the EGO vehicle. This is the primary vehicle of interest.
+ego_vehicles = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all other vehicles that could be part of the chain (Car1, Car2).
+# It's assumed that the 'VEHICLE' category does not include 'EGO_VEHICLE'.
+# The problem statement implies EGO_VEHICLE is a distinct category.
+all_other_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Step 1: Identify EGO vehicles that have a first other vehicle (let's call it Car1) directly behind them.
+# The function `has_objects_in_relative_direction` returns a dictionary where keys are
+# UUIDs from `track_candidates` (ego_vehicles here) that meet the criteria.
+# The values are dictionaries: {related_candidate_uuid (Car1_uuid): [list_of_timestamps]}
+# We use `min_number=1` and `max_number=1` to ensure we're looking for exactly one vehicle
+# immediately behind the EGO vehicle.
+egos_with_first_vehicle_behind = has_objects_in_relative_direction(
+    track_candidates=ego_vehicles,
+    related_candidates=all_other_vehicles,
+    log_dir=log_dir,
+    direction='backward',  # Looking for vehicles behind the EGO
+    min_number=1,
+    max_number=1,          # Interested in the single, closest vehicle behind
+    within_distance=MAX_FOLLOW_DISTANCE,
+    lateral_thresh=MAX_LATERAL_OFFSET_FOR_SAME_LANE
+)
+
+# This dictionary will store the final scenario: {ego_uuid: [timestamps]}
+# It will contain EGO vehicles that are two cars ahead of "another vehicle" (Car2).
+final_ego_scenario = {}
+
+# Iterate through each EGO vehicle that was found to have a Car1 behind it.
+for ego_uuid, related_data_for_ego in egos_with_first_vehicle_behind.items():
+    # `related_data_for_ego` is like: {car1_uuid: [timestamps_where_car1_is_behind_ego]}
+    # Since `max_number=1`, this inner dictionary will effectively map one Car1 (the closest one)
+    # to the timestamps it was behind the current ego_uuid.
+    for first_vehicle_uuid, timestamps_ego_car1 in related_data_for_ego.items():
+        # `first_vehicle_uuid` is Car1.
+        # `timestamps_ego_car1` are the times when Car1 was directly behind `ego_uuid`.
+        
+        # Now, we need to check if this Car1 (`first_vehicle_uuid`)
+        # itself has another vehicle (Car2) directly behind it.
+        # This check must only be for the `timestamps_ego_car1`.
+        
+        # To use `first_vehicle_uuid` as a track candidate, it needs to be in a scenario_dict format:
+        # {uuid: [timestamps_list]}
+        current_first_vehicle_as_track = {first_vehicle_uuid: timestamps_ego_car1}
+
+        # Step 2: Find if Car1 (represented by `current_first_vehicle_as_track`)
+        # has a second vehicle (Car2) directly behind it.
+        # The `related_candidates` are still `all_other_vehicles`.
+        # The geometric nature of "behind" should ensure Car2 is not Car1.
+        # The timestamps in the output will be an intersection of `timestamps_ego_car1`
+        # and the times Car2 was behind Car1.
+        first_vehicle_with_second_vehicle_behind = has_objects_in_relative_direction(
+            track_candidates=current_first_vehicle_as_track,
+            related_candidates=all_other_vehicles,
+            log_dir=log_dir,
+            direction='backward',  # Looking for vehicles behind Car1
+            min_number=1,
+            max_number=1,          # Interested in the single, closest vehicle behind Car1
+            within_distance=MAX_FOLLOW_DISTANCE,
+            lateral_thresh=MAX_LATERAL_OFFSET_FOR_SAME_LANE
+        )
+
+        # Check if Car1 (`first_vehicle_uuid`) was indeed found to have a Car2 behind it.
+        if first_vehicle_uuid in first_vehicle_with_second_vehicle_behind:
+            # `data_for_second_vehicle` is like: {car2_uuid: [final_timestamps]}
+            # `final_timestamps` are when EGO -> Car1 -> Car2 chain existed.
+            data_for_second_vehicle = first_vehicle_with_second_vehicle_behind[first_vehicle_uuid]
+            
+            for second_vehicle_uuid, final_timestamps in data_for_second_vehicle.items():
+                # If there are timestamps where the full EGO -> Car1 -> Car2 chain exists:
+                if final_timestamps:
+                    # Add these `final_timestamps` to the `ego_uuid` in our result scenario.
+                    if ego_uuid not in final_ego_scenario:
+                        final_ego_scenario[ego_uuid] = []
+                    
+                    final_ego_scenario[ego_uuid].extend(final_timestamps)
+                    
+                    # Ensure timestamps are unique and sorted for a canonical representation.
+                    final_ego_scenario[ego_uuid] = sorted(list(set(final_ego_scenario[ego_uuid])))
+            
+            # If, after all processing for this ego_uuid and first_vehicle_uuid,
+            # the list of timestamps for ego_uuid is empty (e.g., if final_timestamps was empty),
+            # remove the entry for this ego_uuid to keep the scenario clean.
+            if ego_uuid in final_ego_scenario and not final_ego_scenario[ego_uuid]:
+                del final_ego_scenario[ego_uuid]
+
+# Output the final scenario.
+# `final_ego_scenario` contains {ego_uuid: [timestamps]} for EGO vehicles
+# that were two cars ahead of another vehicle.
+output_scenario(final_ego_scenario, description, log_dir, output_dir)

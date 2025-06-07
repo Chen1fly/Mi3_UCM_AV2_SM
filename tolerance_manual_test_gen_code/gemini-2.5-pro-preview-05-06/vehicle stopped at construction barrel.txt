@@ -1,0 +1,48 @@
+# Description of the scenario to find
+description = "vehicle stopped at construction barrel"
+
+# Get all vehicle objects from the logs.
+# "VEHICLE" is a superclass that includes REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK, BUS, etc.
+vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Get all construction barrel objects from the logs.
+# "CONSTRUCTION_BARREL" is a specific category for these objects.
+construction_barrels = get_objects_of_category(log_dir, category="CONSTRUCTION_BARREL")
+
+# Identify vehicles that are currently stopped.
+# The has_velocity function's documentation states that stationary objects
+# (which includes temporarily stopped vehicles) might show a velocity up to 0.5 m/s
+# due to annotation jitter. We use this as the upper bound for a vehicle to be considered "stopped".
+stopped_vehicles = has_velocity(
+    track_candidates=vehicles,
+    log_dir=log_dir,
+    min_velocity=0.0,  # Vehicles can be perfectly still
+    max_velocity=0.5   # Threshold for being considered stationary/stopped
+)
+
+# From the set of stopped vehicles, find those that are "at" a construction barrel.
+# "At" implies very close proximity. The near_objects function is suitable for this.
+# We set distance_thresh to 2.5 meters. This threshold is chosen assuming the distance
+# is measured between the centroids of the objects. For a typical passenger car
+# (e.g., length ~4.5m, width ~1.8m) and a construction barrel (diameter ~0.5m),
+# a 2.5m centroid-to-centroid distance means the barrel is very close to or touching
+# the vehicle's outer boundary.
+# (Calculation: max_vehicle_half_extent + barrel_radius approx = max(4.5m/2, 1.8m/2) + 0.5m/2 = 2.25m + 0.25m = 2.5m).
+# We require the vehicle to be near at least one construction barrel (min_objects=1).
+vehicles_stopped_at_barrel = near_objects(
+    track_candidates=stopped_vehicles,        # The primary objects we are filtering (stopped vehicles)
+    related_candidates=construction_barrels,  # The objects to check proximity against
+    log_dir=log_dir,
+    distance_thresh=2.5,                    # Max distance in meters to be considered "at"
+    min_objects=1                           # Must be near at least one barrel
+)
+
+# Output the scenario.
+# This function will store the results, identifying the vehicles (by UUID)
+# and the specific timestamps when they are stopped at a construction barrel.
+output_scenario(
+    scenario=vehicles_stopped_at_barrel,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

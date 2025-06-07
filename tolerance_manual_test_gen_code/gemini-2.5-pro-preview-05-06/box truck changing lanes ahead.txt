@@ -1,0 +1,33 @@
+# Description for the scenario
+description = 'box truck changing lanes ahead'
+
+# Get the EGO_VEHICLE, as "ahead" is typically relative to the ego.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all objects categorized as 'BOX_TRUCK'.
+all_box_trucks = get_objects_of_category(log_dir, category='BOX_TRUCK')
+
+# Filter these box trucks to find those that are changing lanes.
+# The 'changing_lanes' function with default direction=None will find any lane change (left or right).
+box_trucks_that_are_changing_lanes = changing_lanes(all_box_trucks, log_dir)
+
+# Now, identify which of these "box trucks changing lanes" are "ahead" of the ego vehicle.
+# We use get_objects_in_relative_direction where:
+# - track_candidates are the 'observers' (ego_vehicle).
+# - related_candidates are the objects we're looking for in relation to the observers (box_trucks_that_are_changing_lanes).
+# The function will return a scenario dict with keys being the UUIDs of the related_candidates (the box trucks)
+# that meet the criteria.
+# 'within_distance=50' (default) is a reasonable proximity for "ahead".
+# 'lateral_thresh=np.inf' (default) means the box truck can be in any lane forward of the ego.
+box_truck_changing_lanes_ahead_of_ego = get_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=box_trucks_that_are_changing_lanes,
+    log_dir=log_dir,
+    direction='forward',
+    within_distance=50,  # Default value, defines "ahead" as within 50 meters.
+    lateral_thresh=np.inf # Default value, allows the truck to be in adjacent lanes.
+)
+
+# Output the resulting scenario.
+# This scenario will contain the box trucks that are changing lanes ahead of the ego vehicle.
+output_scenario(box_truck_changing_lanes_ahead_of_ego, description, log_dir, output_dir)

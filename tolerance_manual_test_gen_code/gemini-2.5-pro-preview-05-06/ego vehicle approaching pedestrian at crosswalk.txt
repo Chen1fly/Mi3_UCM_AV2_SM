@@ -1,0 +1,47 @@
+# Define the description of the scenario
+description = "ego vehicle approaching pedestrian at crosswalk"
+
+# 1. Get EGO_VEHICLE objects
+# The ego vehicle is the vehicle collecting the data.
+ego_vehicle = get_objects_of_category(log_dir, category="EGO_VEHICLE")
+
+# 2. Get PEDESTRIAN objects
+# These are all pedestrians in the scene.
+pedestrians = get_objects_of_category(log_dir, category="PEDESTRIAN")
+
+# 3. Filter PEDESTRIANs to those at a pedestrian crossing
+# The 'at_pedestrian_crossing' function identifies objects near or on a crosswalk.
+# The default 'within_distance=1.0' means the pedestrian's center is within 1 meter of the crosswalk,
+# ensuring they are indeed "at" the crosswalk. This enhances precision.
+peds_at_crosswalk = at_pedestrian_crossing(pedestrians, log_dir, within_distance=1.0)
+
+# 4. Find EGO_VEHICLE instances that are approaching these pedestrians at the crosswalk
+# "Approaching" implies that the ego vehicle is moving towards the pedestrian and is relatively close.
+# The 'heading_toward' function is suitable here. It checks if the ego vehicle's
+# velocity vector is directed towards the pedestrian's current position.
+# - 'minimum_speed=1.0': Set to 1.0 m/s (3.6 km/h) to ensure the ego vehicle is actively moving
+#   towards the pedestrian, not just creeping or stationary with sensor noise. Default is 0.5 m/s.
+# - 'max_distance=30.0': Defines a relevant proximity for "approaching". An ego vehicle 100m away,
+#   even if technically heading towards a pedestrian, might not be considered "approaching" in a critical sense.
+#   30 meters is a reasonable distance for this kind of interaction. Default is np.inf.
+# - 'angle_threshold=22.5': Default value, meaning the ego's velocity vector must be within
+#   a 45-degree cone (22.5 degrees on either side) pointing towards the pedestrian. This is a sensible default.
+ego_approaching_ped_at_crosswalk = heading_toward(
+    track_candidates=ego_vehicle,
+    related_candidates=peds_at_crosswalk,
+    log_dir=log_dir,
+    minimum_speed=1.0,  # m/s
+    max_distance=30.0,  # meters
+    angle_threshold=22.5 # degrees (default)
+)
+
+# 5. Output the scenario
+# This function will save the identified instances.
+# Visualization is disabled as per instructions ("Do not provide any visualization kwargs").
+output_scenario(
+    scenario=ego_approaching_ped_at_crosswalk,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir,
+    visualize=False
+)

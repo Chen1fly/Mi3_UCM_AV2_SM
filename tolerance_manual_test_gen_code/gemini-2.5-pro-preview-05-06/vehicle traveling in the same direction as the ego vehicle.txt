@@ -1,0 +1,38 @@
+# description = 'vehicle traveling in the same direction as the ego vehicle'
+
+# Goal: Find vehicles that are traveling in the same general direction as the ego vehicle.
+
+# Step 1: Get all objects categorized as 'VEHICLE'.
+# The 'VEHICLE' superclass includes various types of vehicles like cars, trucks, buses, etc.,
+# but typically does not include the EGO_VEHICLE unless specified by data loading logic,
+# or if EGO_VEHICLE is also tagged as one of the sub-categories of VEHICLE.
+# We assume 'VEHICLE' refers to other vehicles in the scene.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Step 2: Get the EGO_VEHICLE object.
+# This is the vehicle collecting the data, which serves as our reference.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Step 3: Identify vehicles traveling in the same direction as the ego vehicle.
+# The function `heading_in_relative_direction_to` is used for this.
+# - `track_candidates`: The set of vehicles we want to check (all non-ego vehicles).
+# - `related_candidates`: The reference object (the ego vehicle).
+# - `direction='same'`: This specifies that we are looking for track candidates whose
+#   heading vector is within 0-45 degrees of the ego vehicle's heading vector.
+#   This provides a precise definition of "traveling in the same direction".
+vehicles_traveling_same_direction_as_ego = heading_in_relative_direction_to(
+    track_candidates=vehicles,
+    related_candidates=ego_vehicle,
+    log_dir=log_dir,
+    direction='same'
+)
+
+# Step 4: Output the resulting scenario.
+# This will save the UIDs of the vehicles found traveling in the same direction as the ego,
+# along with the timestamps when this condition is met.
+output_scenario(
+    vehicles_traveling_same_direction_as_ego,
+    description = 'vehicle traveling in the same direction as the ego vehicle',
+    log_dir=log_dir,
+    output_dir=output_dir
+)

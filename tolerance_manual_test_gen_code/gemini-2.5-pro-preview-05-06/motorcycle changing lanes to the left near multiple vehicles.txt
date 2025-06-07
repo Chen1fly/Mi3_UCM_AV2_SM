@@ -1,0 +1,38 @@
+# Scenario: motorcycle changing lanes to the left near multiple vehicles
+
+# ------------------------------------------------------------------------------
+# DESCRIPTION ------------------------------------------------------------------
+description = 'motorcycle changing lanes to the left near multiple vehicles'
+
+# ------------------------------------------------------------------------------
+# STEP 1: Select the motorcycles that are active (not parked / stationary) -----
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+active_motorcycles = scenario_not(stationary)(motorcycles, log_dir)  # exclude parked bikes
+
+# ------------------------------------------------------------------------------
+# STEP 2: Keep only those motorcycles performing a *left* lane-change ----------
+left_lane_change_motorcycles = changing_lanes(active_motorcycles, log_dir, direction='left')
+
+# ------------------------------------------------------------------------------
+# STEP 3: Gather the set of *active road vehicles* -----------------------------
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+moving_vehicles_on_road = scenario_and([
+    in_drivable_area(vehicles, log_dir),          # ensure the vehicles are on the roadway
+    scenario_not(stationary)(vehicles, log_dir)   # exclude parked / stopped vehicles
+])
+
+# ------------------------------------------------------------------------------
+# STEP 4: Require each lane-changing motorcycle to be *near at least two* ------
+#          moving vehicles (within 10 m) at the same timestamp -----------------
+motorcycles_near_multi_vehicles = near_objects(
+    left_lane_change_motorcycles,   # track_candidates
+    moving_vehicles_on_road,        # related_candidates
+    log_dir,
+    distance_thresh=10,             # meters
+    min_objects=2,                  # “multiple” vehicles means ≥ 2
+    include_self=False
+)
+
+# ------------------------------------------------------------------------------
+# STEP 5: Output the scenario ---------------------------------------------------
+output_scenario(motorcycles_near_multi_vehicles, description, log_dir, output_dir)

@@ -1,0 +1,10 @@
+description= 'articulated bus in the same lane as a wheeled device'
+# First, get all articulated bus objects from the logs.
+articulated_buses = get_objects_of_category(log_dir, category='ARTICULATED_BUS')
+# Next, get all wheeled device objects from the logs.
+wheeled_devices = get_objects_of_category(log_dir, category='WHEELED_DEVICE')
+# Use the in_same_lane function to find all instances where an articulated bus
+# is in the same lane as a wheeled device.
+buses_in_same_lane_as_wheeled_devices = in_same_lane(articulated_buses, wheeled_devices, log_dir)
+# Output the final scenario.
+output_scenario(buses_in_same_lane_as_wheeled_devices, description, log_dir, output_dir)

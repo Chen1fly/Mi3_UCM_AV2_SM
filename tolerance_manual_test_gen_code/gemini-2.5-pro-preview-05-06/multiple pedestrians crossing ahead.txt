@@ -1,0 +1,58 @@
+# Define the description for the scenario
+description = 'multiple pedestrians crossing ahead'
+
+# Step 1: Get the EGO_VEHICLE objects.
+# The EGO_VEHICLE will be the primary subject of our scenario, i.e., we are looking for
+# instances of the EGO_VEHICLE when multiple pedestrians are crossing ahead of it.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Step 2: Get all PEDESTRIAN objects.
+# These are the objects that could be crossing the EGO_VEHICLE's path.
+all_pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Step 3: Identify pedestrians who are specifically crossing an EGO_VEHICLE from the front.
+# We use `being_crossed_by(track, related, direction='forward')` which identifies `track` objects
+# that are being crossed by `related` objects from their front.
+# Then, `reverse_relationship` is used to make the `related` objects (pedestrians) the primary keys
+# in the resulting dictionary.
+# So, `peds_crossing_ego_vehicle_front` will be a scenario dictionary like:
+# {ped_uuid: {ego_uuid: [list_of_timestamps_when_ped_crosses_this_ego_front]}}
+peds_crossing_ego_vehicle_front = reverse_relationship(being_crossed_by)(
+    track_candidates=ego_vehicle,  # The object being crossed (ego)
+    related_candidates=all_pedestrians,  # The objects doing the crossing (pedestrians)
+    log_dir=log_dir,
+    direction="forward"  # Specifies that the crossing is over the front midplane of the ego_vehicle
+    # Default forward_thresh=10, lateral_thresh=5 for being_crossed_by will be used.
+)
+
+# Step 4: Find EGO_VEHICLE instances that have multiple (at least 2) of these
+# "pedestrians_crossing_ego_vehicle_front" in their forward direction simultaneously.
+# - `track_candidates` is `ego_vehicle`.
+# - `related_candidates` is the set of pedestrians identified in Step 3 (`peds_crossing_ego_vehicle_front`).
+#   These pedestrians are already confirmed to be crossing an ego vehicle's front at certain times.
+# - `direction="forward"` ensures these pedestrians are spatially ahead of the ego.
+#   (This is somewhat redundant as Step 3 already implies they are at ego's front, but it's a good confirmation).
+# - `min_number=2` ensures that we are looking for "multiple" pedestrians.
+min_multiple_pedestrians = 2
+ego_with_multiple_pedestrians_crossing_ahead = has_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=peds_crossing_ego_vehicle_front,
+    log_dir=log_dir,
+    direction="forward",
+    min_number=min_multiple_pedestrians,
+    # Default within_distance=50m is suitable, as crossing pedestrians will be close.
+    # Default lateral_thresh=np.inf is also fine; the "forward" cone is the main spatial filter.
+)
+# The result `ego_with_multiple_pedestrians_crossing_ahead` will be a scenario dictionary:
+# {ego_uuid: {ped_uuid_that_was_crossing_ego_front: [timestamps_when_this_ped_contributed_to_min_count]}}
+# An ego_uuid is included if, at some timestamp(s), it had at least `min_multiple_pedestrians`
+# from the `peds_crossing_ego_vehicle_front` set in its forward direction.
+# The listed timestamps are when this condition (multiple pedestrians crossing ahead) is met for that EGO_VEHICLE.
+
+# Step 5: Output the resulting scenario.
+output_scenario(
+    scenario=ego_with_multiple_pedestrians_crossing_ahead,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

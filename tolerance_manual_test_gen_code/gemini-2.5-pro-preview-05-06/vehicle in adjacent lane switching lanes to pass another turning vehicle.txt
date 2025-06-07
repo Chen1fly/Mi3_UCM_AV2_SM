@@ -1,0 +1,52 @@
+# The user wants to find instances of a vehicle in an adjacent lane switching lanes to pass another turning vehicle.
+# To do this, we first need to identify the two key actors in this scenario:
+# 1. The vehicle that is turning.
+# 2. The vehicle that is changing lanes in an adjacent lane.
+
+description = "vehicle in adjacent lane switching lanes to pass another turning vehicle"
+
+# First, get all vehicles in the scenario.
+vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# From all vehicles, identify the ones that are currently turning.
+# We don't specify a direction ('left' or 'right') to capture any turn.
+turning_vehicles = turning(vehicles, log_dir)
+
+# Next, identify all vehicles that are performing a lane change.
+# Again, we don't specify a direction to capture any lane change.
+lane_changing_vehicles = changing_lanes(vehicles, log_dir)
+
+# Now we need to find the lane-changing vehicles that are in a lane adjacent to the turning vehicles.
+# We can define "adjacent" as being to the immediate left or right of the turning vehicle.
+# The 'get_objects_in_relative_direction' function is ideal for this. It will return the 'related_candidates'
+# (the lane-changing vehicles) that are in a specific direction relative to the 'track_candidates' (the turning vehicles).
+# We set a 'within_distance' and a 'lateral_thresh' to be precise and avoid capturing vehicles that are far away or in non-adjacent lanes.
+passing_vehicles_on_left = get_objects_in_relative_direction(
+    track_candidates=turning_vehicles,
+    related_candidates=lane_changing_vehicles,
+    log_dir=log_dir,
+    direction='left',
+    # We only want the closest vehicle in the adjacent lane.
+    max_number=1,
+    # A reasonable distance to be considered "passing".
+    within_distance=15,
+    # A tight lateral threshold to ensure the vehicle is in the immediate next lane.
+    lateral_thresh=2.5
+)
+
+passing_vehicles_on_right = get_objects_in_relative_direction(
+    track_candidates=turning_vehicles,
+    related_candidates=lane_changing_vehicles,
+    log_dir=log_dir,
+    direction='right',
+    max_number=1,
+    within_distance=15,
+    lateral_thresh=2.5
+)
+
+# The passing vehicle could be on either the left or the right side of the turning vehicle.
+# We use scenario_or to combine the results from both directions.
+passing_vehicles = scenario_or([passing_vehicles_on_left, passing_vehicles_on_right])
+
+# Finally, output the scenario, which now contains the vehicles that are changing lanes to pass a turning vehicle.
+output_scenario(passing_vehicles, description, log_dir, output_dir)

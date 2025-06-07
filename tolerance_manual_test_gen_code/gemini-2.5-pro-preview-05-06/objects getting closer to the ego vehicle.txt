@@ -1,0 +1,41 @@
+description = 'objects getting closer to the ego vehicle'
+
+# Get the EGO_VEHICLE, which is the reference for "getting closer to"
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all other objects in the scenario.
+# The 'ANY' category includes all annotated objects.
+all_objects = get_objects_of_category(log_dir, category='ANY')
+
+# We want to find objects *other than* the ego vehicle that are getting closer to it.
+# So, we filter out the ego vehicle from the set of all_objects.
+# `is_category(all_objects, log_dir, category='EGO_VEHICLE')` would return a dict containing the ego if it's in all_objects.
+# `scenario_not` then gives us everything in `all_objects` except for the ego vehicle.
+non_ego_objects = scenario_not(is_category)(all_objects, log_dir, category='EGO_VEHICLE')
+
+# Identify objects from `non_ego_objects` that are heading towards the `ego_vehicle`.
+# The `heading_toward` function is suitable here:
+# - `track_candidates`: The objects we are checking (non_ego_objects).
+# - `related_candidates`: The object they should be heading towards (ego_vehicle).
+# - `minimum_speed`: This parameter is crucial. The function description states:
+#   "The track candidates must have a component of velocity toward the related candidate greater than the minimum_speed."
+#   If this component is positive, the distance between the track_candidate and related_candidate is decreasing,
+#   meaning the object is "getting closer".
+#   We set `minimum_speed=0.6` m/s. The `has_velocity` docs mention stationary objects can have jitter up to 0.5 m/s.
+#   Using a value slightly above 0.5 m/s helps avoid false positives from stationary but jittery objects.
+# - `angle_threshold`: Default is 22.5 degrees. This means the object's velocity vector must be
+#   within 22.5 degrees of the vector pointing from the object to the ego. This ensures the object
+#   is generally moving in the direction of the ego, not just incidentally having a small velocity component towards it.
+# - `max_distance`: Default is `np.inf`, meaning objects will be considered regardless of how far away they are,
+#   as long as they meet the heading and speed criteria.
+objects_getting_closer_to_ego = heading_toward(
+    track_candidates=non_ego_objects,
+    related_candidates=ego_vehicle,
+    log_dir=log_dir,
+    minimum_speed=0.6,  # Ensures actual movement towards ego, above jitter threshold
+    angle_threshold=22.5, # Default, defines "heading towards" cone
+    max_distance=np.inf   # Default, no limit on detection distance
+)
+
+# Output the scenario
+output_scenario(objects_getting_closer_to_ego, description, log_dir, output_dir)

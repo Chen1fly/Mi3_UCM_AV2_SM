@@ -1,0 +1,42 @@
+description = 'vehicle with multiple pedestrians to the left'
+
+# Get all vehicle objects from the logs.
+# 'VEHICLE' is a superclass for various types of vehicles.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Get all pedestrian objects from the logs.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Find vehicles that have multiple (at least 2) pedestrians to their left.
+# 'has_objects_in_relative_direction' filters the 'track_candidates' (vehicles)
+# based on the number and relative position of 'related_candidates' (pedestrians).
+# - direction='left': Specifies the relative direction from the vehicle's perspective.
+# - min_number=2: Ensures that there are at least two pedestrians ("multiple")
+#   in that direction for the condition to be met.
+# - within_distance (default 50m): Maximum distance for considering a pedestrian
+#   in the specified direction.
+# - lateral_thresh (default np.inf): Maximum lateral distance the pedestrian can be
+#   from the sides of the vehicle (effectively, for 'left' direction, this constrains
+#   how far forward or backward the "left" zone extends). Using the default np.inf
+#   means a wide longitudinal range, consistent with a general "to the left" query
+#   when not further specified (similar to example 'vehicles_with_peds_in_front').
+vehicles_with_multiple_pedestrians_to_left = has_objects_in_relative_direction(
+    track_candidates=vehicles,
+    related_candidates=pedestrians,
+    log_dir=log_dir,
+    direction='left',
+    min_number=2
+    # Using default values for within_distance (50m) and lateral_thresh (np.inf)
+    # as no specific proximity is mentioned in the description "to the left",
+    # and this aligns with similar examples provided.
+)
+
+# Output the scenario.
+# The 'vehicles_with_multiple_pedestrians_to_left' dictionary will contain vehicle UUIDs
+# that meet the criteria, along with timestamps and the UUIDs of the pedestrians involved.
+output_scenario(
+    vehicles_with_multiple_pedestrians_to_left,
+    description,
+    log_dir,
+    output_dir
+)

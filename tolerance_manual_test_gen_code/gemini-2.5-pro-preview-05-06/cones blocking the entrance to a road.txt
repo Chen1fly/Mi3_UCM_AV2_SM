@@ -1,0 +1,20 @@
+description= "cones blocking the entrance to a road"
+
+# First, we get all objects of the category 'CONSTRUCTION_CONE'.
+cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+
+# We are interested in cones that are on the road, as they are likely to be blocking traffic.
+cones_on_road = on_road(cones, log_dir)
+
+# Road entrances are typically at or near intersections.
+# We will filter for cones that are within 15 meters of an intersection.
+cones_near_intersection = near_intersection(cones_on_road, log_dir, threshold=15)
+
+# "Blocking" implies that there is a group or line of cones.
+# We will use near_objects to find cones that are part of a cluster.
+# We define a cluster as a cone having at least two other cones within 3 meters.
+# This ensures we find groups of at least 3 cones, which is a strong indication of a blockade.
+blocking_cones = near_objects(cones_near_intersection, cones_near_intersection, log_dir, distance_thresh=3, min_objects=2)
+
+# Output the final scenario containing the cones that are blocking a road entrance.
+output_scenario(blocking_cones, description, log_dir, output_dir)

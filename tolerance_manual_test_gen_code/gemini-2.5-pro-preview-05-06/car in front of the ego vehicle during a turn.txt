@@ -1,0 +1,24 @@
+# A scenario describing a car that is in front of the ego vehicle while the ego vehicle is making a turn.
+
+# Get the ego vehicle, which is the vehicle collecting the data.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all regular vehicles in the scenario.
+cars = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+# Identify the timestamps when the ego vehicle is turning.
+# The direction is not specified, so it will detect both left and right turns.
+turning_ego = turning(ego_vehicle, log_dir)
+
+# Find instances where a car is in front of the turning ego vehicle.
+# We are looking for at least one car in the forward direction.
+car_in_front_during_turn = has_objects_in_relative_direction(
+    turning_ego,
+    cars,
+    log_dir,
+    direction='forward',
+    min_number=1
+)
+
+# Output the identified scenario.
+output_scenario(car_in_front_during_turn, description, log_dir, output_dir)

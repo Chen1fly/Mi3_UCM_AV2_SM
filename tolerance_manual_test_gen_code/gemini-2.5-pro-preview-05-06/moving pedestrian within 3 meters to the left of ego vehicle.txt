@@ -1,0 +1,73 @@
+# Assume log_dir and output_dir are predefined variables
+
+# description: moving pedestrian within 3 meters to the left of ego vehicle
+
+# Step 1: Get the EGO_VEHICLE object.
+# The EGO_VEHICLE is the vehicle collecting the data for the dataset.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Step 2: Get all PEDESTRIAN objects from the dataset.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Step 3: Filter the pedestrians to find only those that are currently moving.
+# According to the `has_velocity` function's documentation, stationary objects (including temporarily stopped ones)
+# may exhibit a velocity of up to 0.5 m/s due to annotation jitter.
+# To reliably identify moving pedestrians, we set the minimum velocity threshold slightly above this value.
+moving_pedestrians = has_velocity(pedestrians, log_dir, min_velocity=0.51) # Using 0.51 m/s as the threshold
+
+# Step 4: Identify instances of moving pedestrians located to the left of the ego vehicle and within a 3-meter range.
+# The problem asks to "find instances of a referred object", which in this case is the "moving pedestrian".
+# This means the output scenario dictionary should have pedestrian UUIDs as its primary keys.
+
+# We will use the `has_objects_in_relative_direction` function. This function identifies `track_candidates`
+# that have a certain number of `related_candidates` in a specified relative direction.
+# The keys of the dictionary returned by `has_objects_in_relative_direction` are the UUIDs of the `track_candidates`.
+
+# To achieve an output where pedestrian UUIDs are the primary keys, we use the `reverse_relationship` decorator.
+# `reverse_relationship(has_objects_in_relative_direction)` will create a new function.
+# When this new function is called as `new_func(A, B, ...)`, it internally calls `has_objects_in_relative_direction(B, A, ...)`.
+# The result is then restructured so that UUIDs from A are the primary keys.
+
+# So, we call:
+# `reverse_relationship(has_objects_in_relative_direction)(moving_pedestrians, ego_vehicle, ...)`
+# This will internally execute:
+# `has_objects_in_relative_direction(ego_vehicle, moving_pedestrians, log_dir, direction='left', ...)`
+# The `direction='left'` is interpreted from the perspective of `ego_vehicle` (the first argument to the original, non-reversed function).
+
+# Parameters for `has_objects_in_relative_direction` (in the internal call):
+# - `track_candidates`: `ego_vehicle`
+# - `related_candidates`: `moving_pedestrians`
+# - `direction='left'`: We are looking for pedestrians to the left of the ego vehicle.
+# - `min_number=1`: This ensures that the `ego_vehicle` must have at least one `moving_pedestrian` in the specified zone to be included.
+#                   When reversed, this means any pedestrian in the output was indeed to the left of an ego vehicle.
+# - `within_distance=3.0`: This parameter specifies the maximum distance in the given `direction`.
+#                          So, the pedestrian should be within 3 meters from the side of the ego vehicle, measured leftwards.
+# - `lateral_thresh=3.0`: This parameter specifies the maximum lateral distance from the sides of the tracked object
+#                         that are parallel to the specified direction. For `direction='left'`, this means the pedestrian
+#                         should be within 3 meters longitudinally from the ego vehicle's center (or reference point).
+#                         This defines a precise interaction zone: a rectangular region approximately 3m wide (laterally to the left of ego)
+#                         and 2 * 3.0 = 6m long (along ego's axis), ensuring the pedestrian is truly "to the left" and not too far
+#                         forwards or backwards. This helps avoid false positives.
+
+pedestrians_to_left_of_ego = reverse_relationship(has_objects_in_relative_direction)(
+    moving_pedestrians,    # These objects (moving pedestrians) will be the primary keys in the output scenario.
+    ego_vehicle,           # This is the object relative to which the `direction` is defined.
+    log_dir,
+    direction='left',      # The pedestrian is to the 'left' of the `ego_vehicle`.
+    min_number=1,          # Ensures that `ego_vehicle` has at least one such `moving_pedestrian`.
+    within_distance=3.0,   # Max distance for the pedestrian from `ego_vehicle`'s side in the 'left' direction.
+    lateral_thresh=3.0     # Max longitudinal offset of the pedestrian from `ego_vehicle`'s center.
+)
+
+# Step 5: Define the textual description for the scenario.
+description = 'moving pedestrian within 3 meters to the left of ego vehicle'
+
+# Step 6: Output the resulting scenario.
+# The `output_scenario` function will save the identified instances.
+# As per instructions, visualization arguments are not provided.
+output_scenario(
+    scenario=pedestrians_to_left_of_ego,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

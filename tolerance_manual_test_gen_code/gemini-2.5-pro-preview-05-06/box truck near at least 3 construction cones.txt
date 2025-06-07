@@ -1,0 +1,15 @@
+# Description: box truck near at least 3 construction cones
+description = 'box truck near at least 3 construction cones'
+
+# Get all box trucks
+box_trucks = get_objects_of_category(log_dir, category='BOX_TRUCK')
+
+# Get all construction cones
+construction_cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+
+# Find box trucks that are near at least 3 construction cones.
+# The default distance_thresh for near_objects is 10 meters, which will be used here.
+box_truck_near_cones = near_objects(box_trucks, construction_cones, log_dir, min_objects=3)
+
+# Output the scenario
+output_scenario(box_truck_near_cones, description, log_dir, output_dir)

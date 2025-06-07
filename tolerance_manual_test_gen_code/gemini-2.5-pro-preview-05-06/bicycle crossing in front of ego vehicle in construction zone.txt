@@ -1,0 +1,30 @@
+# The user wants to find instances of a bicycle crossing in front of the ego vehicle in a construction zone.
+# To do this, we first need to identify all the objects that define a construction zone.
+# These include cones, barrels, and specific signs.
+cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+barrels = get_objects_of_category(log_dir, category='CONSTRUCTION_BARREL')
+mobile_signs = get_objects_of_category(log_dir, category='MOBILE_PEDESTRIAN_SIGN')
+message_boards = get_objects_of_category(log_dir, category='MESSAGE_BOARD_TRAILER')
+official_signalers = get_objects_of_category(log_dir, category='OFFICIAL_SIGNALER')
+
+# We can combine all these construction-related objects into a single scenario dictionary.
+construction_objects = scenario_or([cones, barrels, mobile_signs, message_boards, official_signalers])
+
+# Next, we get the ego vehicle and all bicycles.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# We need to find when the ego vehicle is near any of these construction objects.
+# A distance of 50 meters is used to define the area of the construction zone around the ego vehicle.
+ego_in_construction_zone = near_objects(ego_vehicle, construction_objects, log_dir, distance_thresh=50, min_objects=1)
+
+# Now, we can find bicycles that are crossing in front of the ego vehicle, but only during the times
+# the ego vehicle is in the construction zone.
+# 'being_crossed_by' identifies when the second argument (bicycles) crosses the path of the first (ego_vehicle).
+# 'reverse_relationship' is used to make the bicycle the primary object of the scenario.
+# We are looking for crossings within 20 meters in front of the ego vehicle.
+bicycle_crossing_in_front_of_ego_in_construction = reverse_relationship(being_crossed_by)(ego_in_construction_zone, bicycles, log_dir, direction='forward', forward_thresh=20)
+
+# Finally, output the resulting scenario.
+description = 'bicycle crossing in front of ego vehicle in construction zone'
+output_scenario(bicycle_crossing_in_front_of_ego_in_construction, description, log_dir, output_dir)

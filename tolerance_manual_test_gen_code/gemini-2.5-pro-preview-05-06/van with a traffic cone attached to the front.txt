@@ -1,0 +1,32 @@
+# Scenario: van with a traffic cone attached to the front
+# -------------------------------------------------------
+# The goal is to find any regular-sized passenger vehicle (which includes vans) that
+# has a construction cone extremely close to, and directly in front of, its bumper.
+# A tight forward distance (≤ 1.5 m) and narrow lateral threshold (≤ 0.75 m)
+# should minimize false positives and approximate a cone truly “attached” to the front.
+
+description = 'van with a traffic cone attached to the front'
+
+# 1. Gather candidate objects
+regular_vehicles = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')  # includes vans
+traffic_cones     = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+
+# 2. Find vehicles with a cone directly ahead
+vehicles_with_cone_front = has_objects_in_relative_direction(
+    track_candidates=regular_vehicles,
+    related_candidates=traffic_cones,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,         # at least one cone
+    max_number=1,         # only need the closest cone
+    within_distance=1.5,  # ≤ 1.5 m ahead of the bumper
+    lateral_thresh=0.75   # ≤ 0.75 m from the vehicle’s centerline
+)
+
+# 3. Output the result
+output_scenario(
+    scenario=vehicles_with_cone_front,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

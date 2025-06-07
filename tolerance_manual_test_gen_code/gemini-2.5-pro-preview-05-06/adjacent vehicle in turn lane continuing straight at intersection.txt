@@ -1,0 +1,52 @@
+description='adjacent vehicle in turn lane continuing straight at intersection'
+#
+# Goal:
+# This script aims to identify a specific traffic scenario: a vehicle that is adjacent to the ego vehicle
+# and proceeds straight through an intersection while being in a lane that is likely intended for turning.
+#
+# Strategy:
+# 1.  Proxy for "Turn Lane": Since there is no explicit function to detect a turn lane, we'll infer its presence.
+#     Our assumption is that a lane at an intersection containing a turning vehicle is a turn lane. We then look
+#     for another vehicle in that same lane that is not turning.
+# 2.  Identify Straight-Moving Vehicles: We'll isolate all vehicles that are moving straight through an intersection.
+# 3.  Find Violating Vehicles: By finding the intersection of straight-moving vehicles and vehicles we've inferred
+#     to be in a turn lane, we can identify vehicles exhibiting the "straight from turn lane" behavior.
+# 4.  Filter for Adjacency: The description specifies an "adjacent vehicle". We will interpret this as a vehicle
+#     adjacent (either to the left or right) of the ego vehicle.
+# 5.  Final Scenario: The final result is the set of vehicles that are both adjacent to the ego and are determined
+#     to be going straight from a turn lane at an intersection.
+
+
+# Get all vehicle objects, separating the ego vehicle from the rest.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Find all vehicles that are close to an intersection. A 20-meter threshold is used to define "near".
+vehicles_at_intersection = near_intersection(all_vehicles, log_dir, threshold=20)
+
+# Identify vehicles that are turning while at the intersection. These will serve as our indicator for turn lanes.
+turning_vehicles_at_intersection = turning(vehicles_at_intersection, log_dir)
+
+# Identify vehicles that are going straight (i.e., not turning) at the intersection.
+straight_vehicles_at_intersection = scenario_not(turning)(vehicles_at_intersection, log_dir)
+
+# Using our proxy, find the straight-moving vehicles that are in the same lane as a turning vehicle.
+# This isolates vehicles that are likely going straight from a turn-only lane.
+straight_vehicle_in_turn_lane = in_same_lane(straight_vehicles_at_intersection, turning_vehicles_at_intersection, log_dir)
+
+# Identify vehicles adjacent to the ego vehicle. We use `reverse_relationship` because we want the adjacent vehicles
+# to be the primary objects in the resulting scenario dictionary, not the ego vehicle.
+# We define "adjacent" as being within a 5m lateral and 10m longitudinal box.
+adjacent_vehicles_on_left = reverse_relationship(get_objects_in_relative_direction)(ego_vehicle, all_vehicles, log_dir, direction='left', max_number=1, within_distance=10, lateral_thresh=5)
+adjacent_vehicles_on_right = reverse_relationship(get_objects_in_relative_direction)(ego_vehicle, all_vehicles, log_dir, direction='right', max_number=1, within_distance=10, lateral_thresh=5)
+
+# Combine the vehicles found on the left and right into a single scenario.
+adjacent_vehicles = scenario_or([adjacent_vehicles_on_left, adjacent_vehicles_on_right])
+
+# The final scenario is the intersection of the two conditions:
+# 1. The vehicle is adjacent to the ego vehicle.
+# 2. The vehicle is going straight from an inferred turn lane.
+adjacent_vehicle_going_straight_from_turn_lane = scenario_and([straight_vehicle_in_turn_lane, adjacent_vehicles])
+
+# Output the final scenario.
+output_scenario(adjacent_vehicle_going_straight_from_turn_lane, description, log_dir, output_dir)

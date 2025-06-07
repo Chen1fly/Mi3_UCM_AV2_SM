@@ -1,0 +1,59 @@
+# Define the description for the scenario
+description = 'bicycle being overtaken'
+
+# Get all bicycle objects from the dataset
+# 'BICYCLE' category refers to the physical object.
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Filter for bicycles that are on a road, as overtaking typically occurs on roads.
+bicycles_on_road = on_road(bicycles, log_dir)
+
+# Filter for bicycles that are not stationary (i.e., not parked or static for a long duration).
+# This allows for bicycles that are moving or temporarily stopped in traffic.
+active_bicycles = scenario_not(stationary)(bicycles_on_road, log_dir)
+
+# Get potential overtaking objects: 'VEHICLE' (cars, trucks, buses) and 'MOTORCYCLE'.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+potential_overtakers = scenario_or([vehicles, motorcycles])
+
+# Filter for overtaking objects that are actually moving.
+# A minimum velocity is set to ensure the overtaker is in motion, characteristic of an overtaking maneuver.
+# 1.5 m/s is ~5.4 km/h.
+moving_overtakers = has_velocity(potential_overtakers, log_dir, min_velocity=1.5)
+
+# Identify bicycles being overtaken on their left side.
+# 'being_crossed_by' identifies when 'active_bicycles' (track_candidates) are crossed by 'moving_overtakers' (related_candidates).
+# direction='left': The crossing occurs over the left midplane of the bicycle.
+# in_direction='clockwise': Specifies the manner of crossing, consistent with an overtake from behind on the left (based on function example).
+# forward_thresh=4: Defines the length of the interaction zone along the bicycle's side. (Value based on similar example for cars).
+# lateral_thresh=2: Defines the width of the zone after the midplane is crossed.
+bicycles_overtaken_on_left = being_crossed_by(
+    track_candidates=active_bicycles,
+    related_candidates=moving_overtakers,
+    log_dir=log_dir,
+    direction='left',
+    in_direction='clockwise',
+    forward_thresh=4,  # Using value similar to car overtaking example
+    lateral_thresh=2
+)
+
+# Identify bicycles being overtaken on their right side.
+# in_direction='counterclockwise': Specifies the manner of crossing for a right-side overtake.
+bicycles_overtaken_on_right = being_crossed_by(
+    track_candidates=active_bicycles,
+    related_candidates=moving_overtakers,
+    log_dir=log_dir,
+    direction='right',
+    in_direction='counterclockwise',
+    forward_thresh=4, # Using value similar to car overtaking example
+    lateral_thresh=2
+)
+
+# Combine scenarios where bicycles are overtaken on the left OR on the right.
+# The output will be the 'active_bicycles' that satisfy either condition.
+bicycle_being_overtaken_scenario = scenario_or([bicycles_overtaken_on_left, bicycles_overtaken_on_right])
+
+# Output the resulting scenario.
+# This will save the identified instances of bicycles being overtaken.
+output_scenario(bicycle_being_overtaken_scenario, description, log_dir, output_dir)

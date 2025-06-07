@@ -1,0 +1,43 @@
+# Scenario: truck swerving near construction cones
+
+description = 'truck swerving near construction cones'
+
+# ------------------------------------------------------------------
+# 1. Retrieve all trucks in the current log.
+# ------------------------------------------------------------------
+trucks = get_objects_of_category(log_dir, category='TRUCK')
+
+# ------------------------------------------------------------------
+# 2. Detect trucks that are “swerving”, i.e. showing high-magnitude
+#    lateral acceleration to either side.
+#    • Left swerves → lateral acceleration ≥ 2 m/s²
+#    • Right swerves → lateral acceleration ≤ –2 m/s²
+# ------------------------------------------------------------------
+left_swerve_trucks  = has_lateral_acceleration(trucks, log_dir, min_accel=2)
+right_swerve_trucks = has_lateral_acceleration(trucks, log_dir, max_accel=-2)
+
+# Union of both swerving directions
+swerving_trucks = scenario_or([left_swerve_trucks, right_swerve_trucks])
+
+# ------------------------------------------------------------------
+# 3. Gather all construction cones in the scene.
+# ------------------------------------------------------------------
+construction_cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+
+# ------------------------------------------------------------------
+# 4. Keep only those swerving trucks that are sufficiently close to
+#    *multiple* cones (≥ 2 within 5 m).  Requiring more than one cone
+#    sharply reduces false positives from solitary roadside cones.
+# ------------------------------------------------------------------
+swerving_trucks_near_cones = near_objects(
+    swerving_trucks,          # track_candidates
+    construction_cones,       # related_candidates
+    log_dir,                  # path to logs
+    distance_thresh=5,        # proximity threshold in metres
+    min_objects=2             # at least two cones nearby
+)
+
+# ------------------------------------------------------------------
+# 5. Export the final scenario.
+# ------------------------------------------------------------------
+output_scenario(swerving_trucks_near_cones, description, log_dir, output_dir)

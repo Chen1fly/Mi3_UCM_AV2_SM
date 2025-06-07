@@ -1,0 +1,22 @@
+# Description: moving bus being crossed by a bicycle
+
+# Get all bus objects
+buses = get_objects_of_category(log_dir, category='BUS')
+
+# Filter for buses that are moving
+# stationary() identifies objects that moved less than 2m over their observation.
+# scenario_not(stationary) will give us objects that are not stationary, i.e., moving.
+moving_buses = scenario_not(stationary)(buses, log_dir)
+
+# Get all bicycle objects
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Identify moving buses that are being crossed by a bicycle.
+# The being_crossed_by function identifies track_candidates (moving_buses)
+# that are being crossed by related_candidates (bicycles).
+# The default direction is "forward", meaning the bicycle crosses the forward path of the bus.
+# Default forward_thresh=10 and lateral_thresh=5 will be used.
+bus_crossed_by_bicycle = being_crossed_by(moving_buses, bicycles, log_dir)
+
+# Output the scenario
+output_scenario(bus_crossed_by_bicycle, description, log_dir, output_dir)

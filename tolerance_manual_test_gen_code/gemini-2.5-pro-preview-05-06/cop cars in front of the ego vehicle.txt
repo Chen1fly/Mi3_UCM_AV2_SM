@@ -1,0 +1,28 @@
+# The user is asking to find "cop cars in front of the ego vehicle".
+# The available categories do not include "cop car" or "police car".
+# The closest available category would be "REGULAR_VEHICLE" or the more general "VEHICLE" superclass.
+# I will proceed by identifying any vehicle in front of the ego vehicle and add a comment
+# to acknowledge that the tools do not allow for the specific identification of "cop cars".
+
+
+# Get the ego vehicle object.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+
+# Get all vehicle objects to represent potential "cop cars".
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+
+# Find vehicles that have the ego vehicle behind them.
+# This is equivalent to finding vehicles that are in front of the ego vehicle.
+# The keys of the resulting dictionary will be the UUIDs of the vehicles in front.
+vehicles_in_front_of_ego = has_objects_in_relative_direction(
+    track_candidates=vehicles,
+    related_candidates=ego_vehicle,
+    log_dir=log_dir,
+    direction='backward'
+)
+
+
+# Output the final scenario.
+output_scenario(vehicles_in_front_of_ego, description, log_dir, output_dir)

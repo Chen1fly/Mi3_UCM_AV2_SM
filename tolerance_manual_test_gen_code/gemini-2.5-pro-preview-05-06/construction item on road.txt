@@ -1,0 +1,31 @@
+description = 'construction item on road'
+
+# Get objects of various categories that can be considered construction items
+construction_cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+construction_barrels = get_objects_of_category(log_dir, category='CONSTRUCTION_BARREL')
+bollards = get_objects_of_category(log_dir, category='BOLLARD') # Bollards can be temporary for construction
+signs = get_objects_of_category(log_dir, category='SIGN') # The 'SIGN' category includes construction signs
+message_board_trailers = get_objects_of_category(log_dir, category='MESSAGE_BOARD_TRAILER')
+mobile_pedestrian_signs = get_objects_of_category(log_dir, category='MOBILE_PEDESTRIAN_SIGN')
+traffic_light_trailers = get_objects_of_category(log_dir, category='TRAFFIC_LIGHT_TRAILER')
+
+# Combine all potential construction-related items into a single scenario dictionary
+# This dictionary will contain all objects from any of the specified categories
+potential_construction_items = scenario_or([
+    construction_cones,
+    construction_barrels,
+    bollards,
+    signs, # This will include all signs; filtering by on_road might help narrow down relevant ones
+    message_board_trailers,
+    mobile_pedestrian_signs,
+    traffic_light_trailers
+])
+
+# Filter the combined list to find only those items that are currently on a road
+# The on_road function checks if the centroid of an object is within road lane polygons.
+# This helps ensure we are finding items that are actually on the drivable road surface.
+construction_items_on_road = on_road(potential_construction_items, log_dir)
+
+# Output the scenario
+# This will save the identified construction items on road to a file.
+output_scenario(construction_items_on_road, description, log_dir, output_dir)

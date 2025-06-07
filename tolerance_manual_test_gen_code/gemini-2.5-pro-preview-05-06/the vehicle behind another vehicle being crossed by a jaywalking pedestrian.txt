@@ -1,0 +1,42 @@
+# Description: the vehicle behind another vehicle being crossed by a jaywalking pedestrian
+
+# Step 1: Identify jaywalking pedestrians.
+# A jaywalking pedestrian is a pedestrian who is on the road but not at a designated pedestrian crossing.
+peds = get_objects_of_category(log_dir, category='PEDESTRIAN')
+peds_on_road = on_road(peds, log_dir)
+# Filter for pedestrians on the road who are not at a pedestrian crossing.
+jaywalking_peds = scenario_not(at_pedestrian_crossing)(peds_on_road, log_dir)
+
+# Step 2: Identify moving vehicles.
+# These are vehicles that are in a drivable area and are not stationary.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+vehicles_in_drivable_area = in_drivable_area(vehicles, log_dir)
+non_stationary_vehicles = scenario_not(stationary)(vehicles, log_dir)
+moving_vehicles = scenario_and([vehicles_in_drivable_area, non_stationary_vehicles])
+
+# Step 3: Identify vehicles that are being crossed by these jaywalking pedestrians.
+# The `being_crossed_by` function, by default, considers a crossing when the related candidate (pedestrian)
+# crosses the forward midplane of the track candidate (vehicle).
+crossed_vehicles = being_crossed_by(moving_vehicles, jaywalking_peds, log_dir)
+
+# Step 4: Identify "the vehicle behind" one of these `crossed_vehicles`.
+# We use `get_objects_in_relative_direction` to find `moving_vehicles` (related_candidates)
+# that are in the 'backward' direction relative to a `crossed_vehicle` (track_candidates).
+# The `get_objects_in_relative_direction` function returns a dictionary keyed by the `related_candidates` UUIDs.
+# In this case, it will be the UUIDs of the vehicles that are behind a crossed vehicle.
+# A distance of 25 meters is used as a threshold for being "behind", as per the provided example.
+# We are interested in at most one such vehicle behind each crossed vehicle (`max_number=1`).
+vehicle_behind_crossed_vehicle = get_objects_in_relative_direction(
+    track_candidates=crossed_vehicles,
+    related_candidates=moving_vehicles,
+    log_dir=log_dir,
+    direction='backward',
+    max_number=1,
+    within_distance=25
+)
+
+# Output the scenario.
+# The `vehicle_behind_crossed_vehicle` dictionary contains the UUIDs of the vehicles 
+# that are behind another vehicle which is being crossed by a jaywalking pedestrian.
+description = 'the vehicle behind another vehicle being crossed by a jaywalking pedestrian'
+output_scenario(vehicle_behind_crossed_vehicle, description, log_dir, output_dir)

@@ -1,0 +1,52 @@
+# Define the description of the scenario.
+description = 'vehicle being overtaken on the left'
+
+# Get all objects of category VEHICLE.
+# The VEHICLE category is a superclass including REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, BOX_TRUCK, BUS, SCHOOL_BUS, ARTICULATED_BUS, TRUCK, and RAILED_VEHICLE.
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Filter for "active" vehicles.
+# The stationary() function identifies objects that moved very little throughout the scenario (e.g., parked vehicles).
+# scenario_not(stationary)() therefore gives us vehicles that are part of active traffic,
+# which could be moving or temporarily stopped (e.g., at a traffic light).
+# A vehicle being overtaken is typically an active participant in traffic.
+active_vehicles = scenario_not(stationary)(all_vehicles, log_dir)
+
+# Identify instances where an active vehicle (track_candidates) is being overtaken on its left
+# by another active vehicle (related_candidates).
+#
+# The `being_crossed_by` function is used here:
+# - `track_candidates=active_vehicles`: These are the vehicles that are potentially being overtaken.
+# - `related_candidates=active_vehicles`: These are the vehicles that are potentially performing the overtaking maneuver.
+#   We assume an overtake involves one vehicle passing another vehicle.
+# - `log_dir=log_dir`: Path to the scenario logs.
+# - `direction='left'`: This specifies that the overtaking action occurs on the left side of the `track_candidates` vehicle.
+#                       The "half-midplane" mentioned in the function description is conceptualized on this side.
+# - `in_direction='clockwise'`: This parameter dictates the required manner of crossing the midplane.
+#   For an overtake on the left, the overtaking vehicle moves from a position relatively behind or alongside
+#   the overtaken vehicle to a position relatively in front of it, while on its left.
+#   Based on typical interpretations in similar contexts and an example snippet, 'clockwise' is assumed
+#   to capture this specific relative motion for a left-side overtake. This is crucial to distinguish
+#   "overtaking" from, for example, an oncoming vehicle passing by.
+# - `forward_thresh=5.0`: This parameter likely defines the longitudinal extent of the interaction zone
+#   alongside the `track_candidate`. A value of 5.0 might imply a zone extending 5 meters forward and 5 meters
+#   backward from the vehicle's center, resulting in a 10-meter long sensitive area. This length
+#   helps to capture the "alongside" phase of an overtaking maneuver.
+# - `lateral_thresh=3.5`: This parameter defines the lateral width of the interaction zone, extending outwards
+#   from the `track_candidate`'s side midplane. A value of 3.5 meters is chosen as it typically
+#   corresponds to the width of an adjacent traffic lane. This setting aims to enhance precision by
+#   requiring the overtaking vehicle to be within the immediate lane to the left.
+vehicle_overtaken_on_left = being_crossed_by(
+    track_candidates=active_vehicles,
+    related_candidates=active_vehicles,
+    log_dir=log_dir,
+    direction='left',
+    in_direction='clockwise',
+    forward_thresh=5.0,
+    lateral_thresh=3.5
+)
+
+# Output the identified scenario instances.
+# The `output_scenario` function will save the results in the required format.
+# Visualization is disabled by default as per instructions (`visualize:bool=False`).
+output_scenario(vehicle_overtaken_on_left, description, log_dir, output_dir)

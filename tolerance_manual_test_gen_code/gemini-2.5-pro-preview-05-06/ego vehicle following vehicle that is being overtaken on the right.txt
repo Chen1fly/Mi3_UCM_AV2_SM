@@ -1,0 +1,58 @@
+# Scenario: ego vehicle following a vehicle that is being overtaken on the right
+description = 'ego vehicle following vehicle that is being overtaken on the right'
+
+# ---------------------------------------------------------
+# 1) Identify the ego-vehicle track
+# ---------------------------------------------------------
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# ---------------------------------------------------------
+# 2) Identify all moving (non-ego) vehicles on the road
+#    – filtering out parked / stationary vehicles helps
+#      reduce false-positives later on
+# ---------------------------------------------------------
+vehicles          = get_objects_of_category(log_dir, category='VEHICLE')
+moving_vehicles   = scenario_not(stationary)(vehicles, log_dir)   # keep only actively moving vehicles
+
+# ---------------------------------------------------------
+# 3) Find vehicles that are *being overtaken on the right*
+#    by another moving vehicle.
+#
+#    • direction='right'      → half-mid-plane extends to the tracked
+#                               vehicle’s right
+#    • forward_thresh=7 m     → requires the overtaking vehicle to pass
+#                               within ±7 m of the tracked vehicle’s
+#                               front/back (tight enough to avoid distant
+#                               lane changes being picked up)
+#    • lateral_thresh=4 m     → cap the lateral gap so that only true
+#                               right-side passes are considered
+# ---------------------------------------------------------
+overtaken_on_right = being_crossed_by(
+    moving_vehicles,          # track_candidates: potential *overtaken* vehicles
+    moving_vehicles,          # related_candidates: potential *overtaking* vehicles
+    log_dir,
+    direction='right',
+    in_direction='either',
+    forward_thresh=7,
+    lateral_thresh=4
+)
+
+# ---------------------------------------------------------
+# 4) The ego-vehicle must be *following* one of those
+#    overtaken-on-right vehicles.
+#
+#    The `following()` helper checks that the ego is behind
+#    the lead object, travelling in the same lane & direction.
+# ---------------------------------------------------------
+ego_following_overtaken = following(
+    ego_vehicle,          # track_uuid(s): ego vehicle
+    overtaken_on_right,   # candidate_uuids: vehicles identified above
+    log_dir
+)
+
+# ---------------------------------------------------------
+# 5) Output the final scenario
+#    Keys in `ego_following_overtaken` will be the ego-vehicle
+#    track UUID, with timestamps when *all* conditions are met.
+# ---------------------------------------------------------
+output_scenario(ego_following_overtaken, description, log_dir, output_dir)

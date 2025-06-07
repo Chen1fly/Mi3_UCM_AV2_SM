@@ -1,0 +1,32 @@
+# Scenario: ego vehicle near construction barrel
+# -------------------------------------------------
+# 1) Retrieve the ego-vehicle track(s).
+# 2) Retrieve all construction barrel tracks.
+# 3) Select the timestamps where the ego vehicle is within 5 m of at least one construction barrel.
+# 4) Write the resulting scenario to disk so it can be evaluated.
+
+description = 'ego vehicle near construction barrel'
+
+# Get the ego vehicle (there should only be one, but this stays generic)
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get every construction barrel in the scene
+construction_barrels = get_objects_of_category(log_dir, category='CONSTRUCTION_BARREL')
+
+# Find moments where the ego vehicle is close to at least one construction barrel
+# A 5 m threshold is tight enough to avoid distant barrels that are not truly “near”.
+ego_near_construction_barrel = near_objects(
+    ego_vehicle,                 # track_candidates
+    construction_barrels,        # related_candidates
+    log_dir,                     # scenario logs
+    distance_thresh=5,           # maximum separation in metres
+    min_objects=1                # at least one barrel nearby
+)
+
+# Export the scenario
+output_scenario(
+    ego_near_construction_barrel,
+    description,
+    log_dir,
+    output_dir
+)

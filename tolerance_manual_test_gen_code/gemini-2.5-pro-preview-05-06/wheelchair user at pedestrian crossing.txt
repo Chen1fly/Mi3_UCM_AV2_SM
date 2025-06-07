@@ -1,0 +1,10 @@
+description='wheelchair user at pedestrian crossing'
+# First, get all objects categorized as 'WHEELCHAIR'.
+wheelchairs = get_objects_of_category(log_dir, category='WHEELCHAIR')
+
+# Next, filter these wheelchairs to find the ones that are at a pedestrian crossing.
+# A distance of 0 indicates that the object is within the boundaries of the pedestrian crossing.
+wheelchair_at_crossing = at_pedestrian_crossing(wheelchairs, log_dir, within_distance=0)
+
+# Output the resulting scenario.
+output_scenario(wheelchair_at_crossing, description, log_dir, output_dir)

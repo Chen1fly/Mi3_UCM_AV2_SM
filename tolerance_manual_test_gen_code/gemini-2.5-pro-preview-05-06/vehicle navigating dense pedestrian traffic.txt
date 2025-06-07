@@ -1,0 +1,19 @@
+# The user wants to find scenarios where a vehicle is navigating through dense pedestrian traffic.
+# "Dense" can be interpreted as a vehicle being near a significant number of pedestrians at the same time.
+# The near_objects function is well-suited for this, as it can identify a track object that is
+# near a minimum number of other objects within a certain distance.
+
+description = "vehicle navigating dense pedestrian traffic"
+
+# First, get all vehicles and pedestrians from the logs.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# A vehicle navigating dense pedestrian traffic would be close to several pedestrians.
+# We can define "dense" as being near at least 5 pedestrians.
+# We can define "near" as being within 10 meters.
+# The near_objects function can be used to find vehicles that meet these criteria.
+vehicles_near_many_pedestrians = near_objects(vehicles, pedestrians, log_dir, distance_thresh=10, min_objects=5)
+
+# Output the resulting scenario.
+output_scenario(vehicles_near_many_pedestrians, description, log_dir, output_dir)

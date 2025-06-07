@@ -1,0 +1,95 @@
+# Description: vehicle passing truck with pedestrian crossing ahead
+# This scenario aims to identify vehicles that are in the process of overtaking a truck,
+# and simultaneously have a pedestrian crossing their path ahead.
+
+# Step 1: Get all relevant vehicle categories
+# Get all general vehicles that could be the "passing vehicle"
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Get different types of trucks.
+# "TRUCK" category includes general trucks like delivery, garbage, utility trucks.
+# "BOX_TRUCK" is a chassis cab truck with an enclosed cube-shaped cargo area.
+# "TRUCK_CAB" refers to the semi-cab/tractor unit.
+# We combine these to represent "truck" broadly.
+truck_objects = get_objects_of_category(log_dir, category='TRUCK')
+box_truck_objects = get_objects_of_category(log_dir, category='BOX_TRUCK')
+truck_cab_objects = get_objects_of_category(log_dir, category='TRUCK_CAB')
+all_truck_types = scenario_or([truck_objects, box_truck_objects, truck_cab_objects])
+
+# Get all pedestrians
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Step 2: Identify vehicles that are actively moving
+# A vehicle needs to be moving to "pass" another.
+# We set a minimum velocity, e.g., 5 m/s (18 km/h), to filter out stationary or very slow-moving vehicles.
+# has_velocity helps filter objects based on their speed.
+moving_passing_vehicles = has_velocity(all_vehicles, log_dir, min_velocity=5.0)
+
+# Step 3: Identify vehicles that are in the act of passing a truck
+# "Passing" is defined as a vehicle (related_candidate) crossing the side midplane of a truck (track_candidate)
+# from the truck's rear towards its front.
+# We use `reverse_relationship(being_crossed_by)` to make the "passing vehicle" the primary key in the output dictionary.
+# `forward_thresh` for `being_crossed_by` defines how far the truck's side midplane extends. A value like 18m covers the length of many trucks.
+# `lateral_thresh` defines the lateral proximity for the pass, e.g., 3.5m (approx. one lane width).
+
+# Case 1: Vehicle passing on the truck's left side.
+# The inner `being_crossed_by` call would be `being_crossed_by(all_truck_types, moving_passing_vehicles, ...)`.
+# `direction="left"`: The vehicle crosses the truck's left midplane.
+# `in_direction="clockwise"`: Typically corresponds to moving from rear to front along the left side.
+vehicles_passing_truck_on_its_left = reverse_relationship(being_crossed_by)(
+    moving_passing_vehicles,
+    all_truck_types,
+    log_dir,
+    direction="left",
+    in_direction="clockwise",
+    forward_thresh=18.0,  # Effective length of interaction zone along truck's side
+    lateral_thresh=3.5    # Max lateral distance from truck's side midplane
+)
+
+# Case 2: Vehicle passing on the truck's right side.
+# `direction="right"`: The vehicle crosses the truck's right midplane.
+# `in_direction="counterclockwise"`: Typically corresponds to moving from rear to front along the right side.
+vehicles_passing_truck_on_its_right = reverse_relationship(being_crossed_by)(
+    moving_passing_vehicles,
+    all_truck_types,
+    log_dir,
+    direction="right",
+    in_direction="counterclockwise",
+    forward_thresh=18.0,
+    lateral_thresh=3.5
+)
+
+# Combine both passing scenarios (left or right pass)
+vehicles_actively_passing_a_truck = scenario_or([
+    vehicles_passing_truck_on_its_left,
+    vehicles_passing_truck_on_its_right
+])
+
+# Step 4: Identify vehicles (from Step 3) that also have a pedestrian crossing their path ahead.
+# "Pedestrian crossing ahead" means a pedestrian is crossing the forward midplane of the vehicle.
+# `track_candidates`: The vehicles that are already identified as passing a truck.
+# `related_candidates`: The pedestrians.
+# `direction="forward"`: The pedestrian crosses the vehicle's front midplane.
+# `in_direction="either"`: The pedestrian can cross from left-to-right or right-to-left.
+# `forward_thresh`: How far ahead of the vehicle (e.g., 30m) the crossing is detected.
+# `lateral_thresh`: The width of the vehicle's path considered for the crossing (e.g., 2.5m, slightly wider than a car).
+vehicles_passing_truck_with_ped_ahead = being_crossed_by(
+    vehicles_actively_passing_a_truck,
+    pedestrians,
+    log_dir,
+    direction="forward",
+    in_direction="either",
+    forward_thresh=30.0, # Detects pedestrians crossing up to 30m in front
+    lateral_thresh=2.5   # Considers pedestrians crossing within 2.5m of vehicle's centerline
+)
+
+# Step 5: Output the final scenario
+# The `vehicles_passing_truck_with_ped_ahead` dictionary contains the vehicles
+# that satisfy all conditions of the description.
+description = 'vehicle passing truck with pedestrian crossing ahead'
+output_scenario(
+    vehicles_passing_truck_with_ped_ahead,
+    description,
+    log_dir,
+    output_dir
+)

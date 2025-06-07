@@ -1,0 +1,14 @@
+# The description of the scenario to be found.
+description = 'turning right'
+
+# Get all objects of any category from the log data.
+# This is done to ensure we capture any type of object that might be turning.
+any_object = get_objects_of_category(log_dir, category='ANY')
+
+# Use the 'turning' function to identify all instances where an object is making a right turn.
+# The 'direction' parameter is set to 'right' to specify the turn direction.
+right_turning_objects = turning(any_object, log_dir, direction='right')
+
+# Output the identified scenario to a file.
+# This will save the track UUIDs and timestamps of the objects found to be turning right.
+output_scenario(right_turning_objects, description, log_dir, output_dir)

@@ -1,0 +1,80 @@
+# Description: vehicle passing bicycle near mobile pedestrian sign
+
+# Get all relevant object categories initially
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+mobile_ped_signs = get_objects_of_category(log_dir, category='MOBILE_PEDESTRIAN_SIGN')
+
+# Filter for vehicles that are not stationary (i.e., are active/moving)
+# A vehicle "passing" another object implies it is moving.
+active_vehicles = scenario_not(stationary)(all_vehicles, log_dir)
+
+# --- Part 1: Identify vehicles passing bicycles ---
+# "Passing" is interpreted as overtaking.
+# The object being passed (bicycle) is the 'track_candidate' for being_crossed_by.
+# The object doing the passing (active_vehicle) is the 'related_candidate'.
+# The 'reverse_relationship' wrapper is used to make the 'active_vehicle' (the one doing the passing)
+# the primary key in the resulting scenario dictionary.
+
+# Case 1: Vehicle passes bicycle on the bicycle's left side (vehicle overtakes from bicycle's perspective on its left)
+# 'direction="left"' means vehicle crosses the bicycle's left midplane.
+# 'in_direction="clockwise"' specifies overtaking motion for a left-side pass.
+vehicles_overtaking_bicycles_on_left = reverse_relationship(being_crossed_by)(
+    bicycles,  # track_candidates (object being passed)
+    active_vehicles,  # related_candidates (object doing the passing)
+    log_dir,
+    direction="left",
+    in_direction="clockwise"
+    # Using default forward_thresh=10, lateral_thresh=5
+)
+
+# Case 2: Vehicle passes bicycle on the bicycle's right side
+# 'direction="right"' means vehicle crosses the bicycle's right midplane.
+# 'in_direction="counterclockwise"' specifies overtaking motion for a right-side pass.
+vehicles_overtaking_bicycles_on_right = reverse_relationship(being_crossed_by)(
+    bicycles,  # track_candidates (object being passed)
+    active_vehicles,  # related_candidates (object doing the passing)
+    log_dir,
+    direction="right",
+    in_direction="counterclockwise"
+    # Using default forward_thresh=10, lateral_thresh=5
+)
+
+# Combine both overtaking scenarios (left or right pass)
+# The keys in this dictionary will be vehicle UUIDs that passed a bicycle.
+vehicles_passing_bicycles = scenario_or([
+    vehicles_overtaking_bicycles_on_left,
+    vehicles_overtaking_bicycles_on_right
+])
+
+# --- Part 2: Identify active vehicles that are near a mobile pedestrian sign ---
+# We are interested in the active vehicles (which could be passing bicycles)
+# that are also near a mobile pedestrian sign.
+# 'distance_thresh=10' means within 10 meters. 'min_objects=1' means at least one sign.
+active_vehicles_near_sign = near_objects(
+    active_vehicles,  # The vehicles to check
+    mobile_ped_signs, # The objects to be near to
+    log_dir,
+    distance_thresh=10, # Default is 10m, seems reasonable for "near"
+    min_objects=1
+)
+# The keys in this dictionary are active_vehicle UUIDs that are near a mobile_ped_sign.
+
+# --- Part 3: Combine conditions ---
+# Find vehicles that are BOTH passing a bicycle AND near a mobile pedestrian sign.
+# 'scenario_and' will find common vehicle UUIDs and intersecting timestamps
+# from 'vehicles_passing_bicycles' and 'active_vehicles_near_sign'.
+final_scenario_vehicles = scenario_and([
+    vehicles_passing_bicycles,
+    active_vehicles_near_sign
+])
+
+# Output the scenario
+# The 'final_scenario_vehicles' dictionary contains vehicles that meet all criteria.
+# The keys are the UUIDs of these vehicles, and values include timestamps of the event.
+output_scenario(
+    final_scenario_vehicles,
+    description="vehicle passing bicycle near mobile pedestrian sign",
+    log_dir=log_dir,
+    output_dir=output_dir
+)

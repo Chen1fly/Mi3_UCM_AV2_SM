@@ -1,0 +1,43 @@
+description = 'ego vehicle approaching bicycle merging from bike lane'
+
+# 1. Get relevant object categories
+# Get the ego vehicle
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+# Get all bicycles
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# 2. Identify bicycles that are merging from a bike lane
+# A bicycle "merging from a bike lane" is defined as a bicycle that is:
+#   a) Currently identified as being on a bike lane.
+#   b) Simultaneously performing a lane change maneuver.
+# This captures the moment the bicycle initiates a merge from the bike lane.
+
+# 2a. Find bicycles that are currently on a designated bike lane
+bicycles_on_bike_lane = on_lane_type(bicycles, log_dir, lane_type='BIKE')
+
+# 2b. Find bicycles that are currently performing a lane change
+# The direction of the lane change is not specified, so we look for any lane change.
+bicycles_performing_lane_change = changing_lanes(bicycles, log_dir)
+
+# 2c. Combine these conditions to find bicycles actively merging from a bike lane
+# These are bicycles that are on a bike lane AND are changing lanes at the same timestamps.
+merging_bicycles_from_bike_lane = scenario_and([bicycles_on_bike_lane, bicycles_performing_lane_change])
+
+# 3. Identify ego vehicle instances that are approaching these merging bicycles
+# "Approaching" means the ego vehicle is heading towards the merging bicycle and is within a certain proximity.
+# We use the heading_toward function for this, which considers the ego's velocity vector relative to the bicycle's position.
+# - max_distance: We set a maximum distance of 50 meters to define "approaching".
+# - angle_threshold: Default is 22.5 degrees, meaning ego's heading is roughly towards the bicycle.
+# - minimum_speed: Default is 0.5 m/s for the ego, ensuring it's in motion.
+ego_approaching_merging_bicycle = heading_toward(
+    track_candidates=ego_vehicle,
+    related_candidates=merging_bicycles_from_bike_lane,
+    log_dir=log_dir,
+    max_distance=50.0,
+    angle_threshold=22.5, # Default, but specified for clarity
+    minimum_speed=0.5     # Default, but specified for clarity
+)
+
+# 4. Output the resulting scenario
+# This will contain ego vehicle UUIDs and timestamps when the ego is approaching a bicycle merging from a bike lane.
+output_scenario(ego_approaching_merging_bicycle, description, log_dir, output_dir)

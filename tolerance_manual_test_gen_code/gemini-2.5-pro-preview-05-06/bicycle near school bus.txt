@@ -1,0 +1,10 @@
+description='bicycle near school bus'
+# First, we need to get all instances of bicycles from the dataset.
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+# Next, we get all instances of school buses.
+school_buses = get_objects_of_category(log_dir, category='SCHOOL_BUS')
+# We use the near_objects function to find bicycles that are near school buses.
+# We'll define "near" as being within a 10-meter distance.
+bicycle_near_school_bus = near_objects(bicycles, school_buses, log_dir, distance_thresh=10)
+# Finally, we output the scenario.
+output_scenario(bicycle_near_school_bus, description, log_dir, output_dir)

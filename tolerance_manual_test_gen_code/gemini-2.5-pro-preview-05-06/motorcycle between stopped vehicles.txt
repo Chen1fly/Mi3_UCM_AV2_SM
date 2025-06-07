@@ -1,0 +1,58 @@
+description = 'motorcycle between stopped vehicles'
+
+# Get all motorcycles in the scenario
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+
+# Get all vehicles (REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK, BUS, etc.)
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are stopped.
+# 'stationary' is for parked vehicles. 'has_velocity' with a low max_velocity
+# is better for vehicles temporarily stopped in traffic.
+# Stationary objects may have a velocity up to 0.5 m/s due to annotation jitter.
+stopped_vehicles = has_velocity(all_vehicles, log_dir, max_velocity=0.5)
+
+# Find motorcycles that have at least one stopped vehicle to their left.
+# We need to define what "to their left" means in terms of distance.
+# - 'direction': 'left' from the motorcycle's perspective.
+# - 'within_distance': This is the maximum distance in the specified 'direction'.
+#   So, for 'left', this is how far away to the left the stopped vehicle can be.
+#   A typical distance from a motorcycle's center to the center of a vehicle in an adjacent lane
+#   might be around 1.5-2.0 meters. Let's use 2.0m.
+# - 'lateral_thresh': This is the maximum distance perpendicular to the specified 'direction'.
+#   So, for 'left', this is how far forward or backward (longitudinally)
+#   the stopped vehicle can be relative to the motorcycle. A car is about 5m long.
+#   A lateral_thresh of 5.0m would allow the motorcycle to be alongside any part of the stopped vehicle.
+# - 'min_number=1': We need at least one stopped vehicle to the left.
+motorcycles_with_stopped_vehicle_left = has_objects_in_relative_direction(
+    track_candidates=motorcycles,
+    related_candidates=stopped_vehicles,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1,
+    within_distance=2.0,  # Max 2.0m to the left (e.g., center of motorcycle to center of vehicle)
+    lateral_thresh=5.0    # Max 5.0m longitudinal offset (allows alignment with a ~5m long vehicle)
+)
+
+# Find motorcycles that have at least one stopped vehicle to their right.
+# Parameters are similar to the 'left' case.
+motorcycles_with_stopped_vehicle_right = has_objects_in_relative_direction(
+    track_candidates=motorcycles,
+    related_candidates=stopped_vehicles,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,
+    within_distance=2.0,  # Max 2.0m to the right
+    lateral_thresh=5.0    # Max 5.0m longitudinal offset
+)
+
+# A motorcycle is "between stopped vehicles" if it has a stopped vehicle to its left
+# AND a stopped vehicle to its right at the same time.
+# scenario_and will find motorcycles present in both conditions for the same timestamps.
+motorcycle_between_stopped_vehicles = scenario_and([
+    motorcycles_with_stopped_vehicle_left,
+    motorcycles_with_stopped_vehicle_right
+])
+
+# Output the scenario
+output_scenario(motorcycle_between_stopped_vehicles, description, log_dir, output_dir)

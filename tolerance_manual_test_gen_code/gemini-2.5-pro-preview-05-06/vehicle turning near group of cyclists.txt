@@ -1,0 +1,44 @@
+# Scenario: vehicle turning near group of cyclists
+description = 'vehicle turning near group of cyclists'
+
+# ---------------------------------------------
+# 1. Retrieve all vehicles and bicyclists
+# ---------------------------------------------
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+bicyclists = get_objects_of_category(log_dir, category='BICYCLIST')
+
+# ---------------------------------------------
+# 2. Filter the objects to those on the roadway
+#    (helps avoid false-positives from parked or 
+#    off-road instances)
+# ---------------------------------------------
+vehicles_on_road   = on_road(vehicles,   log_dir)
+cyclists_on_road   = on_road(bicyclists, log_dir)
+
+# ---------------------------------------------
+# 3. Keep only vehicles that are actively turning
+#    (left OR right)
+# ---------------------------------------------
+turning_vehicles_on_road = turning(vehicles_on_road, log_dir)
+
+# ---------------------------------------------
+# 4. Select turning vehicles that are close to a
+#    *group* of cyclists (≥ 3 within 12 m)
+# ---------------------------------------------
+turning_vehicles_near_cyclists = near_objects(
+    turning_vehicles_on_road,   # track_candidates
+    cyclists_on_road,           # related_candidates
+    log_dir,
+    distance_thresh = 12,       # metres
+    min_objects     = 3         # "group" threshold
+)
+
+# ---------------------------------------------
+# 5. Export the resulting scenario
+# ---------------------------------------------
+output_scenario(
+    turning_vehicles_near_cyclists,
+    description,
+    log_dir,
+    output_dir
+)

@@ -1,0 +1,12 @@
+# description: vehicle at a stop sign
+# First, get all objects of the category 'VEHICLE'.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Then, identify which of these vehicles are at a stop sign.
+# The at_stop_sign function identifies objects in a lane corresponding to a stop sign
+# and within a certain forward distance of it.
+# The default forward_thresh is 10m, which is suitable for this description.
+vehicles_at_stop_sign_scenario = at_stop_sign(vehicles, log_dir)
+
+# Output the resulting scenario.
+output_scenario(vehicles_at_stop_sign_scenario, description, log_dir, output_dir)

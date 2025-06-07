@@ -1,0 +1,34 @@
+# Define the description of the scenario.
+description = 'ego vehicle with box truck ahead and motorcycle behind'
+
+# Get the ego vehicle, box trucks, and motorcycles from the dataset.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+box_trucks = get_objects_of_category(log_dir, category='BOX_TRUCK')
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+
+# Find instances where the ego vehicle has a box truck in front of it.
+# We are looking for at least one box truck in the forward direction.
+ego_with_box_truck_in_front = has_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=box_trucks,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1
+)
+
+# Find instances where the ego vehicle has a motorcycle behind it.
+# We are looking for at least one motorcycle in the backward direction.
+ego_with_motorcycle_behind = has_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=motorcycles,
+    log_dir=log_dir,
+    direction='backward',
+    min_number=1
+)
+
+# Combine the two conditions using scenario_and to find timestamps where both are true.
+# The final scenario will contain the ego vehicle when it has both a box truck in front and a motorcycle behind.
+ego_in_scenario = scenario_and([ego_with_box_truck_in_front, ego_with_motorcycle_behind])
+
+# Output the resulting scenario.
+output_scenario(ego_in_scenario, description, log_dir, output_dir)

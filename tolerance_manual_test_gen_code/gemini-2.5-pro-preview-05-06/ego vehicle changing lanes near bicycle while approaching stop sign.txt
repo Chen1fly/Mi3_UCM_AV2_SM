@@ -1,0 +1,45 @@
+# -------------------------------------------------------------------
+# Scenario: ego vehicle changing lanes near bicycle while approaching stop sign
+#
+# High-level logic
+#   1. Grab the ego-vehicle track.
+#   2. Keep only the timestamps where that ego vehicle is executing a
+#      lane change.
+#   3. Intersect those with timestamps where it is close to a stop sign
+#      (≈ “approaching” the sign).
+#   4. Collect all bicycles that are actually on the roadway.
+#   5. Require the ego vehicle to be within 8 m of at least one bicycle.
+#   6. Write the resulting scenario to disk.
+# -------------------------------------------------------------------
+
+description = 'ego vehicle changing lanes near bicycle while approaching stop sign'
+
+# 1. Ego-vehicle track
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# 2. Moments when the ego vehicle is changing lanes
+ego_lane_changes = changing_lanes(ego_vehicle, log_dir)
+
+# 3. Moments when the ego vehicle is close to a stop sign.
+#    A 15 m forward threshold gives a short “approach window” in front of the sign.
+ego_approaching_stop = at_stop_sign(ego_vehicle, log_dir, forward_thresh=15)
+
+# 4. Timestamps that satisfy *both* conditions
+ego_lane_change_near_stop = scenario_and([ego_lane_changes, ego_approaching_stop])
+
+# 5. All bicycles that are on the road (ignore bikes parked on the sidewalk, etc.)
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+bicycles_on_road = on_road(bicycles, log_dir)
+
+# 6. Require the ego vehicle be near (≤ 8 m) at least one bicycle
+ego_lane_change_near_bicycle = near_objects(
+    ego_lane_change_near_stop,    # track_candidates
+    bicycles_on_road,             # related_candidates
+    log_dir,
+    distance_thresh=8,
+    min_objects=1,
+    include_self=False
+)
+
+# 7. Export the scenario
+output_scenario(ego_lane_change_near_bicycle, description, log_dir, output_dir)

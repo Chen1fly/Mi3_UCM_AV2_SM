@@ -1,0 +1,34 @@
+# Scenario: vehicle passing near person in wheelchair
+# ---------------------------------------------------
+# The goal is to flag moving vehicles that come very close (≤ 5 m) to a person
+# in a wheelchair who is on the roadway or bike lane.  This keeps the search
+# specific enough to avoid distant, coincidental co-occurrences.
+
+description = 'vehicle passing near person in wheelchair'
+
+# 1) Collect relevant object sets
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+wheelchairs = get_objects_of_category(log_dir, category='WHEELCHAIR')
+
+# 2) Focus on active, moving vehicles only
+moving_vehicles = scenario_not(stationary)(vehicles, log_dir)
+
+# 3) Restrict wheelchairs to those actually on the road (or bike lane)
+wheelchairs_on_road = on_road(wheelchairs, log_dir)
+
+# 4) Identify moving vehicles that come within 5 m of at least one wheelchair
+vehicles_passing_near_wheelchair = near_objects(
+    moving_vehicles,          # track_candidates
+    wheelchairs_on_road,      # related_candidates
+    log_dir,                  # log directory
+    distance_thresh=5,        # proximity threshold in meters
+    min_objects=1             # at least one wheelchair nearby
+)
+
+# 5) Export result
+output_scenario(
+    vehicles_passing_near_wheelchair,
+    description,
+    log_dir,
+    output_dir
+)

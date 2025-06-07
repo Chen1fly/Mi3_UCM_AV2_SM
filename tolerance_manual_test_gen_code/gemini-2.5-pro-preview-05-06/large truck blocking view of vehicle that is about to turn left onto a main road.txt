@@ -1,0 +1,39 @@
+# description: large truck blocking view of vehicle that is about to turn left onto a main road
+
+# First, we identify all vehicles that are in the process of turning left.
+# The scenario implies the vehicle is at an intersection or junction, preparing to enter a main road.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+vehicles_turning_left = turning(all_vehicles, log_dir, direction='left')
+
+# We further refine this to vehicles that are near an intersection, as this is the most likely place for such a turn to occur.
+# A 15-meter threshold is used to define "near" the intersection.
+turning_vehicles_near_intersection = near_intersection(vehicles_turning_left, log_dir, threshold=15)
+
+# Next, we identify potential obstructing vehicles. These are large trucks that can block a driver's view.
+# We create a combined list of various large vehicle categories.
+box_trucks = get_objects_of_category(log_dir, category='BOX_TRUCK')
+trucks = get_objects_of_category(log_dir, category='TRUCK')
+truck_cabs = get_objects_of_category(log_dir, category='TRUCK_CAB')
+large_vehicles = get_objects_of_category(log_dir, category='LARGE_VEHICLE')
+buses = get_objects_of_category(log_dir, category='BUS')
+
+# We combine all large vehicle types into a single scenario dictionary.
+all_large_trucks = scenario_or([box_trucks, trucks, truck_cabs, large_vehicles, buses])
+
+# To block the view of a vehicle turning left, the large truck must be positioned to the left of the turning vehicle.
+# This would obscure the view of oncoming traffic from the left.
+# We use `has_objects_in_relative_direction` to find turning vehicles that have a large truck to their left.
+# - `within_distance=10`: The truck is within 10 meters to the left of the car, likely in an adjacent lane.
+# - `lateral_thresh=20`: The truck can be up to 20 meters forward or backward from the car's position, creating a large blind spot.
+blocked_view_scenario = has_objects_in_relative_direction(
+    track_candidates=turning_vehicles_near_intersection,
+    related_candidates=all_large_trucks,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1,
+    within_distance=10,
+    lateral_thresh=20
+)
+
+# Finally, we output the scenario, which contains the vehicles whose view is blocked by a large truck while they are turning left.
+output_scenario(blocked_view_scenario, description, log_dir, output_dir)

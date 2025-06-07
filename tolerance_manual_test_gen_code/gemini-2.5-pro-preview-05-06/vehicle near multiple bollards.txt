@@ -1,0 +1,25 @@
+# Scenario: vehicle near multiple bollards
+# ------------------------------------------------------------
+# 1. Retrieve all vehicles and bollards from the log.
+# 2. Identify vehicles that are within 5 m of at least two distinct bollards.
+#    • A tighter distance threshold (5 m vs. the 10 m default) helps reduce false positives.
+#    • Setting min_objects = 2 ensures “multiple” bollards means more than one.
+# 3. Write the resulting scenario to disk.
+
+description = 'vehicle near multiple bollards'
+
+# Gather candidates
+vehicles  = get_objects_of_category(log_dir, category='VEHICLE')
+bollards  = get_objects_of_category(log_dir, category='BOLLARD')
+
+# Vehicles close to two or more bollards
+vehicles_near_bollards = near_objects(
+    vehicles,                  # track_candidates: the vehicles we care about
+    bollards,                  # related_candidates: the nearby bollards
+    log_dir,                   # scenario logs
+    distance_thresh=5,         # within 5 m radius
+    min_objects=2              # “multiple” → at least two bollards
+)
+
+# Save the scenario
+output_scenario(vehicles_near_bollards, description, log_dir, output_dir)

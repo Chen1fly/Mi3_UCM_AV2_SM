@@ -1,0 +1,43 @@
+# Description for the scenario
+description = 'vehicle accelerating towards pedestrian crossing'
+
+# Get all objects of category 'VEHICLE'
+# These are the primary candidates we'll be filtering.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# 1. Identify vehicles that are accelerating.
+# The `accelerating` function with min_accel=0.65 m/s^2 is used,
+# as values over 1.0 reliably indicate accelerating, and 0.65 is a reasonable lower bound.
+accelerating_vehicles = accelerating(all_vehicles, log_dir, min_accel=0.65)
+
+# 2. Identify vehicles that are near a pedestrian crossing.
+# "Near" is defined as being within 15 meters of the crossing. This creates an "approach zone".
+# A vehicle in this zone is close enough to be considered as potentially moving towards the crossing.
+vehicles_near_crossing = at_pedestrian_crossing(all_vehicles, log_dir, within_distance=15)
+
+# 3. Identify vehicles that are NOT ON a pedestrian crossing.
+# "On" a crossing is defined as being within 0 meters of it (i.e., the object's bounding box overlaps the crossing area).
+# We use `scenario_not` to get instances where vehicles are not meeting this "on crossing" condition.
+# `scenario_not(at_pedestrian_crossing)` is applied to `all_vehicles` with `within_distance=0`.
+# The result, `vehicles_not_on_crossing`, will contain vehicles from `all_vehicles` but only include
+# timestamps where each vehicle was *not* on a pedestrian crossing.
+vehicles_not_on_crossing = scenario_not(at_pedestrian_crossing)(all_vehicles, log_dir, within_distance=0)
+
+# Combine all three conditions using scenario_and:
+# - The vehicle must be accelerating (from `accelerating_vehicles`).
+# - The vehicle must be near the pedestrian crossing (from `vehicles_near_crossing`).
+# - The vehicle must NOT be on the pedestrian crossing (from `vehicles_not_on_crossing`).
+# This combination aims to precisely identify vehicles that are in the act of accelerating
+# while in an approach zone to a pedestrian crossing, before they have reached it.
+# This helps to avoid false positives such as vehicles accelerating after passing a crossing
+# or while already on it.
+vehicle_accelerating_towards_ped_crossing = scenario_and([
+    accelerating_vehicles,
+    vehicles_near_crossing,
+    vehicles_not_on_crossing
+])
+
+# Output the scenario.
+# The resulting `vehicle_accelerating_towards_ped_crossing` dictionary will contain
+# track UUIDs and timestamps that satisfy all the specified conditions.
+output_scenario(vehicle_accelerating_towards_ped_crossing, description, log_dir, output_dir)

@@ -1,0 +1,41 @@
+# The user wants to find instances of a vehicle making an unprotected left turn at an intersection.
+# An unprotected left turn is one where the turning vehicle must yield to oncoming traffic.
+# Therefore, the core of this scenario is a vehicle turning left at an intersection
+# while another vehicle is approaching from the opposite direction at the same intersection.
+
+description = "vehicle making an unprotected left turn at an intersection"
+
+# First, get all vehicle objects in the dataset.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify all vehicles that are in the process of turning left.
+left_turning_vehicles = turning(vehicles, log_dir, direction='left')
+
+# Identify all vehicles that are located within the boundaries of an intersection.
+vehicles_at_intersection = on_intersection(vehicles, log_dir)
+
+# To find vehicles making a left turn at an intersection, we find the intersection of the two previous scenarios.
+# This gives us the primary actor for our scenario.
+left_turn_at_intersection = scenario_and([left_turning_vehicles, vehicles_at_intersection])
+
+# The "unprotected" nature of the turn is defined by the presence of oncoming traffic that has the right-of-way.
+# We first identify all vehicles that are heading in the opposite direction relative to our turning vehicles.
+oncoming_traffic = heading_in_relative_direction_to(vehicles, left_turn_at_intersection, log_dir, direction='opposite')
+
+# This oncoming traffic is only relevant if it is also at the same intersection.
+oncoming_traffic_at_intersection = scenario_and([oncoming_traffic, vehicles_at_intersection])
+
+# Finally, we identify the vehicles turning left at an intersection that have at least one oncoming vehicle
+# in front of them at that same intersection. This signifies an unprotected turn scenario.
+# We use a 50-meter distance threshold to consider the oncoming vehicle as a relevant factor.
+unprotected_left_turn = has_objects_in_relative_direction(
+    track_candidates=left_turn_at_intersection,
+    related_candidates=oncoming_traffic_at_intersection,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    within_distance=50
+)
+
+# Output the resulting scenario, which contains all instances of vehicles making an unprotected left turn at an intersection.
+output_scenario(unprotected_left_turn, description, log_dir, output_dir)

@@ -1,0 +1,29 @@
+description = 'vehicle at intersection facing another vehicle'
+
+# Get all objects of category 'VEHICLE'.
+# According to the provided definitions, the 'VEHICLE' superclass includes various types of vehicles
+# (REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK, BUS, etc.) but not EGO_VEHICLE.
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Identify vehicles that are located on an intersection.
+# The on_intersection function filters for objects whose centroids are within an intersection area.
+# This addresses the "at intersection" part of the description.
+vehicles_at_intersection = on_intersection(all_vehicles, log_dir)
+
+# From the set of vehicles located at an intersection, identify those that are facing another vehicle.
+# The 'track_candidates' are the vehicles confirmed to be at an intersection.
+# The 'related_candidates' are all vehicles in the scene (from the 'VEHICLE' category),
+# representing the "another vehicle" that the track_candidates might be facing.
+# The facing_toward function uses default parameters:
+#   within_angle=22.5 degrees (meaning the other vehicle is within a 45-degree cone in front of the track_candidate)
+#   max_distance=50 meters (the maximum distance to the other vehicle).
+# These defaults are generally reasonable for such a scenario.
+vehicle_at_intersection_facing_another_vehicle = facing_toward(
+    track_candidates=vehicles_at_intersection,
+    related_candidates=all_vehicles,
+    log_dir=log_dir
+)
+
+# Output the resulting scenario.
+# This will contain vehicles that are at an intersection AND are facing another vehicle.
+output_scenario(vehicle_at_intersection_facing_another_vehicle, description, log_dir, output_dir)

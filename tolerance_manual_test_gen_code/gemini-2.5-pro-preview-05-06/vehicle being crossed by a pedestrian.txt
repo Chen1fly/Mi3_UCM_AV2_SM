@@ -1,0 +1,39 @@
+# Define the description of the scenario
+description = 'vehicle being crossed by a pedestrian'
+
+# Get all vehicle objects from the dataset
+# "VEHICLE" is a superclass that includes various types of vehicles.
+vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Get all pedestrian objects from the dataset
+pedestrians = get_objects_of_category(log_dir, category="PEDESTRIAN")
+
+# Identify vehicles that are being crossed by pedestrians.
+# The `being_crossed_by` function identifies track_candidates (first argument)
+# that are being crossed by related_candidates (second argument).
+# The `direction` parameter specifies which midplane of the track_candidate is crossed.
+# "forward" means the pedestrian is crossing in front of the vehicle. This is the most
+# common interpretation of "vehicle being crossed by a pedestrian".
+# The default for `direction` is "forward", but we specify it for clarity.
+# The default for `in_direction` is "either", meaning the pedestrian can cross
+# from left-to-right or right-to-left. This is suitable.
+# Default thresholds `forward_thresh=10` (meters the midplane extends) and
+# `lateral_thresh=5` (meters for the width of the crossing zone) are used,
+# as the description does not specify particular distances.
+vehicles_being_crossed_by_pedestrians = being_crossed_by(
+    track_candidates=vehicles,
+    related_candidates=pedestrians,
+    log_dir=log_dir,
+    direction="forward"  # Pedestrian crosses the vehicle's forward midplane
+)
+
+# Output the scenario
+# This function will save the identified instances.
+# Visualization is turned off as per instructions ("Do not provide any visualization kwargs").
+output_scenario(
+    vehicles_being_crossed_by_pedestrians,
+    description,
+    log_dir,
+    output_dir,
+    visualize=False
+)

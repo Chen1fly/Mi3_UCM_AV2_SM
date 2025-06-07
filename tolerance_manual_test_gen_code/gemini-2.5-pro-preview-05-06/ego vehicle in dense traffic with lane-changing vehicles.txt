@@ -1,0 +1,43 @@
+# Scenario: Ego vehicle in dense traffic with lane-changing vehicles
+description = 'ego vehicle in dense traffic with lane-changing vehicles'
+
+# 1. Identify the ego vehicle.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# 2. Collect all other vehicles (exclude the ego itself).
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+other_vehicles = scenario_not(is_category)(vehicles, log_dir, category='EGO_VEHICLE')
+
+# 3. Detect vehicles that are actively changing lanes.
+lane_changing_vehicles = changing_lanes(other_vehicles, log_dir)
+
+# 4. Find timestamps where the ego is in dense traffic:
+#    "dense" is approximated as ≥ 5 vehicles within 15 m of the ego.
+dense_traffic_near_ego = near_objects(
+    ego_vehicle,              # track_candidates
+    other_vehicles,           # related_candidates
+    log_dir,
+    distance_thresh=15,       # metres
+    min_objects=5,            # vehicles needed for "dense traffic"
+    include_self=False
+)
+
+# 5. Find timestamps where at least one of those nearby vehicles is changing lanes
+#    within a 20 m radius of the ego.
+lane_changer_near_ego = near_objects(
+    ego_vehicle,              # track_candidates
+    lane_changing_vehicles,   # related_candidates
+    log_dir,
+    distance_thresh=20,       # metres
+    min_objects=1,            # at least one lane-changing vehicle
+    include_self=False
+)
+
+# 6. Keep only the moments where BOTH dense traffic *and* a nearby lane change occur.
+ego_dense_with_lane_changes = scenario_and([
+    dense_traffic_near_ego,
+    lane_changer_near_ego
+])
+
+# 7. Output the scenario for evaluation.
+output_scenario(ego_dense_with_lane_changes, description, log_dir, output_dir)

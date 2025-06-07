@@ -1,0 +1,19 @@
+description = "pedestrians entering a bus"
+# Find all pedestrians and buses in the scene.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+buses = get_objects_of_category(log_dir, category='BUS')
+# To pick up passengers, a bus must be stationary.
+stationary_buses = stationary(buses, log_dir)
+# Pedestrians will enter the bus from the doors, which are typically on the right side.
+# We will find pedestrians that are very close to the right side of a stationary bus.
+# A small within_distance ensures the pedestrian is close to the side of the bus.
+# A larger lateral_thresh ensures we capture pedestrians near doors located anywhere along the bus's side.
+pedestrians_entering_bus = get_objects_in_relative_direction(
+    stationary_buses,
+    pedestrians,
+    log_dir,
+    direction='right',
+    within_distance=2.0,
+    lateral_thresh=6.0
+)
+output_scenario(pedestrians_entering_bus, description, log_dir, output_dir)

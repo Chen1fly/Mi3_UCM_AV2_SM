@@ -1,0 +1,52 @@
+# The goal is to identify vehicles that are attempting to merge into the same lane and general space as the ego vehicle.
+# This can be broken down into two main cases: a vehicle on the left merging right, and a vehicle on the right merging left.
+description = "vehicle trying to merge into the same space as the ego vehicle"
+
+# First, get all vehicle objects and the ego vehicle object.
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+ego_vehicle = get_objects_of_category(log_dir, category="EGO_VEHICLE")
+
+# Case 1: A vehicle from an adjacent left lane merges right towards the ego vehicle's lane.
+# We identify vehicles that are to the immediate left of the ego vehicle.
+# A small within_distance and lateral_thresh helps ensure we are only looking at adjacent lanes.
+vehicles_to_left = get_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=all_vehicles,
+    log_dir=log_dir,
+    direction='left',
+    max_number=1,
+    within_distance=10,
+    lateral_thresh=2.5
+)
+
+# Of those vehicles to the left, we find the ones that are performing a lane change to the right.
+merging_from_left = changing_lanes(
+    track_candidates=vehicles_to_left,
+    log_dir=log_dir,
+    direction='right'
+)
+
+# Case 2: A vehicle from an adjacent right lane merges left towards the ego vehicle's lane.
+# We identify vehicles that are to the immediate right of the ego vehicle.
+vehicles_to_right = get_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=all_vehicles,
+    log_dir=log_dir,
+    direction='right',
+    max_number=1,
+    within_distance=10,
+    lateral_thresh=2.5
+)
+
+# Of those vehicles to the right, we find the ones that are performing a lane change to the left.
+merging_from_right = changing_lanes(
+    track_candidates=vehicles_to_right,
+    log_dir=log_dir,
+    direction='left'
+)
+
+# The final scenario is the combination of both cases. A vehicle can be merging either from the left or the right.
+vehicle_merging_into_ego_space = scenario_or([merging_from_left, merging_from_right])
+
+# Output the combined scenario.
+output_scenario(vehicle_merging_into_ego_space, description, log_dir, output_dir)

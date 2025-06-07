@@ -1,0 +1,19 @@
+# The user is asking to find 'another autonomous vehicle'.
+# In the provided dataset categories, there is an 'EGO_VEHICLE' which is the autonomous vehicle collecting the data.
+# There isn't a specific category for other autonomous vehicles.
+# Therefore, the most reasonable interpretation of this query is to find all vehicles in the scene that are not the ego vehicle itself.
+# This code identifies all objects belonging to the 'VEHICLE' superclass and then excludes the 'EGO_VEHICLE' from this set.
+
+description = "another autonomous vehicle"
+
+# Get all objects categorized as a vehicle. This includes regular cars, trucks, buses, etc.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter out the ego vehicle from the set of all vehicles to find all "other" vehicles.
+# The `scenario_not` function wraps the `is_category` function.
+# `is_category` will identify any vehicle from the `all_vehicles` dictionary that is an 'EGO_VEHICLE'.
+# `scenario_not` will then return all vehicles from `all_vehicles` that were NOT identified as the 'EGO_VEHICLE'.
+another_autonomous_vehicle = scenario_not(is_category)(all_vehicles, log_dir, category='EGO_VEHICLE')
+
+# Output the resulting scenario, which contains all vehicles that are not the ego vehicle.
+output_scenario(another_autonomous_vehicle, description, log_dir, output_dir)

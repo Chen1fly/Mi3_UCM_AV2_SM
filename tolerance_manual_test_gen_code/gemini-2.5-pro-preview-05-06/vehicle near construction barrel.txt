@@ -1,0 +1,33 @@
+# Scenario: vehicle near construction barrel
+description = 'vehicle near construction barrel'
+
+# ------------------------------------------------------------------
+# 1. Retrieve all vehicles and filter to those currently on the road
+# ------------------------------------------------------------------
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+vehicles_on_road = on_road(vehicles, log_dir)
+
+# ----------------------------------------------
+# 2. Retrieve all construction barrels in scene
+# ----------------------------------------------
+construction_barrels = get_objects_of_category(log_dir, category='CONSTRUCTION_BARREL')
+
+# ------------------------------------------------------------------
+# 3. Identify vehicles that have a construction barrel within 5 m
+#    • track_candidates      → vehicles on road
+#    • related_candidates    → construction barrels
+#    • distance_thresh       → 5 m (tight radius to reduce false-positives)
+#    • min_objects           → at least one barrel nearby
+# ------------------------------------------------------------------
+vehicles_near_barrels = near_objects(
+    vehicles_on_road,        # track_candidates
+    construction_barrels,    # related_candidates
+    log_dir,
+    distance_thresh=5,
+    min_objects=1
+)
+
+# ----------------------------------------------
+# 4. Export results in evaluation-ready format
+# ----------------------------------------------
+output_scenario(vehicles_near_barrels, description, log_dir, output_dir)

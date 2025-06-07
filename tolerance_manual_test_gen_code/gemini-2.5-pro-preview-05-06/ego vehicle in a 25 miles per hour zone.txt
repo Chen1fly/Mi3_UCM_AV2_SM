@@ -1,0 +1,23 @@
+# The user wants to find scenarios where the ego vehicle is in a 25 miles per hour zone.
+# The provided functions do not allow for reading the content of speed limit signs.
+# As a proxy, we will identify when the ego vehicle is traveling at or below 25 mph,
+# as this is a strong indicator of being within such a speed zone.
+
+description = "ego vehicle in a 25 miles per hour zone"
+
+# First, we get the ego vehicle object.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Convert 25 miles per hour to meters per second for the velocity function.
+# 1 mph is approximately 0.44704 m/s.
+# 25 mph * 0.44704 m/s/mph = 11.176 m/s.
+# We will use this as the maximum velocity.
+max_speed_in_ms = 11.176
+
+# We use has_velocity to find all instances where the ego vehicle's speed is between 0 and 25 mph.
+# This assumes that if the vehicle is in a 25 mph zone, it will not exceed this speed.
+# We set a minimum velocity of 0 to include times when the vehicle is stopped within the zone.
+ego_in_25mph_zone = has_velocity(ego_vehicle, log_dir, min_velocity=0, max_velocity=max_speed_in_ms)
+
+# Output the resulting scenario.
+output_scenario(ego_in_25mph_zone, description, log_dir, output_dir)

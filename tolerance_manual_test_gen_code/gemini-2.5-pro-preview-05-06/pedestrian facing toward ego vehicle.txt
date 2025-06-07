@@ -1,0 +1,28 @@
+# description = 'pedestrian facing toward ego vehicle'
+
+# Get all pedestrian objects from the logs.
+# 'PEDESTRIAN' is a specific category for people not in/on a vehicle.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get the ego vehicle object.
+# 'EGO_VEHICLE' is the specific category for the data-collecting vehicle.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Find pedestrians that are facing toward the ego vehicle.
+# The `facing_toward` function identifies objects in `track_candidates` (here, pedestrians)
+# that are oriented towards objects in `related_candidates` (here, the ego_vehicle).
+# The condition is that the `related_candidate` (ego_vehicle) must lie within a cone
+# defined by `within_angle` degrees on either side of the `track_candidate`'s (pedestrian's) forward axis.
+# The default `within_angle` is 22.5 degrees, resulting in a 45-degree total field of view,
+# which is a good definition for "facing toward".
+# The default `max_distance` is 50 meters, which is a reasonable range for such an interaction.
+pedestrians_facing_ego_vehicle = facing_toward(
+    track_candidates=pedestrians,
+    related_candidates=ego_vehicle,
+    log_dir=log_dir
+    # Default parameters within_angle=22.5 and max_distance=50 are used as they fit the description well.
+)
+
+# Output the scenario, which includes the pedestrians found to be facing the ego vehicle
+# and the timestamps when this condition is met.
+output_scenario(pedestrians_facing_ego_vehicle, description, log_dir, output_dir)

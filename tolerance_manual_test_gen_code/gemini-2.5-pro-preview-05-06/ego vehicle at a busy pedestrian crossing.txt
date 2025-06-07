@@ -1,0 +1,26 @@
+# The user wants to find scenarios where the ego vehicle is at a busy pedestrian crossing.
+# "Busy" can be interpreted as being near several pedestrians.
+
+# description of the scenario
+description = "ego vehicle at a busy pedestrian crossing"
+
+# Get the ego vehicle
+ego_vehicle = get_objects_of_category(log_dir, category="EGO_VEHICLE")
+
+# Get all pedestrians
+pedestrians = get_objects_of_category(log_dir, category="PEDESTRIAN")
+
+# Find instances where the ego vehicle is at a pedestrian crossing.
+# A small within_distance is used to ensure the ego vehicle is very close to or on the crossing.
+ego_at_ped_crossing = at_pedestrian_crossing(ego_vehicle, log_dir, within_distance=2)
+
+# Find instances where the ego vehicle is near at least 3 pedestrians, which we'll define as "busy".
+# A distance threshold of 15 meters is chosen to capture pedestrians in the immediate vicinity of the crossing.
+ego_near_many_peds = near_objects(ego_vehicle, pedestrians, log_dir, distance_thresh=15, min_objects=3)
+
+# The final scenario is the intersection of the ego vehicle being at a pedestrian crossing
+# and being near multiple pedestrians.
+ego_at_busy_crossing = scenario_and([ego_at_ped_crossing, ego_near_many_peds])
+
+# Output the resulting scenario
+output_scenario(ego_at_busy_crossing, description, log_dir, output_dir)

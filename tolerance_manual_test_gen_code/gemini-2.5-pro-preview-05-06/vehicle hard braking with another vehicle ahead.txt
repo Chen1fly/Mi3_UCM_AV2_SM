@@ -1,0 +1,60 @@
+# Description: vehicle hard braking with another vehicle ahead
+
+# 1. Get all vehicles in the scenario.
+# This will serve as the pool for both braking vehicles and vehicles ahead.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# 2. Identify vehicles that are hard braking.
+# "Hard braking" is defined as a significant deceleration.
+# The 'accelerating' function considers negative values for deceleration.
+# According to its description, "Values under -1 reliably indicates braking."
+# We'll use a threshold of -2.0 m/s^2 to signify "hard" braking, meaning acceleration <= -2.0 m/s^2.
+hard_braking_vehicles = accelerating(
+    track_candidates=all_vehicles,
+    log_dir=log_dir,
+    min_accel=-np.inf,  # No lower bound for deceleration (as long as it's strong)
+    max_accel=-2.0     # Acceleration must be -2.0 m/s^2 or less (i.e., deceleration of 2.0 m/s^2 or more)
+)
+
+# 3. From these hard-braking vehicles, find those that have another vehicle ahead of them.
+# "Ahead" implies the other vehicle is in the forward direction, relatively close, and largely in the same path.
+# The `has_objects_in_relative_direction` function is used here. Its keys are the `track_candidates`
+# (our `hard_braking_vehicles`) that satisfy the condition of having a `related_candidate` (another vehicle)
+# in the specified `direction`.
+
+# `track_candidates`: The set of vehicles we are checking (those that are hard braking).
+# `related_candidates`: The set of objects that could be ahead (all other vehicles).
+# `direction`: 'forward', as the other vehicle is ahead.
+# `min_number=1`: There must be at least one vehicle ahead.
+# `max_number=1`: If multiple vehicles are ahead, this focuses on the closest one.
+# `within_distance=30`: The vehicle ahead should be within 30 meters (a reasonable distance for immediate interaction).
+# `lateral_thresh=0.75`: This parameter controls how far sideways the "ahead" vehicle can be.
+#   The documentation states: "Maximum lateral distance the related object can be from the sides of the tracked object."
+#   If a tracked vehicle has width W_t (approx. 2m, so sides at +/- 1m from its center), this threshold implies
+#   the center of the related vehicle (y_rel_center, relative to tracked vehicle's center) must satisfy:
+#   abs(y_rel_center) < W_t/2 + lateral_thresh.
+#   So, abs(y_rel_center) < 1m + 0.75m = 1.75m.
+#   This means the centerline of the vehicle ahead is within 1.75m of the centerline of the braking vehicle.
+#   Given typical lane widths (e.g., 3.5m), this helps ensure the vehicle ahead is largely in the same lane
+#   or path, increasing precision and reducing false positives from vehicles in distant adjacent lanes.
+vehicles_braking_with_vehicle_ahead = has_objects_in_relative_direction(
+    track_candidates=hard_braking_vehicles,
+    related_candidates=all_vehicles,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=1,
+    within_distance=30,
+    lateral_thresh=0.75
+)
+
+# 4. Output the scenario.
+# The `vehicles_braking_with_vehicle_ahead` dictionary now contains the UUIDs of vehicles
+# that were simultaneously hard braking and had another vehicle ahead of them,
+# along with the timestamps when these conditions were met.
+output_scenario(
+    scenario=vehicles_braking_with_vehicle_ahead,
+    description="vehicle hard braking with another vehicle ahead",
+    log_dir=log_dir,
+    output_dir=output_dir
+)

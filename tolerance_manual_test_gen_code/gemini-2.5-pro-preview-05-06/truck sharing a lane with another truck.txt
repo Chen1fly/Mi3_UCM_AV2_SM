@@ -1,0 +1,31 @@
+description = "truck sharing a lane with another truck"
+
+# Get all categories of objects that are considered "trucks".
+# According to the provided category definitions:
+# "BOX_TRUCK": Chassis cab truck with an enclosed cube shaped cargo area.
+# "TRUCK": Vehicles that are clearly defined as a truck but does not fit into the subclasses of Box Truck or Truck Cab (e.g., delivery, utility trucks).
+# "TRUCK_CAB": Heavy truck commonly known as Semi cab, Tractor, or Lorry.
+box_trucks = get_objects_of_category(log_dir, category='BOX_TRUCK')
+generic_trucks = get_objects_of_category(log_dir, category='TRUCK')
+truck_cabs = get_objects_of_category(log_dir, category='TRUCK_CAB')
+
+# Combine these individual truck categories into a single scenario dictionary representing "all trucks".
+# scenario_or will create a dictionary containing all unique truck UUIDs and their timestamps from these categories.
+all_trucks = scenario_or([box_trucks, generic_trucks, truck_cabs])
+
+# Find trucks that are in the same lane as another truck.
+# We use 'all_trucks' for both track_candidates and related_candidates.
+# The function in_same_lane(X, X, ...) is expected to identify objects in X
+# that are in the same lane as another, distinct object in X.
+# This interpretation is supported by the example:
+#   description = 'truck sharing a lane with another truck'
+#   vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+#   vehicles_in_same_lane = in_same_lane(vehicles, vehicles, log_dir)
+# The result will be a scenario dictionary where keys are UUIDs of trucks
+# that are sharing a lane with at least one other truck, and values are lists of
+# timestamps when this condition is met.
+trucks_sharing_lane_with_another_truck = in_same_lane(all_trucks, all_trucks, log_dir)
+
+# Output the resulting scenario.
+# This will save the UUIDs of trucks sharing a lane with another truck, and the relevant timestamps.
+output_scenario(trucks_sharing_lane_with_another_truck, description, log_dir, output_dir)

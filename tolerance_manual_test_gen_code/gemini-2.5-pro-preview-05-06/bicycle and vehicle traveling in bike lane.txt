@@ -1,0 +1,39 @@
+# Define the description for the scenario
+description = 'bicycle and vehicle traveling in bike lane'
+
+# 1. Get all objects of category 'BICYCLE'
+all_bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# 2. Get all objects of category 'VEHICLE'
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# 3. Filter for bicycles that are "traveling" (i.e., not stationary)
+# "Traveling" implies motion. We use scenario_not(stationary) to find objects that are not parked or stationary for long periods.
+moving_bicycles = scenario_not(stationary)(all_bicycles, log_dir)
+
+# 4. Filter for vehicles that are "traveling" (i.e., not stationary)
+moving_vehicles = scenario_not(stationary)(all_vehicles, log_dir)
+
+# 5. From the moving bicycles, identify those that are in a bike lane
+moving_bicycles_in_bike_lane = on_lane_type(moving_bicycles, log_dir, lane_type='BIKE')
+
+# 6. From the moving vehicles, identify those that are in a bike lane
+# These are vehicles that, on their own, are moving within a bike lane.
+moving_vehicles_in_bike_lane = on_lane_type(moving_vehicles, log_dir, lane_type='BIKE')
+
+# 7. Identify vehicles (from moving_vehicles_in_bike_lane) that are in the same bike lane as a bicycle (from moving_bicycles_in_bike_lane)
+# This step ensures that both the vehicle and a bicycle are:
+#   a) "traveling" (moving)
+#   b) in a bike lane
+#   c) in the *same* bike lane concurrently.
+# The resulting dictionary will have vehicle UUIDs as keys, indicating these vehicles meet the full criteria.
+bicycle_and_vehicle_in_same_bike_lane = in_same_lane(
+    track_candidates=moving_vehicles_in_bike_lane,
+    related_candidates=moving_bicycles_in_bike_lane,
+    log_dir=log_dir
+)
+
+# 8. Output the scenario
+# This will save the scenario where the primary objects identified are the vehicles
+# that are traveling in a bike lane shared with a traveling bicycle.
+output_scenario(bicycle_and_vehicle_in_same_bike_lane, description, log_dir, output_dir)

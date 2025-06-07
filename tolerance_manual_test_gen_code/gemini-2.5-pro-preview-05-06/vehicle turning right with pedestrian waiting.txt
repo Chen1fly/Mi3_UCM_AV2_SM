@@ -1,0 +1,75 @@
+# Define the description for the scenario
+description = 'vehicle turning right with pedestrian waiting'
+
+# 1. Get all vehicle objects
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# 2. Get all pedestrian objects
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# 3. Identify vehicles that are actively turning right
+# The 'turning' function returns vehicles engaged in a turn.
+right_turning_vehicles = turning(
+    track_candidates=vehicles,
+    log_dir=log_dir,
+    direction='right'
+)
+
+# 4. Identify pedestrians that are waiting (i.e., have very low velocity)
+# Stationary objects may have a velocity up to 0.5 m/s due to annotation jitter.
+waiting_pedestrians = has_velocity(
+    track_candidates=pedestrians,
+    log_dir=log_dir,
+    min_velocity=0.0, # Minimum velocity can be 0
+    max_velocity=0.5  # Maximum velocity for a 'waiting' or stationary pedestrian
+)
+
+# 5. Establish the relationship between right-turning vehicles and waiting pedestrians
+
+# Condition A: The vehicle turning right has a waiting pedestrian in its forward path.
+# This typically captures pedestrians on a crosswalk that the vehicle is turning into.
+# - within_distance: How far in front the pedestrian can be (e.g., 10 meters).
+# - lateral_thresh: How far laterally from the vehicle's path the pedestrian can be.
+#   A value of 1.5m means the pedestrian is within a corridor of (vehicle_width + 2 * 1.5m).
+#   If vehicle_width is ~2m, this is a 5m wide corridor.
+vehicles_with_waiting_ped_in_front = has_objects_in_relative_direction(
+    track_candidates=right_turning_vehicles,
+    related_candidates=waiting_pedestrians,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,       # At least one waiting pedestrian
+    max_number=1,       # Consider the closest one if multiple
+    within_distance=10.0,
+    lateral_thresh=1.5
+)
+
+# Condition B: The vehicle turning right has a waiting pedestrian to its immediate right.
+# This typically captures pedestrians waiting on the corner/sidewalk as the vehicle turns.
+# - within_distance: Longitudinal distance along the vehicle's side (+/- 5m from vehicle center).
+# - lateral_thresh: Lateral distance from the vehicle's right side (e.g., within 2 meters).
+vehicles_with_waiting_ped_to_right = has_objects_in_relative_direction(
+    track_candidates=right_turning_vehicles,
+    related_candidates=waiting_pedestrians,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,       # At least one waiting pedestrian
+    max_number=1,       # Consider the closest one if multiple
+    within_distance=5.0,
+    lateral_thresh=2.0
+)
+
+# 6. Combine the two conditions using 'scenario_or'
+# The scenario is met if either the pedestrian is in front OR to the right of the turning vehicle.
+vehicle_turning_right_with_ped_waiting = scenario_or(
+    [vehicles_with_waiting_ped_in_front, vehicles_with_waiting_ped_to_right]
+)
+
+# 7. Output the resulting scenario
+# This will save the identified instances (vehicles turning right with a relevant waiting pedestrian)
+# to the specified output directory.
+output_scenario(
+    scenario=vehicle_turning_right_with_ped_waiting,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

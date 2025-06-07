@@ -1,0 +1,41 @@
+description= "car on opposite side of road pulling over"
+# A car pulling over is defined as a vehicle on the opposite side of the road from the ego vehicle
+# that is slowing to a stop while moving towards the shoulder of the road.
+
+
+# Get the ego vehicle to determine the 'opposite' side of the road.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+
+# Get all vehicles, as the referred object is a 'car'.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+
+# First, identify vehicles that are on the road to exclude vehicles in parking lots or driveways.
+vehicles_on_road = on_road(vehicles, log_dir)
+
+
+# Find vehicles on the opposite side of the road relative to the ego vehicle.
+opposite_side_vehicles = on_relative_side_of_road(vehicles_on_road, ego_vehicle, log_dir, side='opposite')
+
+
+# A vehicle "pulling over" implies it is slowing down or has come to a stop.
+# We identify this by filtering for vehicles with a very low velocity.
+# Stationary objects can have a velocity up to 0.5 m/s, so we'll set the max a bit higher
+# to catch vehicles in the process of stopping.
+slow_or_stopped_vehicles = has_velocity(opposite_side_vehicles, log_dir, max_velocity=1.5)
+
+
+# "Pulling over" also involves a lateral movement towards the side of the road.
+# Assuming traffic on the opposite side is moving away from the ego vehicle, pulling over
+# would mean a move to their right, which corresponds to a negative lateral acceleration.
+# We look for a gentle but clear lateral acceleration to the right.
+pulling_right = has_lateral_acceleration(opposite_side_vehicles, log_dir, min_accel=-2.5, max_accel=-0.4)
+
+
+# The final scenario is the intersection of these conditions: a vehicle on the opposite
+# side of the road that is both slowing down/stopped and moving laterally to the right.
+car_pulling_over = scenario_and([slow_or_stopped_vehicles, pulling_right])
+
+
+output_scenario(car_pulling_over, description, log_dir, output_dir)

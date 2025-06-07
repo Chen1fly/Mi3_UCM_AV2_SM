@@ -1,0 +1,65 @@
+# Define the description of the scenario
+description = "pedestrian in front of a bicyclist who is to the left of a vehicle"
+
+# 1. Get all relevant object categories
+# These functions return dictionaries of {uuid: [timestamps]}
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+# For "bicyclist", we use the 'BICYCLIST' category, which refers to the person riding the bicycle.
+bicyclists = get_objects_of_category(log_dir, category='BICYCLIST')
+# 'VEHICLE' is a superclass for various vehicle types.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# 2. Find bicyclists who are "to the left of a vehicle".
+# This is equivalent to finding bicyclists who have a vehicle to their right.
+# In this step, the bicyclist is the 'track_candidate'.
+# The 'related_candidate' is the vehicle.
+# We require at least one vehicle ('min_number=1') to satisfy the condition.
+# The 'within_distance' parameter specifies how far to the right (the 'direction') the vehicle can be.
+# The 'lateral_thresh' parameter specifies the tolerance for the vehicle's position along the bicyclist's
+# axis of motion (forward or backward from the bicyclist's center).
+# This helps ensure the bicyclist and vehicle are somewhat side-by-side.
+qualifying_bicyclists = has_objects_in_relative_direction(
+    track_candidates=bicyclists,
+    related_candidates=vehicles,
+    log_dir=log_dir,
+    direction='right',  # The vehicle is to the right of the bicyclist.
+    min_number=1,       # At least one vehicle must be to the bicyclist's right.
+                        # max_number defaults to np.inf, considering all such vehicles.
+    within_distance=3.0,# The vehicle's center should be within 3 meters from the bicyclist's right side.
+    lateral_thresh=3.0  # The vehicle's center, when projected onto the bicyclist's path,
+                        # should be within 3 meters (forward or backward) of the bicyclist's center.
+)
+# The result 'qualifying_bicyclists' is a scenario dictionary where keys are the UUIDs of bicyclists
+# who meet this condition. The values indicate which vehicle(s) are to their right and at which timestamps.
+# e.g., {bicyclist_uuid: {vehicle_uuid: [timestamps]}}
+
+# 3. Find pedestrians who are "in front of" the 'qualifying_bicyclists'.
+# This means, from the pedestrian's perspective, a bicyclist (who is to the left of a vehicle) is behind them.
+# In this step, the pedestrian is the 'track_candidate'.
+# The 'related_candidate' are the bicyclists found in the previous step.
+# We require at least one such bicyclist ('min_number=1') behind the pedestrian.
+# 'within_distance' specifies how far behind (the 'direction') the bicyclist can be.
+# 'lateral_thresh' specifies the tolerance for the bicyclist's position perpendicular to the
+# pedestrian's axis of motion (to the left or right of the pedestrian's direct path).
+# This helps ensure the pedestrian and bicyclist are reasonably in a line.
+pedestrian_scenario = has_objects_in_relative_direction(
+    track_candidates=pedestrians,
+    related_candidates=qualifying_bicyclists, # The keys of this dict are used as candidate UUIDs.
+    log_dir=log_dir,
+    direction='backward', # The qualifying bicyclist is behind the pedestrian.
+    min_number=1,         # At least one qualifying bicyclist must be behind the pedestrian.
+                          # max_number defaults to np.inf.
+    within_distance=5.0,  # The bicyclist should be within 5 meters behind the pedestrian.
+    lateral_thresh=1.5    # The bicyclist's center, when projected onto a line perpendicular
+                          # to the pedestrian's path, should be within 1.5 meters of the pedestrian's center.
+)
+# The result 'pedestrian_scenario' is a scenario dictionary where keys are the UUIDs of pedestrians
+# who meet the full description. The values indicate which qualifying bicyclist(s) are behind them
+# and at which timestamps.
+# e.g., {pedestrian_uuid: {bicyclist_uuid_who_is_left_of_vehicle: [timestamps]}}
+
+# 4. Output the final scenario
+# This scenario now contains all pedestrians that are in front of a bicyclist,
+# where that bicyclist is contemporaneously to the left of a vehicle,
+# according to the specified geometric conditions.
+output_scenario(pedestrian_scenario, description, log_dir, output_dir)

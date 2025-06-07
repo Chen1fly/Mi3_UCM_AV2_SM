@@ -1,0 +1,39 @@
+# The user wants to find instances of a vehicle passing the ego vehicle at a high speed on an urban road.
+# I will break this down into several steps:
+# 1. Isolate the ego vehicle and other vehicles.
+# 2. Filter for vehicles that are on a road to satisfy the "on an urban road" constraint.
+# 3. Filter these vehicles for high velocity to satisfy the "significantly over the speed limit" constraint.
+#    A speed limit on an urban road is typically around 13-20 m/s (30-45 mph). "Significantly over"
+#    could be interpreted as a speed that is high even for a highway, so I will set a threshold of 27 m/s (~60 mph).
+# 4. Identify when the ego vehicle is being passed by these fast vehicles. The `being_crossed_by` function is suitable for this.
+#    Since the query asks for the vehicle that is *doing the passing*, I will use `reverse_relationship` on `being_crossed_by`.
+# 5. A pass can occur on the left or the right, so I will check for both and combine them using `scenario_or`.
+# 6. Finally, output the resulting scenario.
+
+description = "vehicle passing the ego vehicle going signifcantly over the speed limit on an urban road"
+
+# Get the ego vehicle, which is the reference for being passed.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+# Ensure the ego vehicle is not stationary, as a parked car cannot be "passed" in a dynamic sense.
+moving_ego = scenario_not(stationary)(ego_vehicle, log_dir)
+
+# Get all other vehicles.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+# Filter for vehicles that are on a road.
+vehicles_on_road = on_road(vehicles, log_dir)
+
+# Filter for vehicles moving significantly faster than a typical urban speed limit.
+# 27 m/s is approximately 60 mph.
+speeding_vehicles = has_velocity(vehicles_on_road, log_dir, min_velocity=27)
+
+# Identify the speeding vehicles that are passing the ego vehicle.
+# `being_crossed_by` returns the object being crossed (the ego vehicle in this case).
+# We want the object doing the crossing, so we wrap the function in `reverse_relationship`.
+overtaking_on_left = reverse_relationship(being_crossed_by)(moving_ego, speeding_vehicles, log_dir, direction='left')
+overtaking_on_right = reverse_relationship(being_crossed_by)(moving_ego, speeding_vehicles, log_dir, direction='right')
+
+# Combine the events of passing on the left and on the right.
+passing_vehicles = scenario_or([overtaking_on_left, overtaking_on_right])
+
+# Output the final scenario containing the vehicles that meet all the criteria.
+output_scenario(passing_vehicles, description, log_dir, output_dir)

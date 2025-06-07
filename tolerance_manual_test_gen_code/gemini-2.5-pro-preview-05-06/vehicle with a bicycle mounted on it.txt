@@ -1,0 +1,42 @@
+# Scenario: vehicle with a bicycle mounted on it
+# -------------------------------------------------
+# The heuristic looks for bicycles that lie directly in line with a vehicle,
+# very close to either its front (rack on the bumper) or rear (rack on the trunk/hitch).
+# A tight longitudinal `within_distance` and narrow `lateral_thresh` help avoid
+# picking up nearby cyclists who are riding alongside or crossing paths.
+
+description = 'vehicle with a bicycle mounted on it'
+
+# 1. Gather the two relevant object classes.
+vehicles  = get_objects_of_category(log_dir, category='VEHICLE')
+bicycles  = get_objects_of_category(log_dir, category='BICYCLE')
+
+# 2. Bicycles tightly BEHIND the vehicle (e.g., on a rear-rack or hitch).
+bikes_behind = get_objects_in_relative_direction(
+    vehicles,
+    bicycles,
+    log_dir,
+    direction='backward',   # bike centroid lies aft of the vehicle
+    min_number=1,
+    max_number=1,           # just need to find the closest one
+    within_distance=2,      # ~ vehicle length of a rear-mounted bike
+    lateral_thresh=1        # keep nearly centered (avoids bikes in adjacent lanes)
+)
+
+# 3. Bicycles tightly IN FRONT of the vehicle (e.g., on a front bumper rack).
+bikes_front = get_objects_in_relative_direction(
+    vehicles,
+    bicycles,
+    log_dir,
+    direction='forward',    # bike centroid lies ahead of the vehicle
+    min_number=1,
+    max_number=1,
+    within_distance=2,
+    lateral_thresh=1
+)
+
+# 4. Combine both rack positions into a single result set.
+vehicles_with_bicycle_mounted = scenario_or([bikes_behind, bikes_front])
+
+# 5. Export the scenario.
+output_scenario(vehicles_with_bicycle_mounted, description, log_dir, output_dir)

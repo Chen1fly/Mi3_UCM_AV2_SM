@@ -1,0 +1,48 @@
+description = "vehicle turning left with a bicycle in front of it"
+
+# Get all objects of category "VEHICLE"
+# This includes REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, BOX_TRUCK, BUS, SCHOOL_BUS, ARTICULATED_BUS, TRUCK, and RAILED_VEHICLE.
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Filter these vehicles to find those that are turning left.
+# The 'turning' function identifies objects performing a turning maneuver.
+left_turning_vehicles = turning(all_vehicles, log_dir, direction='left')
+
+# Get all objects of category "BICYCLE".
+# This refers to the bicycle itself, whether ridden or not.
+bicycles = get_objects_of_category(log_dir, category="BICYCLE")
+
+# Identify vehicles from the 'left_turning_vehicles' set that have a bicycle in front of them.
+# 'has_objects_in_relative_direction' checks if track_candidates (left-turning vehicles)
+# have at least 'min_number' of related_candidates (bicycles) in the specified 'direction'.
+# - direction='forward': We are looking for bicycles in front of the vehicle.
+# - min_number=1: We need at least one bicycle.
+# - within_distance=20.0: The bicycle must be within 20 meters. This is a reasonable distance
+#   for an object to be considered "in front" in a dynamic driving scenario.
+# - lateral_thresh=0.5: Maximum lateral distance the bicycle's center can be from the sides
+#   of the vehicle's projected path. If a vehicle is 2m wide, its sides are at +/-1m from
+#   its centerline. A lateral_thresh of 0.5m means the bicycle's center must be within a
+#   corridor of VehicleWidth + 2*0.5m = VehicleWidth + 1m. For a 2m-wide vehicle, this is a 3m-wide
+#   corridor, which is a precise definition of "in front of".
+# max_number can be left as default (np.inf) or set to 1 if we only care about the closest one.
+# The function returns the vehicles (track_candidates) that satisfy this condition.
+vehicle_turning_left_with_bicycle_in_front = has_objects_in_relative_direction(
+    track_candidates=left_turning_vehicles,
+    related_candidates=bicycles,
+    log_dir=log_dir,
+    direction="forward",
+    min_number=1,
+    # max_number=1, # Optional: if we only want to register the closest bicycle. Default is fine.
+    within_distance=20.0,  # meters
+    lateral_thresh=0.5     # meters
+)
+
+# Output the resulting scenario.
+# This will save the identified instances (left-turning vehicles with a bicycle in front)
+# for evaluation or further analysis.
+output_scenario(
+    vehicle_turning_left_with_bicycle_in_front,
+    description,
+    log_dir,
+    output_dir
+)

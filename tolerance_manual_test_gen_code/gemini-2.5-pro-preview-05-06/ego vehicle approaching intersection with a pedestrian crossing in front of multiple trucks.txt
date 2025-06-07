@@ -1,0 +1,61 @@
+# Scenario: ego vehicle approaching an intersection with a pedestrian crossing in front of multiple trucks
+
+# ------------------------------------------------------------------------
+# 1. Select the ego‐vehicle track
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# ------------------------------------------------------------------------
+# 2. Collect every kind of “truck” we care about and merge them together
+trucks = scenario_or([
+    get_objects_of_category(log_dir, category='TRUCK'),       # delivery / utility trucks
+    get_objects_of_category(log_dir, category='BOX_TRUCK'),   # cube vans
+    get_objects_of_category(log_dir, category='TRUCK_CAB')    # semi-cabs / lorries
+])
+
+# ------------------------------------------------------------------------
+# 3. Get all pedestrians
+peds = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# ------------------------------------------------------------------------
+# 4. Find the subset of trucks that a pedestrian is actively crossing *in front of*
+#    – “forward” half-plane ≈ in front of the truck’s bumper
+crossing_trucks = being_crossed_by(
+    trucks,
+    peds,
+    log_dir,
+    direction='forward',
+    forward_thresh=10,   # ≤ 10 m longitudinally ahead of the truck
+    lateral_thresh=5     # ≤ 5 m laterally from the truck centreline
+)
+
+# ------------------------------------------------------------------------
+# 5. Ego vehicle must be *approaching* an intersection (within 30 m)
+ego_near_intersection = near_intersection(
+    ego_vehicle,
+    log_dir,
+    threshold=30
+)
+
+# ------------------------------------------------------------------------
+# 6. Ego vehicle must have *at least two* of those crossing trucks ahead of it
+crossing_trucks_ahead_of_ego = has_objects_in_relative_direction(
+    ego_vehicle,
+    crossing_trucks,
+    log_dir,
+    direction='forward',
+    min_number=2,        # “multiple trucks”
+    within_distance=100, # allow up to 100 m in front
+    lateral_thresh=10    # roughly same or adjacent lane
+)
+
+# ------------------------------------------------------------------------
+# 7. Combine the requirements: near the intersection AND the trucks-ahead condition
+scenario = scenario_and([
+    ego_near_intersection,
+    crossing_trucks_ahead_of_ego
+])
+
+# ------------------------------------------------------------------------
+# 8. Output the composed scenario
+description = 'ego vehicle approaching intersection with a pedestrian crossing in front of multiple trucks'
+output_scenario(scenario, description, log_dir, output_dir)

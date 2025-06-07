@@ -1,0 +1,37 @@
+# This scenario aims to identify a regular vehicle that cuts in front of the ego vehicle.
+# "Cutting in front" is defined as a vehicle that is actively changing lanes and, in doing so,
+# crosses the immediate forward path of the ego vehicle.
+# Note: The API does not support filtering by object color, so this script will identify
+# any regular vehicle cutting in front, not specifically a white one.
+description = 'white car cutting in front of ego vehicle'
+
+# Retrieve the ego vehicle and all other regular vehicles from the dataset.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+cars = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+# A vehicle that is cutting in front of another is performing an active maneuver.
+# Therefore, we first filter out any vehicles that are stationary or parked.
+active_cars = scenario_not(stationary)(cars, log_dir)
+
+# A "cut in" is a type of lane change. We select only the cars that are actively changing lanes.
+# The direction is left as None to capture both left and right lane changes.
+lane_changing_cars = changing_lanes(active_cars, log_dir)
+
+# The core of the scenario is identifying the vehicle that crosses into the ego's path.
+# The `being_crossed_by` function finds objects whose path is crossed by another.
+# We want to find the car doing the crossing, not the ego vehicle being crossed.
+# `reverse_relationship` is used to make the crossing car the primary object in the output scenario.
+# The crossing must happen in the 'forward' direction relative to the ego vehicle.
+# `forward_thresh=20`: The cut-in must happen within 20 meters in front of the ego vehicle.
+# `lateral_thresh=3`: The crossing must occur within a 3-meter lateral path, approximating the width of the ego's lane.
+car_cutting_in_front_of_ego = reverse_relationship(being_crossed_by)(
+    track_candidates=ego_vehicle,
+    related_candidates=lane_changing_cars,
+    log_dir=log_dir,
+    direction='forward',
+    forward_thresh=20,
+    lateral_thresh=3
+)
+
+# Output the final scenario, which contains the vehicles that met all the above criteria.
+output_scenario(car_cutting_in_front_of_ego, description, log_dir, output_dir)

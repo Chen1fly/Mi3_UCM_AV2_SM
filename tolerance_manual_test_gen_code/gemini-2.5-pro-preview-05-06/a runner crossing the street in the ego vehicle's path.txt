@@ -1,0 +1,25 @@
+description = "a runner crossing the street in the ego vehicle's path"
+
+# First, get all pedestrians from the dataset.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# A runner is a pedestrian moving at a high velocity. We'll set a threshold of 2.5 m/s,
+# which is a fast walk or a slow jog, to distinguish them from regular pedestrians.
+runners = has_velocity(pedestrians, log_dir, min_velocity=2.5)
+
+# We only care about runners who are on the street.
+runners_on_street = on_road(runners, log_dir)
+
+# Get the ego vehicle.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# We are interested in the ego vehicle when it is actively driving, not parked.
+active_ego_vehicle = scenario_not(stationary)(ego_vehicle, log_dir)
+
+# Now, we find instances where the runner is crossing in front of the active ego vehicle.
+# The `being_crossed_by` function identifies the object being crossed. By default, this would be the ego vehicle.
+# Since we want to identify the runner, we use `reverse_relationship` to swap the output to be the `related_candidates` (the runner).
+runner_crossing_in_front_of_ego = reverse_relationship(being_crossed_by)(active_ego_vehicle, runners_on_street, log_dir, direction='forward')
+
+# Finally, output the resulting scenario.
+output_scenario(runner_crossing_in_front_of_ego, description, log_dir, output_dir)

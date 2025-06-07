@@ -1,0 +1,71 @@
+description = 'vehicle maneuvering between construction barriers'
+
+# Get all vehicle objects from the logs.
+# 'VEHICLE' is a superclass including various types like REGULAR_VEHICLE, LARGE_VEHICLE, etc.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter for vehicles that are actively moving.
+# "Maneuvering" implies the vehicle is not parked or stationary for a long duration.
+# First, exclude vehicles identified as 'stationary' (moved less than 2m total in the scenario).
+moving_vehicles_potentially = scenario_not(stationary)(vehicles, log_dir)
+
+# Further refine by ensuring these vehicles have a minimum velocity.
+# stationary() is for long-term parked status. has_velocity() checks instantaneous speed.
+# A min_velocity of 0.5 m/s helps filter out noise or very minimal movements that aren't "maneuvering".
+moving_vehicles = has_velocity(moving_vehicles_potentially, log_dir, min_velocity=0.5)
+
+# Get categories of objects that typically serve as construction barriers.
+# CONSTRUCTION_CONE and CONSTRUCTION_BARREL are the most direct fits.
+cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+barrels = get_objects_of_category(log_dir, category='CONSTRUCTION_BARREL')
+
+# Combine cones and barrels into a single scenario dictionary representing all construction barriers.
+construction_barriers = scenario_or([cones, barrels])
+
+# Identify moving vehicles that have at least two construction barriers close on their left side.
+# The "close" condition is defined by:
+# - direction='left': We are looking for barriers to the left of the vehicle.
+# - min_number=2: Require at least two barriers to be present to form a sense of a "channel" or line.
+# - max_number=2: If min_number is met, relationship data will be stored for up to 2 closest barriers.
+#                 This doesn't change which vehicles are selected, only the richness of related object info.
+# - within_distance=1.5 (meters): This parameter, for side directions like 'left' or 'right', typically controls
+#                                 the maximum lateral distance from the vehicle's side to the center of the related object.
+#                                 So, barrier center is within 1.5m from the vehicle's left side.
+# - lateral_thresh=3.0 (meters): For side directions, this parameter controls the maximum longitudinal displacement.
+#                                It means the barrier's center must be longitudinally within +/- 3.0m of the vehicle's
+#                                reference point (e.g., center), ensuring the barrier is alongside the vehicle.
+vehicles_with_barriers_on_left = has_objects_in_relative_direction(
+    track_candidates=moving_vehicles,
+    related_candidates=construction_barriers,
+    log_dir=log_dir,
+    direction='left',
+    min_number=2,
+    max_number=2, 
+    within_distance=1.5, 
+    lateral_thresh=3.0   
+)
+
+# Identify moving vehicles that have at least two construction barriers close on their right side.
+# The parameters are analogous to checking the left side.
+vehicles_with_barriers_on_right = has_objects_in_relative_direction(
+    track_candidates=moving_vehicles,
+    related_candidates=construction_barriers,
+    log_dir=log_dir,
+    direction='right',
+    min_number=2,
+    max_number=2,
+    within_distance=1.5, 
+    lateral_thresh=3.0   
+)
+
+# A vehicle is "maneuvering between construction barriers" if it meets both conditions:
+# 1. It has (at least two) construction barriers close on its left.
+# 2. It has (at least two) construction barriers close on its right.
+# The scenario_and function finds vehicles present in both resulting dictionaries (i.e., satisfying both conditions).
+vehicle_maneuvering_between_barriers = scenario_and([
+    vehicles_with_barriers_on_left,
+    vehicles_with_barriers_on_right
+])
+
+# Output the resulting scenario.
+output_scenario(vehicle_maneuvering_between_barriers, description, log_dir, output_dir)

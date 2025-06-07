@@ -1,0 +1,29 @@
+# description: person stepping out of car onto road in front of ego vehicle
+
+# First, get all the pedestrians, vehicles, and the ego vehicle from the logs.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# We need to find vehicles that are either parked or have stopped.
+# The stationary() function is for vehicles that don't move at all in the scenario.
+# A person can step out of a car that has just stopped in traffic.
+# So, we'll consider any vehicle moving at less than 1 m/s as "stopped".
+stopped_or_slow_vehicles = has_velocity(vehicles, log_dir, max_velocity=1.0)
+
+# Now, we find pedestrians who are very close to these stopped or slow vehicles.
+# A person stepping out of a car will be right next to it. We'll use a distance of 2 meters as a threshold.
+# We want to track the pedestrian, not the vehicle, so we use reverse_relationship on near_objects.
+pedestrians_near_vehicles = reverse_relationship(near_objects)(stopped_or_slow_vehicles, pedestrians, log_dir, distance_thresh=2, min_objects=1)
+
+# The description specifies that the person steps "onto the road".
+# So, we filter the pedestrians we found to only include those that are on a road.
+pedestrians_on_road_near_vehicles = on_road(pedestrians_near_vehicles, log_dir)
+
+# Finally, we are only interested in the cases where this happens in front of our ego vehicle.
+# We'll check for the identified pedestrians within a 50-meter range in the forward direction of the ego vehicle.
+# We use get_objects_in_relative_direction to get the pedestrian objects as the final result.
+person_stepping_out = get_objects_in_relative_direction(ego_vehicle, pedestrians_on_road_near_vehicles, log_dir, direction='forward', within_distance=50)
+
+# Output the final scenario.
+output_scenario(person_stepping_out, description, log_dir, output_dir)

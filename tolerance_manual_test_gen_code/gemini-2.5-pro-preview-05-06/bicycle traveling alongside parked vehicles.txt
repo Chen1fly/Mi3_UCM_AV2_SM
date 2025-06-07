@@ -1,0 +1,88 @@
+description = "bicycle traveling alongside parked vehicles"
+
+# Get all bicycle objects from the dataset
+# 'BICYCLE' is the specific category for bicycles.
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Filter for bicycles that are currently "traveling".
+# "Traveling" implies the bicycle is in motion at the time of the event.
+# We use has_velocity with a minimum threshold to identify bicycles that are moving,
+# distinguishing them from bicycles that are momentarily stopped or have very low speed due to jitter.
+# A common threshold for "moving" is 0.5 m/s.
+traveling_bicycles = has_velocity(bicycles, log_dir, min_velocity=0.5)
+
+# Get all objects categorized as 'VEHICLE'.
+# 'VEHICLE' is a superclass that includes cars, trucks, buses, etc.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter for vehicles that are "parked".
+# The stationary() function is designed to identify objects (like vehicles)
+# that have moved very little throughout their observation period in the scenario,
+# which is characteristic of parked vehicles.
+parked_vehicles = stationary(all_vehicles, log_dir)
+
+# Define parameters to quantify "alongside".
+# These parameters will be used with has_objects_in_relative_direction.
+
+# within_distance: This controls the longitudinal proximity.
+# It's the maximum distance (along the bicycle's path of travel) to the center of the parked vehicle.
+# A typical car is 4-5 meters long. If a bicycle is alongside a car, the car's center
+# would be within roughly +/- 2.5 meters of the bicycle.
+# A value of 5.0 meters provides a reasonable window, meaning the parked vehicle's center
+# is within 5m ahead or behind the bicycle.
+alongside_longitudinal_distance = 5.0  # meters
+
+# lateral_thresh: This controls the lateral proximity (the gap).
+# It's the maximum lateral distance from the side of the bicycle to the closest side of the parked vehicle.
+# For a bicycle to be "alongside" a parked vehicle, this gap should be small.
+# A typical clearance might be 0.5 to 1 meter.
+# A threshold of 1.5 meters allows for this and a bit of extra space, ensuring precision.
+alongside_lateral_gap = 1.5  # meters
+
+# Find traveling bicycles that have at least one parked vehicle to their left,
+# meeting the "alongside" criteria.
+# track_candidates are the traveling_bicycles.
+# related_candidates are the parked_vehicles.
+# direction='left' means we are looking for parked vehicles on the left side of the bicycle.
+# min_number=1 ensures there's at least one such parked vehicle.
+bicycles_with_parked_vehicle_on_left = has_objects_in_relative_direction(
+    track_candidates=traveling_bicycles,
+    related_candidates=parked_vehicles,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1,
+    within_distance=alongside_longitudinal_distance,
+    lateral_thresh=alongside_lateral_gap
+)
+
+# Find traveling bicycles that have at least one parked vehicle to their right,
+# meeting the "alongside" criteria.
+# Similar to the 'left' case, but checking the 'right' side of the bicycle.
+bicycles_with_parked_vehicle_on_right = has_objects_in_relative_direction(
+    track_candidates=traveling_bicycles,
+    related_candidates=parked_vehicles,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,
+    within_distance=alongside_longitudinal_distance,
+    lateral_thresh=alongside_lateral_gap
+)
+
+# A bicycle is "traveling alongside parked vehicles" if the condition is met
+# on its left side OR on its right side.
+# scenario_or combines these two scenarios. The resulting dictionary will contain
+# bicycles that satisfy either of the conditions.
+bicycles_traveling_alongside_parked_vehicles = scenario_or([
+    bicycles_with_parked_vehicle_on_left,
+    bicycles_with_parked_vehicle_on_right
+])
+
+# Output the final scenario.
+# This will save the track UUIDs of the identified bicycles and the timestamps
+# when they are traveling alongside parked vehicles.
+output_scenario(
+    bicycles_traveling_alongside_parked_vehicles,
+    description,
+    log_dir,
+    output_dir
+)

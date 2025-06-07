@@ -1,0 +1,25 @@
+description='large vehicle pulling out in front of ego  vehicle from side road'
+# Get the ego vehicle, which will be the reference for our scenario.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all large vehicles, which is the category of the actor we are interested in.
+large_vehicles = get_objects_of_category(log_dir, category='LARGE_VEHICLE')
+
+# We are only interested in large vehicles that are currently in motion.
+moving_large_vehicles = scenario_not(stationary)(large_vehicles, log_dir)
+
+# To model coming from a "side road", we identify large vehicles that are on the opposite side of the road from the ego vehicle.
+side_road_large_vehicles = on_relative_side_of_road(moving_large_vehicles, ego_vehicle, log_dir, side='opposite')
+
+# Now, we find instances where the ego vehicle is being crossed in its forward path by one of these moving large vehicles from the side road.
+# This represents the "pulling out in front" action.
+# We set a forward_thresh of 30 meters to capture events that are relevant to the ego's immediate path.
+# The lateral_thresh of 5 meters ensures we capture the full crossing motion.
+ego_being_crossed = being_crossed_by(ego_vehicle, side_road_large_vehicles, log_dir, direction='forward', forward_thresh=30, lateral_thresh=5)
+
+# The `being_crossed_by` function returns the object being crossed (the ego vehicle) as the main track.
+# We want the large vehicle that is performing the action, so we reverse the relationship.
+large_vehicle_pulling_out = reverse_relationship(being_crossed_by)(ego_vehicle, side_road_large_vehicles, log_dir, direction='forward', forward_thresh=30, lateral_thresh=5)
+
+# Output the final scenario.
+output_scenario(large_vehicle_pulling_out, description, log_dir, output_dir)

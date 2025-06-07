@@ -1,0 +1,49 @@
+# Find buses that are spilling over the lane dividing line.
+# This is interpreted as a bus being unusually close to a vehicle in an adjacent lane.
+
+# First, get all bus objects from the dataset.
+buses = get_objects_of_category(log_dir, category='BUS')
+
+# Also, get all other vehicles which the bus might be spilling into the lane of.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# We are interested in active scenarios, so we filter out stationary buses and vehicles
+# to avoid capturing parked vehicles that are close to each other.
+active_buses = scenario_not(stationary)(buses, log_dir)
+active_vehicles = scenario_not(stationary)(vehicles, log_dir)
+
+# A bus spilling into an adjacent lane will have a very small lateral distance
+# to a vehicle in that lane. We can use has_objects_in_relative_direction
+# with a small lateral_thresh to detect this. A threshold of 0.4 meters is chosen
+# as it indicates the sides of the two vehicles are very close.
+
+# Find buses with a vehicle to their left.
+bus_with_vehicle_on_left = has_objects_in_relative_direction(
+    track_candidates=active_buses,
+    related_candidates=active_vehicles,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1,
+    max_number=1,
+    within_distance=15,  # Check for vehicles within a 15m longitudinal distance.
+    lateral_thresh=0.4
+)
+
+# Find buses with a vehicle to their right.
+bus_with_vehicle_on_right = has_objects_in_relative_direction(
+    track_candidates=active_buses,
+    related_candidates=active_vehicles,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,
+    max_number=1,
+    within_distance=15,
+    lateral_thresh=0.4
+)
+
+# A bus can be spilling to either the left or the right lane.
+# We use scenario_or to combine both cases.
+spilling_buses = scenario_or([bus_with_vehicle_on_left, bus_with_vehicle_on_right])
+
+# Output the resulting scenario.
+output_scenario(spilling_buses, "bus spilling over the lane dividing line", log_dir, output_dir)

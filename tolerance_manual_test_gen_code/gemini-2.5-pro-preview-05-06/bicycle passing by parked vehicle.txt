@@ -1,0 +1,63 @@
+description = 'bicycle passing by parked vehicle'
+
+# Get all bicycles
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Filter for bicycles that are actually moving
+# A bicycle "passing by" implies it has some velocity.
+# 0.5 m/s is a threshold to distinguish from stationary or minor jitter.
+moving_bicycles = has_velocity(bicycles, log_dir, min_velocity=0.5)
+
+# Get all vehicles
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter for vehicles that are parked
+# The stationary() function identifies objects that moved less than 2m over their observation,
+# which is a good indicator for parked vehicles.
+parked_vehicles = stationary(all_vehicles, log_dir)
+
+# --- Define "passing by" using being_crossed_by ---
+# We are looking for bicycles (related_candidates in the original call to being_crossed_by)
+# that are passing parked_vehicles (track_candidates in the original call).
+# The reverse_relationship wrapper will make the bicycle the primary key in the output.
+
+# Case 1: Bicycle passes on the left side of the parked vehicle
+# - track_candidates = parked_vehicles: The object being passed.
+# - related_candidates = moving_bicycles: The object doing the passing.
+# - direction="left": The bicycle is on the parked vehicle's left side.
+# - in_direction='either': The bicycle can cross the defined zone in either direction along the plane normal.
+#                          For "passing by", this is generally acceptable.
+# - forward_thresh=3: The interaction zone (midplane) extends 3 meters laterally from the side of the parked vehicle.
+#                     This is the width of the "lane" the bicycle is using to pass.
+# - lateral_thresh=7: The interaction zone extends 7 meters longitudinally along the side of the parked vehicle.
+#                     This should cover the length of most parked vehicles and the duration of the pass.
+bicycles_passing_on_left_of_parked_vehicle = reverse_relationship(being_crossed_by)(
+    track_candidates=parked_vehicles,
+    related_candidates=moving_bicycles,
+    log_dir=log_dir,
+    direction="left",
+    in_direction='either',
+    forward_thresh=3,  # Bicycle passes within 3m from the side of the parked vehicle
+    lateral_thresh=7   # Interaction considered along a 7m stretch of the parked vehicle's side
+)
+
+# Case 2: Bicycle passes on the right side of the parked vehicle
+# Parameters are analogous to passing on the left.
+bicycles_passing_on_right_of_parked_vehicle = reverse_relationship(being_crossed_by)(
+    track_candidates=parked_vehicles,
+    related_candidates=moving_bicycles,
+    log_dir=log_dir,
+    direction="right",
+    in_direction='either',
+    forward_thresh=3, # Bicycle passes within 3m from the side of the parked vehicle
+    lateral_thresh=7  # Interaction considered along a 7m stretch of the parked vehicle's side
+)
+
+# Combine both cases: a bicycle passing on either the left or the right.
+bicycles_passing_parked_vehicles = scenario_or([
+    bicycles_passing_on_left_of_parked_vehicle,
+    bicycles_passing_on_right_of_parked_vehicle
+])
+
+# Output the scenario
+output_scenario(bicycles_passing_parked_vehicles, description, log_dir, output_dir)

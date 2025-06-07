@@ -1,0 +1,43 @@
+description = 'vehicle turning left while pedestrian crosses at crosswalk'
+
+# Get all vehicles in the scenario
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter for vehicles that are turning left
+# This will return a scenario dictionary where keys are vehicle UUIDs
+# and values are lists of timestamps when the vehicle is turning left.
+vehicles_turning_left = turning(all_vehicles, log_dir, direction='left')
+
+# Get all pedestrians in the scenario
+all_pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Filter for pedestrians that are at a pedestrian crossing
+# We use a within_distance of 1.0 meter to ensure they are indeed on or very close to the crosswalk.
+# The default for at_pedestrian_crossing is 1m, so this is explicit.
+pedestrians_at_crosswalk = at_pedestrian_crossing(all_pedestrians, log_dir, within_distance=1.0)
+
+# Filter for pedestrians at a crosswalk who are actively moving (i.e., "crossing")
+# We use has_velocity with a minimum threshold to distinguish from stationary pedestrians
+# who might be waiting at the crosswalk. A velocity > 0.5 m/s typically indicates movement.
+moving_pedestrians_at_crosswalk = has_velocity(pedestrians_at_crosswalk, log_dir, min_velocity=0.5)
+
+# Identify instances where a vehicle, while turning left, is being crossed by a pedestrian
+# who is moving at a crosswalk.
+# 'track_candidates' are the vehicles_turning_left.
+# 'related_candidates' are the moving_pedestrians_at_crosswalk.
+# 'direction="forward"' means the pedestrian is crossing the forward midplane of the vehicle.
+# This is a common configuration for a vehicle turning left and interacting with a crossing pedestrian.
+# The default forward_thresh=10m and lateral_thresh=5m define the interaction zone for the crossing.
+# The resulting scenario will contain the vehicles_turning_left that were crossed by such pedestrians,
+# with timestamps corresponding to when all these conditions (turning left, pedestrian at crosswalk,
+# pedestrian moving, pedestrian crossing vehicle's path) are met.
+scenario_vehicle_turning_left_while_ped_crosses = being_crossed_by(
+    track_candidates=vehicles_turning_left,
+    related_candidates=moving_pedestrians_at_crosswalk,
+    log_dir=log_dir,
+    direction="forward" 
+    # Using default forward_thresh and lateral_thresh
+)
+
+# Output the resulting scenario
+output_scenario(scenario_vehicle_turning_left_while_ped_crosses, description, log_dir, output_dir)

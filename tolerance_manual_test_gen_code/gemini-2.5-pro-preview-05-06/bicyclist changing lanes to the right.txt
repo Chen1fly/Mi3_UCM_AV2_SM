@@ -1,0 +1,11 @@
+# Description: bicyclist changing lanes to the right
+
+# Get all objects of category "BICYCLIST"
+bicyclists = get_objects_of_category(log_dir, category='BICYCLIST')
+
+# Filter bicyclists to find those changing lanes to the right
+bicyclists_changing_lanes_right = changing_lanes(bicyclists, log_dir, direction='right')
+
+# Output the scenario
+description = 'bicyclist changing lanes to the right'
+output_scenario(bicyclists_changing_lanes_right, description, log_dir, output_dir)

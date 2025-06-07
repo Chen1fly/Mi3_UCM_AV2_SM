@@ -1,0 +1,30 @@
+# The user is asking to find instances of a police car stopped on the side of the road.
+# Since there is no "POLICE_CAR" category, I will make the assumption that police cars
+# are most likely to be categorized as 'TRUCK' (e.g., Ford Explorer Police Interceptor Utility),
+# 'LARGE_VEHICLE', or 'REGULAR_VEHICLE'.
+
+# First, let's get all objects that could potentially be a police car.
+trucks = get_objects_of_category(log_dir, category='TRUCK')
+large_vehicles = get_objects_of_category(log_dir, category='LARGE_VEHICLE')
+regular_vehicles = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+# We can combine these categories using scenario_or to create a single dictionary
+# of all potential police cars.
+potential_police_cars = scenario_or([trucks, large_vehicles, regular_vehicles])
+
+# Next, we need to identify the vehicles that are "stopped". The stationary()
+# function is designed for this purpose, identifying objects that have moved very little.
+stopped_potential_police_cars = stationary(potential_police_cars, log_dir)
+
+# Now, we need to determine if the vehicle is "on the side of the road".
+# A good definition for this is a vehicle that is on a road surface but not in a
+# designated lane for vehicles.
+# First, filter for the stopped vehicles that are on a road.
+stopped_on_road = on_road(stopped_potential_police_cars, log_dir)
+
+# From the vehicles that are stopped on a road, we exclude those that are in a
+# regular vehicle lane. This should leave us with vehicles on the shoulder or side area.
+stopped_on_side_of_road = scenario_not(on_lane_type)(stopped_on_road, log_dir, lane_type='VEHICLE')
+
+# The final scenario is the set of vehicles that satisfy all these conditions.
+output_scenario(stopped_on_side_of_road, description='police car stopped on the side of the road', log_dir=log_dir, output_dir=output_dir)

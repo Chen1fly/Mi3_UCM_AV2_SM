@@ -1,0 +1,77 @@
+# ------------------------------------------------------------------
+# Scenario: stop sign on a road with two lanes per direction
+#
+# Intuition:
+#   •  A four-lane, bidirectional road (two lanes each way) will have
+#      traffic appearing on both lateral sides of the stop-sign **and**
+#      vehicles travelling both with and against the sign’s facing
+#      direction.
+#   •  We therefore:
+#        1. Keep only STOP_SIGN objects that lie on a drivable road
+#           surface (not parking lots or sidewalks).
+#        2. Require at least one vehicle within ±25 m that is located
+#           to the *left* of the sign and at least one to the *right*.
+#           (Two lateral neighbours ⇒ at least two side-by-side lanes.)
+#        3. Require ≥ 2 vehicles ≤ 30 m straight *ahead* of the sign
+#           (implying at least two lanes moving in that direction).
+#        4. Require ≥ 1 vehicle ≤ 30 m *behind* the sign (verifying the
+#           opposing flow of traffic).
+#   •  A STOP_SIGN track that satisfies **all four** constraints is
+#      very likely positioned on a road with two lanes per direction.
+# ------------------------------------------------------------------
+
+description = 'stop sign on a road with two lanes per direction'
+
+# --- 1. Candidate stop signs that are actually on the road ----------
+stop_signs            = get_objects_of_category(log_dir, category='STOP_SIGN')
+stop_signs_on_road    = on_road(stop_signs, log_dir)
+
+# --- 2. Vehicles that can be used as relational evidence ------------
+vehicles               = get_objects_of_category(log_dir, category='VEHICLE')
+vehicles_on_road       = on_road(vehicles, log_dir)
+
+# --- 3. Lateral evidence: at least one vehicle on each side ----------
+stop_left  = has_objects_in_relative_direction(
+    stop_signs_on_road, vehicles_on_road, log_dir,
+    direction='left',                 # vehicle must be to the left side
+    min_number=1,                     # at least one such vehicle
+    within_distance=25,               # long-edge of ROI (metres)
+    lateral_thresh=5                  # max lateral offset from sign
+)
+
+stop_right = has_objects_in_relative_direction(
+    stop_signs_on_road, vehicles_on_road, log_dir,
+    direction='right',                # vehicle must be to the right side
+    min_number=1,
+    within_distance=25,
+    lateral_thresh=5
+)
+
+# --- 4. Longitudinal evidence (same traffic direction) --------------
+stop_forward = has_objects_in_relative_direction(
+    stop_signs_on_road, vehicles_on_road, log_dir,
+    direction='forward',              # in front of the sign face
+    min_number=2,                     # at least two → ≥ 2 lanes this way
+    within_distance=30,
+    lateral_thresh=10                 # allow full-lane width
+)
+
+# --- 5. Longitudinal evidence (opposite traffic direction) ----------
+stop_backward = has_objects_in_relative_direction(
+    stop_signs_on_road, vehicles_on_road, log_dir,
+    direction='backward',             # behind the sign face
+    min_number=1,                     # at least one vehicle coming toward sign
+    within_distance=30,
+    lateral_thresh=10
+)
+
+# --- 6. Combine all constraints -------------------------------------
+stop_sign_four_lane = scenario_and([
+    stop_left,
+    stop_right,
+    stop_forward,
+    stop_backward
+])
+
+# --- 7. Export in evaluation-ready format ---------------------------
+output_scenario(stop_sign_four_lane, description, log_dir, output_dir)

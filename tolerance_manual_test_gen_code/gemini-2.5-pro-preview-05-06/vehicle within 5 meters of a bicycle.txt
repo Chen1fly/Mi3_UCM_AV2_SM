@@ -1,0 +1,14 @@
+description = 'vehicle within 5 meters of a bicycle'
+# Get all vehicles from the dataset
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+# Get all bicycles from the dataset
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Find vehicles that are near bicycles within a 5-meter distance.
+# The near_objects function takes the primary objects (vehicles in this case),
+# the related objects to check for proximity (bicycles), the log directory,
+# the distance threshold, and the minimum number of related objects required.
+vehicles_near_bicycles = near_objects(vehicles, bicycles, log_dir, distance_thresh=5, min_objects=1)
+
+# Output the scenario
+output_scenario(vehicles_near_bicycles, description, log_dir, output_dir)

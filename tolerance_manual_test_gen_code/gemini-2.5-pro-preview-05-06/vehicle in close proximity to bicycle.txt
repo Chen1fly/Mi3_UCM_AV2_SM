@@ -1,0 +1,38 @@
+# Scenario: vehicle in close proximity to bicycle
+# ------------------------------------------------
+# This scenario flags any vehicle that comes within a very short distance
+# (≤ 4 m) of at least one bicycle while both are on the road.  Requiring both
+# object classes to be on‐road helps reduce false positives from parked cars or
+# bikes left on sidewalks, and the tight distance threshold further focuses on
+# genuinely close interactions likely relevant to autonomous‐driving behavior.
+
+description = 'vehicle in close proximity to bicycle'
+
+# Retrieve all vehicles and bicycles present in the log.
+vehicles   = get_objects_of_category(log_dir, category='VEHICLE')
+bicycles   = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Filter to objects that are currently on the road (omit parked lots, sidewalks, etc.).
+vehicles_on_road = on_road(vehicles, log_dir)
+bikes_on_road    = on_road(bicycles, log_dir)
+
+# Identify every vehicle that is within 4 m of at least one bicycle.
+#   • track_candidates   → vehicles_on_road
+#   • related_candidates → bikes_on_road
+#   • distance_thresh    → 4 m (tight range for “close proximity”)
+#   • min_objects        → 1 (must have ≥ 1 nearby bicycle)
+vehicles_near_bikes = near_objects(
+    vehicles_on_road,
+    bikes_on_road,
+    log_dir,
+    distance_thresh=4,
+    min_objects=1
+)
+
+# Export the resulting scenario in evaluation-ready format.
+output_scenario(
+    vehicles_near_bikes,
+    description,
+    log_dir,
+    output_dir
+)

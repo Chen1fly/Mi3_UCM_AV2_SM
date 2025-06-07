@@ -1,0 +1,24 @@
+# Description: vehicle turning right at stop sign
+
+# Get all objects of category 'VEHICLE'
+# This will serve as the base set of objects we are interested in.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles from the base set that are turning right.
+# The 'turning' function filters for objects performing a turn maneuver in the specified direction.
+turning_right_vehicles = turning(vehicles, log_dir, direction='right')
+
+# Identify vehicles from the base set that are at a stop sign.
+# The 'at_stop_sign' function identifies objects in a lane corresponding to a stop sign
+# and within a certain forward distance (default 10m) of the stop sign.
+vehicles_at_stop_sign = at_stop_sign(vehicles, log_dir)
+
+# Combine the two conditions: the vehicle must be turning right AND be at a stop sign.
+# The 'scenario_and' function takes a list of scenario dictionaries and returns a new
+# scenario dictionary containing only the track objects (and their timestamps)
+# that are present in ALL input dictionaries. This ensures both conditions are met.
+vehicle_turning_right_at_stop_sign = scenario_and([turning_right_vehicles, vehicles_at_stop_sign])
+
+# Output the resulting scenario.
+# This function will save the identified instances for evaluation or visualization.
+output_scenario(vehicle_turning_right_at_stop_sign, "vehicle turning right at stop sign", log_dir, output_dir)

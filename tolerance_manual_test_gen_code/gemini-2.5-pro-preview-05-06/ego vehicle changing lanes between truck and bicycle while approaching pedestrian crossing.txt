@@ -1,0 +1,93 @@
+description = "ego vehicle changing lanes between truck and bicycle while approaching pedestrian crossing"
+
+# Get the EGO vehicle object
+# The EGO_VEHICLE is the vehicle collecting the data.
+ego_vehicle = get_objects_of_category(log_dir, category="EGO_VEHICLE")
+
+# Get other relevant object categories involved in the scenario.
+# According to the provided category definitions:
+# "TRUCK": Vehicles like delivery vans, mail trucks, garbage trucks. Not Box Trucks or Truck Cabs.
+# "BICYCLE": Non-motorized two-wheeled vehicle.
+trucks = get_objects_of_category(log_dir, category="TRUCK")
+bicycles = get_objects_of_category(log_dir, category="BICYCLE")
+
+# Condition 1: EGO vehicle is changing lanes.
+# 'direction=None' indicates the EGO vehicle can be changing lanes either to the left or to the right.
+ego_is_changing_lanes = changing_lanes(ego_vehicle, log_dir, direction=None)
+
+# Condition 2: EGO vehicle is approaching a pedestrian crossing.
+# "Approaching" is interpreted as being within a certain proximity to the pedestrian crossing.
+# A distance of 15 meters is chosen as a reasonable threshold for "approaching".
+ego_is_approaching_ped_crossing = at_pedestrian_crossing(ego_vehicle, log_dir, within_distance=15)
+
+# Combine these two primary conditions for the EGO vehicle.
+# The EGO vehicle must be changing lanes AND approaching a pedestrian crossing at the same time.
+# `scenario_and` ensures that the EGO vehicle meets both conditions at the identified timestamps.
+ego_performing_action_near_crossing = scenario_and([ego_is_changing_lanes, ego_is_approaching_ped_crossing])
+
+# Condition 3: The EGO vehicle is "between a truck and a bicycle" during this action.
+# This means a truck is on one side (left/right) of the EGO, and a bicycle is on the other side (right/left).
+# Parameters for `has_objects_in_relative_direction`:
+#   `within_distance=30`: The truck/bicycle must be within 30 meters longitudinally.
+#   `lateral_thresh=3.5`: The truck/bicycle's center must be within 3.5 meters laterally from the EGO's side.
+#                        This value is chosen to target objects in immediately adjacent lanes,
+#                        considering typical lane widths (~3.5m) and vehicle widths.
+#   `min_number=1, max_number=1`: We need at least one such object, and we relate to the closest one.
+
+# Case A: Truck is to the EGO's left, and Bicycle is to the EGO's right.
+# First, filter the EGOs (that are already changing lanes near a crossing) to find those that have a truck to their left.
+ego_with_truck_to_left = has_objects_in_relative_direction(
+    track_candidates=ego_performing_action_near_crossing,
+    related_candidates=trucks,
+    log_dir=log_dir,
+    direction="left",
+    min_number=1,
+    max_number=1,
+    within_distance=30,
+    lateral_thresh=3.5
+)
+# Then, from this set of EGOs (which meet prior conditions and have a truck to their left),
+# further filter to find EGOs that ALSO have a bicycle to their right.
+ego_scenario_truck_left_bicycle_right = has_objects_in_relative_direction(
+    track_candidates=ego_with_truck_to_left, # Input is EGOs already confirmed to have a truck to their left
+    related_candidates=bicycles,
+    log_dir=log_dir,
+    direction="right",
+    min_number=1,
+    max_number=1,
+    within_distance=30,
+    lateral_thresh=3.5
+)
+
+# Case B: Truck is to the EGO's right, and Bicycle is to the EGO's left.
+# First, filter the EGOs (that are changing lanes near a crossing) to find those that have a truck to their right.
+ego_with_truck_to_right = has_objects_in_relative_direction(
+    track_candidates=ego_performing_action_near_crossing,
+    related_candidates=trucks,
+    log_dir=log_dir,
+    direction="right",
+    min_number=1,
+    max_number=1,
+    within_distance=30,
+    lateral_thresh=3.5
+)
+# Then, from this set of EGOs (which meet prior conditions and have a truck to their right),
+# further filter to find EGOs that ALSO have a bicycle to their left.
+ego_scenario_truck_right_bicycle_left = has_objects_in_relative_direction(
+    track_candidates=ego_with_truck_to_right, # Input is EGOs already confirmed to have a truck to their right
+    related_candidates=bicycles,
+    log_dir=log_dir,
+    direction="left",
+    min_number=1,
+    max_number=1,
+    within_distance=30,
+    lateral_thresh=3.5
+)
+
+# The final scenario includes EGO vehicles that satisfy all conditions,
+# covering both configurations of the "between truck and bicycle" requirement (Case A OR Case B).
+final_ego_scenario = scenario_or([ego_scenario_truck_left_bicycle_right, ego_scenario_truck_right_bicycle_left])
+
+# Output the resulting scenario.
+# This will create a file with the EGO vehicle UUIDs and timestamps that match the complex description.
+output_scenario(final_ego_scenario, description, log_dir, output_dir)

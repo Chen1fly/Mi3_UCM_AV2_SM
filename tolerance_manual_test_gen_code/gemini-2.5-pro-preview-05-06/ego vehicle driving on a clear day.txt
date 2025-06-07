@@ -1,0 +1,24 @@
+# Description for the scenario
+description = 'ego vehicle driving on a clear day'
+
+# Get the EGO_VEHICLE object
+# The EGO_VEHICLE category represents the vehicle collecting the data.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Identify instances where the ego vehicle is "driving".
+# "Driving" implies that the vehicle is not stationary for a prolonged period.
+# The `stationary` function identifies objects that moved less than 2m over their entire observation in the scenario.
+# It's designed to distinguish parked/inactive vehicles from active ones.
+# `scenario_not(stationary)` will thus return timestamps when the ego vehicle is considered active or moving.
+driving_ego_vehicle = scenario_not(stationary)(ego_vehicle, log_dir)
+
+# Regarding the "on a clear day" part of the description:
+# The provided set of functions does not include any capabilities to determine
+# weather conditions (e.g., "clear day", "rainy", "foggy") or lighting conditions (e.g., "day", "night").
+# Therefore, this aspect of the scenario description cannot be programmatically identified
+# using the available tools. The output will represent "ego vehicle driving"
+# without the "clear day" condition.
+
+# Output the scenario
+# This will save the identified instances of the ego vehicle driving.
+output_scenario(driving_ego_vehicle, description, log_dir, output_dir)

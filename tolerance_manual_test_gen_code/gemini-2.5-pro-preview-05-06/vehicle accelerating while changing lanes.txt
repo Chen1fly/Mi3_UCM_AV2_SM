@@ -1,0 +1,28 @@
+# Description for the scenario
+description = 'vehicle accelerating while changing lanes'
+
+# Get all objects of category 'VEHICLE'
+# This will serve as the base set of objects we are interested in.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are accelerating
+# We set min_accel to 1.0 m/s^2 because the function documentation states:
+# "Values over 1.0 reliably indiciates accelerating."
+# This helps in being precise and avoiding false positives for slight speed changes.
+accelerating_vehicles = accelerating(vehicles, log_dir, min_accel=1.0)
+
+# Identify vehicles that are changing lanes
+# The changing_lanes function, when called with direction=None (the default),
+# will identify vehicles changing lanes either to the left or to the right.
+lane_changing_vehicles = changing_lanes(vehicles, log_dir)
+
+# Combine the two conditions: the vehicle must be accelerating AND changing lanes simultaneously.
+# The scenario_and function finds the intersection of track objects and timestamps
+# from the provided scenario dictionaries. This means a vehicle will be included
+# if it is present in both 'accelerating_vehicles' and 'lane_changing_vehicles'
+# at the same timestamps.
+vehicle_accelerating_while_changing_lanes = scenario_and([accelerating_vehicles, lane_changing_vehicles])
+
+# Output the resulting scenario
+# This function will save the identified instances for evaluation or visualization.
+output_scenario(vehicle_accelerating_while_changing_lanes, description, log_dir, output_dir)

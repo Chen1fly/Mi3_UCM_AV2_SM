@@ -1,0 +1,32 @@
+# The user wants to find a scenario where the ego vehicle and another vehicle, initially on opposite sides of an intersection,
+# both turn and end up heading in the same direction, i.e., onto the same side of the street.
+
+# Step 1: Get the ego vehicle and all other vehicles.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+other_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Step 2: Identify both the ego vehicle and other vehicles that are turning near an intersection.
+# A 15-meter threshold is used to define 'near' an intersection.
+ego_at_intersection = near_intersection(ego_vehicle, log_dir, threshold=15)
+turning_ego = turning(ego_at_intersection, log_dir)
+
+vehicles_at_intersection = near_intersection(other_vehicles, log_dir, threshold=15)
+turning_vehicles = turning(vehicles_at_intersection, log_dir)
+
+# Step 3: From the set of turning vehicles, find those that are on the opposite side of the road
+# relative to the turning ego vehicle. This captures the "across the intersection" part of the request.
+# The check is performed at the timestamps when both are turning.
+vehicles_across_from_ego = on_relative_side_of_road(turning_vehicles, turning_ego, log_dir, side='opposite')
+
+# Step 4: From that subset, filter for vehicles that are now heading in the same direction as the ego vehicle.
+# This ensures they have turned "onto the same side of the street".
+vehicles_turning_same_direction = heading_in_relative_direction_to(vehicles_across_from_ego, turning_ego, log_dir, direction='same')
+
+# Step 5: Finally, identify the ego vehicle instances that are near these identified vehicles.
+# This links the two vehicles together in the final scenario output, fulfilling the "ego vehicle and vehicle" pairing.
+# A distance threshold of 30 meters is used to confirm they are at the same intersection.
+final_scenario = near_objects(turning_ego, vehicles_turning_same_direction, log_dir, distance_thresh=30, min_objects=1)
+
+# Step 6: Output the resulting scenario.
+description = 'ego vehicle and vehicle across the intersection simultaneously turn onto the same side of the street'
+output_scenario(final_scenario, description, log_dir, output_dir)

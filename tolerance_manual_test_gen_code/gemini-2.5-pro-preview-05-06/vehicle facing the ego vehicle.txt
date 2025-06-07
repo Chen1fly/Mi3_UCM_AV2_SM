@@ -1,0 +1,29 @@
+description = 'vehicle facing the ego vehicle'
+
+# Get all objects categorized as "VEHICLE".
+# The "VEHICLE" superclass includes various types of vehicles (cars, trucks, buses)
+# but does not include the "EGO_VEHICLE".
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Get the ego vehicle.
+ego_vehicle = get_objects_of_category(log_dir, category="EGO_VEHICLE")
+
+# Identify vehicles from 'all_vehicles' that are facing towards the 'ego_vehicle'.
+# The 'facing_toward' function checks if the 'related_candidates' (in this case, the ego_vehicle)
+# is positioned within a forward-facing cone of the 'track_candidates' (other vehicles).
+# By default, 'within_angle' is 22.5 degrees, meaning the ego vehicle must be
+# within a 45-degree field of view directly in front of the other vehicle.
+# By default, 'max_distance' is 50 meters, meaning the vehicle must be within this
+# distance to be considered "facing" the ego in a relevant context.
+# These defaults align with a precise interpretation of "facing", avoiding false positives
+# from distant or vaguely oriented vehicles.
+vehicles_facing_ego_vehicle = facing_toward(
+    track_candidates=all_vehicles,
+    related_candidates=ego_vehicle,
+    log_dir=log_dir
+)
+
+# Output the resulting scenario.
+# This will include all instances of vehicles (UUIDs and timestamps) that meet the
+# "facing the ego vehicle" criteria.
+output_scenario(vehicles_facing_ego_vehicle, description, log_dir, output_dir)

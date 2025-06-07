@@ -1,0 +1,5 @@
+description = "tow truck"
+# A tow truck is a type of utility truck, which falls under the 'TRUCK' category.
+# There is no specific category for tow trucks, so this will identify all trucks.
+tow_trucks = get_objects_of_category(log_dir, category='TRUCK')
+output_scenario(tow_trucks, description, log_dir, output_dir)

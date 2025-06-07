@@ -1,0 +1,24 @@
+# description: A vehicle that is on the opposite side of the road and begins to turn into the lane occupied by the ego vehicle.
+description = 'vehicle on opposite side of road turning into same lane as ego vehicle'
+
+# First, we get all the vehicles in the scenario, as well as the ego vehicle for reference.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# We identify all vehicles that are on the opposite side of the road from the ego vehicle.
+# This establishes the initial condition of the scenario.
+opposite_side_vehicles = on_relative_side_of_road(vehicles, ego_vehicle, log_dir, side='opposite')
+
+# From the set of vehicles on the opposite side, we find the ones that are currently turning.
+# This captures the moment the vehicle initiates a turn from its original position.
+turning_from_opposite_side = turning(opposite_side_vehicles, log_dir)
+
+# To capture the intent of turning "into same lane as ego vehicle", we check which of these turning vehicles
+# are also heading toward the ego vehicle. During a U-turn or a similar maneuver into the ego's lane,
+# the turning vehicle's velocity vector will point toward the ego vehicle's general area. This serves as a
+# strong indicator for the described scenario without requiring a contradictory state of being on the opposite
+# side and in the same lane simultaneously.
+vehicle_turning_into_ego_lane = heading_toward(turning_from_opposite_side, ego_vehicle, log_dir)
+
+# Finally, we output the scenario, which contains the vehicles that meet all the specified conditions.
+output_scenario(vehicle_turning_into_ego_lane, description, log_dir, output_dir)

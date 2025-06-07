@@ -1,0 +1,16 @@
+# Define the description for the scenario
+description = 'accelerating passenger vehicle'
+
+# Get all objects of the category "REGULAR_VEHICLE", which best represents "passenger vehicle"
+# "REGULAR_VEHICLE": Any conventionally sized passenger vehicle used for the transportation of people and cargo.
+# This includes Cars, vans, pickup trucks, SUVs, etc.
+passenger_vehicles = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+# Filter these passenger vehicles to find those that are accelerating.
+# The `accelerating` function's documentation states: "Values over 1.0 reliably indiciates accelerating."
+# To be precise and avoid false positives, we will use a min_accel of 1.0 m/s^2.
+accelerating_passenger_vehicles = accelerating(passenger_vehicles, log_dir, min_accel=1.0)
+
+# Output the resulting scenario
+# This function will save the identified instances for evaluation or visualization.
+output_scenario(accelerating_passenger_vehicles, description, log_dir, output_dir)

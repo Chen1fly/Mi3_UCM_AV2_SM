@@ -1,0 +1,53 @@
+description = 'bicycle traveling with vehicle traffic'
+
+# Get all bicycle objects from the logs.
+# These are the primary candidates we are interested in.
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Get all vehicle objects from the logs.
+# These will be used to define the "vehicle traffic" context.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter for bicycles that are actually moving, as "traveling" implies motion.
+# stationary() identifies objects that moved very little; scenario_not(stationary) gives us active ones.
+traveling_bicycles = scenario_not(stationary)(bicycles, log_dir)
+
+# Filter for vehicles that are also moving.
+# "Vehicle traffic" implies active, moving vehicles.
+traveling_vehicles = scenario_not(stationary)(vehicles, log_dir)
+
+# From the set of traveling bicycles, identify those that are on a 'VEHICLE' lane type.
+# This places the bicycle in the designated space for vehicular movement,
+# a key aspect of "traveling with vehicle traffic".
+# The result `bicycles_on_vehicle_lanes_moving` is a scenario dict of bicycle UUIDs
+# and timestamps where they are traveling on a vehicle lane.
+bicycles_on_vehicle_lanes_moving = on_lane_type(traveling_bicycles, log_dir, lane_type='VEHICLE')
+
+# From bicycles that are moving and on vehicle lanes,
+# identify those that are in the same lane as any of the traveling vehicles.
+# This step ensures a close spatial relationship C sharing a lane segment C
+# with actual vehicle traffic. This is a strong indicator of "traveling with".
+# The result `bicycles_sharing_lane_with_vehicle` further filters the timestamps for these bicycles.
+bicycles_sharing_lane_with_vehicle = in_same_lane(
+    bicycles_on_vehicle_lanes_moving, # Input are bicycles confirmed to be moving and on vehicle lanes
+    traveling_vehicles,               # Check for same-lane occupancy with any moving vehicle
+    log_dir
+)
+
+# Finally, from the bicycles found to be sharing a lane with a moving vehicle,
+# ensure they are heading in the same direction as the general vehicle traffic.
+# 'direction="same"' typically means a relative heading within a small angle (e.g., 0-45 degrees).
+# This confirms the bicycle is part of the traffic flow and not, for example, crossing or opposing it.
+# The `related_candidates` are all `traveling_vehicles`, meaning the bicycle's heading
+# is compared against the general flow of moving vehicles in the scene.
+# The result `bicycle_traveling_with_vehicle_traffic` contains the final set of bicycles and timestamps.
+bicycle_traveling_with_vehicle_traffic = heading_in_relative_direction_to(
+    bicycles_sharing_lane_with_vehicle, # Input are bicycles already confirmed to be moving, on a vehicle lane, and sharing that lane with a moving vehicle
+    traveling_vehicles,                 # Compare direction against the pool of all moving vehicles
+    log_dir,
+    direction='same'
+)
+
+# Output the resulting scenario.
+# This scenario will contain bicycle UUIDs and timestamps where all the above conditions are met.
+output_scenario(bicycle_traveling_with_vehicle_traffic, description, log_dir, output_dir)

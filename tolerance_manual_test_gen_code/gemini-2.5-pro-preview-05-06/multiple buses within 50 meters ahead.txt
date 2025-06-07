@@ -1,0 +1,25 @@
+description = 'multiple buses within 50 meters ahead'
+
+# Get all bus objects from the dataset
+buses = get_objects_of_category(log_dir, category='BUS')
+
+# Get the ego vehicle object
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Find instances where the ego vehicle has multiple (at least 2) buses ahead within 50 meters.
+# track_candidates is the ego_vehicle, as we are looking from its perspective.
+# related_candidates are the buses, as these are the objects we are looking for relative to the ego_vehicle.
+# direction is 'forward' because the description specifies "ahead".
+# min_number is 2 because the description specifies "multiple buses".
+# within_distance is 50 as specified in the description.
+ego_with_multiple_buses_ahead = has_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=buses,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=2,  # "multiple" implies at least 2
+    within_distance=50
+)
+
+# Output the identified scenario
+output_scenario(ego_with_multiple_buses_ahead, description, log_dir, output_dir)

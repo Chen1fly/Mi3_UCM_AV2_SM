@@ -1,0 +1,46 @@
+# Goal: Find instances of a van pausing during an unprotected left turn to let the ego vehicle pass.
+# This can be broken down into several conditions:
+# 1. The object of interest is a 'van'. Since there is no 'VAN' category, we'll use 'REGULAR_VEHICLE' which includes vans.
+# 2. The van is performing a 'left turn'.
+# 3. The van is 'pausing', which means it's temporarily stationary or moving very slowly.
+# 4. The turn is 'unprotected', which usually happens at an intersection.
+# 5. The pause is 'to let the ego vehicle pass', which implies the ego is oncoming and in front of the van.
+
+description = "van pausing an unprotected left turn to let ego vehicle pass"
+
+# First, get all vehicles that could be vans. 'REGULAR_VEHICLE' is the most appropriate category.
+# Also, get the ego vehicle, which is central to the interaction.
+vans = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Identify vans that are in the process of turning left.
+left_turning_vans = turning(vans, log_dir, direction='left')
+
+# The van is "pausing", so it should have a very low velocity.
+# We use has_velocity with a low max_velocity to find vehicles that are temporarily stopped.
+# This is more suitable than stationary() which is for parked vehicles.
+paused_vans = has_velocity(left_turning_vans, log_dir, max_velocity=0.5)
+
+# Unprotected turns typically occur at intersections. We'll find the paused, turning vans that are near an intersection.
+# A threshold of 15 meters is a reasonable distance to be considered 'near'.
+vans_at_intersection = near_intersection(paused_vans, log_dir, threshold=15)
+
+# Now, we need to establish the relationship with the ego vehicle. The van is letting the ego pass,
+# which implies the ego is oncoming traffic moving in the opposite direction.
+# We identify the ego vehicle when it's heading opposite to our candidate vans.
+oncoming_ego = heading_in_relative_direction_to(ego_vehicle, vans_at_intersection, log_dir, direction='opposite')
+
+# Finally, we confirm that the van is pausing *for* the ego vehicle.
+# This means the oncoming ego vehicle must be in front of the van from the van's perspective.
+# We filter our candidate vans to find those that have the oncoming ego in front of them.
+van_yielding_for_ego = has_objects_in_relative_direction(
+    track_candidates=vans_at_intersection,
+    related_candidates=oncoming_ego,
+    log_dir=log_dir,
+    direction="forward",
+    min_number=1,
+    within_distance=50  # Check for the ego vehicle within a 50-meter range.
+)
+
+# Output the final scenario.
+output_scenario(van_yielding_for_ego, description, log_dir, output_dir)

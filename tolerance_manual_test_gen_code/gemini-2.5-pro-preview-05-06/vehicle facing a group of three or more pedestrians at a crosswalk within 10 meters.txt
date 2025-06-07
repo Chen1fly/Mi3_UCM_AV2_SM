@@ -1,0 +1,55 @@
+# Scenario: vehicle facing a group of three or more pedestrians at a crosswalk within 10 m
+description = 'vehicle facing a group of three or more pedestrians at a crosswalk within 10 meters'
+
+# --------------------------------------------------------------------
+# 1. Collect all candidate tracks for vehicles and pedestrians
+# --------------------------------------------------------------------
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')         # All motor vehicles
+peds     = get_objects_of_category(log_dir, category='PEDESTRIAN')      # All pedestrians
+
+# --------------------------------------------------------------------
+# 2. Keep only pedestrians that are on the designated pedestrian crossing
+#    (small tolerance so we do not miss slightly off-center annotations)
+# --------------------------------------------------------------------
+peds_at_crosswalk = at_pedestrian_crossing(peds, log_dir, within_distance=1)
+
+# --------------------------------------------------------------------
+# 3. Find vehicles that are (a) within 10 m of ≥ 3 of those pedestrians
+# --------------------------------------------------------------------
+vehicles_near_ped_group = near_objects(
+    vehicles,                      # track_candidates (vehicles)
+    peds_at_crosswalk,             # related_candidates (pedestrians on crossing)
+    log_dir,
+    distance_thresh=10,            # within 10 m
+    min_objects=3                  # need at least 3 pedestrians
+)
+
+# --------------------------------------------------------------------
+# 4. Ensure the vehicle is actually oriented toward that pedestrian group
+#    (±22.5° field of view, also limited to the same 10 m range)
+# --------------------------------------------------------------------
+vehicles_facing_peds = facing_toward(
+    vehicles,                      # track_candidates
+    peds_at_crosswalk,             # related_candidates
+    log_dir,
+    within_angle=22.5,             # roughly straight ahead
+    max_distance=10                # same spatial window as above
+)
+
+# --------------------------------------------------------------------
+# 5. Both conditions must hold at the same timestamps → intersection
+# --------------------------------------------------------------------
+vehicles_facing_group_peds = scenario_and([
+    vehicles_near_ped_group,
+    vehicles_facing_peds
+])
+
+# --------------------------------------------------------------------
+# 6. Export the resulting scenario
+# --------------------------------------------------------------------
+output_scenario(
+    vehicles_facing_group_peds,
+    description,
+    log_dir,
+    output_dir
+)

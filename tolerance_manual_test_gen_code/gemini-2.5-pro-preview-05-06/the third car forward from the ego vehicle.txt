@@ -1,0 +1,24 @@
+description = "the third car forward from the ego vehicle"
+
+# Get the ego vehicle and all other vehicles from the dataset.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter for vehicles that are not stationary to focus on active traffic.
+active_vehicles = scenario_not(stationary)(vehicles, log_dir)
+
+# Identify vehicles that are in the same lane as the ego vehicle.
+vehicles_in_same_lane_as_ego = in_same_lane(active_vehicles, ego_vehicle, log_dir)
+
+# Find the first vehicle directly in front of the ego vehicle in the same lane.
+# get_objects_in_relative_direction will return the vehicle that is in front.
+first_car_forward = get_objects_in_relative_direction(ego_vehicle, vehicles_in_same_lane_as_ego, log_dir, direction='forward', max_number=1, within_distance=50)
+
+# Find the second vehicle forward, which is the vehicle directly in front of the first car.
+second_car_forward = get_objects_in_relative_direction(first_car_forward, vehicles_in_same_lane_as_ego, log_dir, direction='forward', max_number=1, within_distance=50)
+
+# Find the third vehicle forward, which is the vehicle directly in front of the second car.
+third_car_forward = get_objects_in_relative_direction(second_car_forward, vehicles_in_same_lane_as_ego, log_dir, direction='forward', max_number=1, within_distance=50)
+
+# Output the scenario containing the third car forward from the ego vehicle.
+output_scenario(third_car_forward, description, log_dir, output_dir)

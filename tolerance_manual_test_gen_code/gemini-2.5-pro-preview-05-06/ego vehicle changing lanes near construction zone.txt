@@ -1,0 +1,54 @@
+# Define the scenario description
+description = 'ego vehicle changing lanes near construction zone'
+
+# --------------------------------------------------------------------------------------------------
+# 1) Identify the ego-vehicle track(s) in the log
+# --------------------------------------------------------------------------------------------------
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')  # should be a single UUID
+
+# --------------------------------------------------------------------------------------------------
+# 2) Find the segments where the ego-vehicle is changing lanes
+#    changing_lanes() returns a scenario-dict keyed by the ego UUID with the lane-change timestamps
+# --------------------------------------------------------------------------------------------------
+ego_lane_changes = changing_lanes(ego_vehicle, log_dir)
+
+# --------------------------------------------------------------------------------------------------
+# 3) Collect objects that typically mark an active construction zone
+#    We include cones, barrels, message-board trailers, and portable traffic-light trailers.
+# --------------------------------------------------------------------------------------------------
+construction_cones            = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+construction_barrels          = get_objects_of_category(log_dir, category='CONSTRUCTION_BARREL')
+message_board_trailers        = get_objects_of_category(log_dir, category='MESSAGE_BOARD_TRAILER')
+traffic_light_trailers        = get_objects_of_category(log_dir, category='TRAFFIC_LIGHT_TRAILER')
+
+# Merge all construction-zone object tracks into one scenario dictionary
+construction_objects = scenario_or([
+    construction_cones,
+    construction_barrels,
+    message_board_trailers,
+    traffic_light_trailers,
+])
+
+# --------------------------------------------------------------------------------------------------
+# 4) Keep only the ego-vehicle lane-change timestamps that occur near (≤ 20 m) at least one
+#    construction-zone object.  near_objects() takes the lane-change scenario as its
+#    track_candidates argument, so it tests proximity only at those lane-change timestamps.
+# --------------------------------------------------------------------------------------------------
+ego_lane_changes_near_construction = near_objects(
+    ego_lane_changes,          # track_candidates: ego during lane-change stamps
+    construction_objects,      # related_candidates: cones, barrels, etc.
+    log_dir,
+    distance_thresh=20,        # metres: tight enough to avoid distant or irrelevant sites
+    min_objects=1,             # at least one construction object nearby
+    include_self=False,
+)
+
+# --------------------------------------------------------------------------------------------------
+# 5) Output the composed scenario
+# --------------------------------------------------------------------------------------------------
+output_scenario(
+    ego_lane_changes_near_construction,
+    description,
+    log_dir,
+    output_dir,
+)

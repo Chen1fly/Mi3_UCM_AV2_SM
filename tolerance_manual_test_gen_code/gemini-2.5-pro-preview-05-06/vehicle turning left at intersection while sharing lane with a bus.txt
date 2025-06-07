@@ -1,0 +1,45 @@
+# Define the description for the scenario
+description = 'vehicle turning left at intersection while sharing lane with a bus'
+
+# 1. Get all objects of category 'VEHICLE'
+# These are the primary candidates we are interested in.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# 2. Get all objects of category 'BUS'
+# These will be used to check the "sharing lane with a bus" condition.
+all_buses = get_objects_of_category(log_dir, category='BUS')
+
+# 3. Identify vehicles that are turning left.
+# The 'turning' function filters 'all_vehicles' to those making a left turn.
+vehicles_turning_left = turning(all_vehicles, log_dir, direction='left')
+
+# 4. Identify vehicles that are on an intersection.
+# The 'on_intersection' function filters 'all_vehicles' to those located on an intersection.
+vehicles_on_intersection = on_intersection(all_vehicles, log_dir)
+
+# 5. Combine the "turning left" and "on intersection" conditions for vehicles.
+# We use 'scenario_and' to find vehicles that satisfy BOTH conditions simultaneously (i.e., at the same timestamps).
+# The resulting 'vehicles_turning_left_at_intersection' dictionary will contain vehicles
+# that are turning left while also being on an intersection.
+vehicles_turning_left_at_intersection = scenario_and([vehicles_turning_left, vehicles_on_intersection])
+
+# 6. Identify vehicles (from the set of those turning left at an intersection)
+#    that are sharing a lane with a bus.
+# The 'in_same_lane' function takes the filtered vehicles (track_candidates)
+# and checks if they are in the same lane as any of the 'all_buses' (related_candidates).
+# The result will be a dictionary of vehicles from 'vehicles_turning_left_at_intersection'
+# that meet this additional "sharing lane with a bus" criteria.
+vehicle_turning_left_at_intersection_sharing_lane_with_bus = in_same_lane(
+    vehicles_turning_left_at_intersection,
+    all_buses,
+    log_dir
+)
+
+# 7. Output the final scenario.
+# This will save the instances of vehicles that meet all the specified conditions.
+output_scenario(
+    vehicle_turning_left_at_intersection_sharing_lane_with_bus,
+    description,
+    log_dir,
+    output_dir
+)

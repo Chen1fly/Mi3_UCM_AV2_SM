@@ -1,0 +1,28 @@
+# The 'turning' function can be used to identify when a vehicle's turn signals are active.
+# Hazard lights are indicated by both the left and right turn signals being active simultaneously.
+# Therefore, we can find vehicles with flashing hazard lights by finding the intersection of vehicles
+# that are turning left and vehicles that are turning right at the same timestamps.
+
+
+description = 'vehicle flashing their hazard lights'
+
+
+# First, get all objects categorized as 'VEHICLE'.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+
+# Identify all instances where vehicles have their left turn signal on.
+left_signal_on = turning(vehicles, log_dir, direction='left')
+
+
+# Identify all instances where vehicles have their right turn signal on.
+right_signal_on = turning(vehicles, log_dir, direction='right')
+
+
+# A vehicle has its hazard lights on if both its left and right signals are active at the same time.
+# We can find these instances by taking the intersection of the two previous scenarios.
+vehicle_with_hazard_lights = scenario_and([left_signal_on, right_signal_on])
+
+
+# Output the resulting scenario.
+output_scenario(vehicle_with_hazard_lights, description, log_dir, output_dir)

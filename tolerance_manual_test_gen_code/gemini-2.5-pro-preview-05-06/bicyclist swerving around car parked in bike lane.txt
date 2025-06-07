@@ -1,0 +1,29 @@
+description = "bicyclist swerving around car parked in bike lane"
+
+# Find all regular vehicles and identify which of them are parked.
+cars = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+parked_cars = stationary(cars, log_dir)
+
+# From the parked cars, identify those that are in a bike lane.
+# These are the cars that bicyclists might need to swerve around.
+car_in_bike_lane = on_lane_type(parked_cars, log_dir, lane_type='BIKE')
+
+# Get all bicyclists in the scenario.
+bicyclists = get_objects_of_category(log_dir, category='BICYCLIST')
+
+# Identify bicyclists that are swerving.
+# A swerve is characterized by a sharp lateral movement, which can be detected by high lateral acceleration.
+# We look for acceleration greater than 1.5 m/s^2 to the left (positive) or right (negative).
+swerving_left = has_lateral_acceleration(bicyclists, log_dir, min_accel=1.5)
+swerving_right = has_lateral_acceleration(bicyclists, log_dir, max_accel=-1.5)
+swerving_bicyclists = scenario_or([swerving_left, swerving_right])
+
+# Find the bicyclists that are near the cars parked in the bike lane.
+# A distance of 10 meters is used to define the vicinity for the swerving action.
+bicyclists_near_parked_car = near_objects(bicyclists, car_in_bike_lane, log_dir, distance_thresh=10)
+
+# The final scenario is the intersection of bicyclists who are swerving and are near a car parked in a bike lane.
+# This ensures that we are capturing the specific event of a bicyclist swerving around the obstacle.
+bicyclist_swerving_around_parked_car = scenario_and([swerving_bicyclists, bicyclists_near_parked_car])
+
+output_scenario(bicyclist_swerving_around_parked_car, description, log_dir, output_dir)

@@ -1,0 +1,20 @@
+# The user wants to find scenarios where a bicycle makes a left turn across the path of the ego vehicle.
+
+# First, get all bicycle objects from the dataset.
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Then, get the ego vehicle.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Find all bicycles that are making a left turn.
+left_turning_bicycles = turning(bicycles, log_dir, direction='left')
+
+# We are interested in the bicycles that cross the path of the ego vehicle.
+# This means the ego vehicle is being crossed by the bicycle.
+# We use being_crossed_by with the ego_vehicle as the track_candidate and the left-turning bicycles as the related_candidates.
+# The 'forward' direction specifies that the bicycle is crossing in front of the ego vehicle.
+# We use reverse_relationship to make the bicycle the primary object in the output scenario.
+bicycle_crossing_ego_path = reverse_relationship(being_crossed_by)(ego_vehicle, left_turning_bicycles, log_dir, direction='forward')
+
+# Finally, output the scenario.
+output_scenario(bicycle_crossing_ego_path, description='bicycle making a left turn across the path of the ego vehicle', log_dir=log_dir, output_dir=output_dir)

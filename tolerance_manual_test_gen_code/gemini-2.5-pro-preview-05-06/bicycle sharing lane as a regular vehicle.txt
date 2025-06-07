@@ -1,0 +1,29 @@
+# Define the description of the scenario
+description = 'bicycle sharing lane as a regular vehicle'
+
+# Get all bicycle objects from the dataset
+# These are the primary objects we are interested in.
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Get all regular vehicle objects from the dataset
+# These are the objects the bicycle will be sharing a lane with.
+regular_vehicles = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+# Filter bicycles to include only those that are on a 'VEHICLE' lane.
+# The phrase "as a regular vehicle" in the description suggests that the bicycle
+# is operating in a lane typically designated for or used by regular vehicles.
+# This step ensures that we are considering bicycles in the correct lane context.
+bicycles_on_vehicle_lane = on_lane_type(bicycles, log_dir, lane_type='VEHICLE')
+
+# Identify instances where bicycles (that are already confirmed to be on a 'VEHICLE' lane)
+# are in the same specific lane as a regular vehicle.
+# - track_candidates: Bicycles that are on a 'VEHICLE' lane.
+# - related_candidates: All regular vehicles.
+# The function `in_same_lane` will return the subset of `bicycles_on_vehicle_lane`
+# that are found to be in the same lane as one or more `regular_vehicles`.
+bicycle_sharing_lane_with_regular_vehicle = in_same_lane(bicycles_on_vehicle_lane, regular_vehicles, log_dir)
+
+# Output the resulting scenario
+# This will save the identified instances (bicycles sharing a vehicle lane with a regular vehicle)
+# based on the composed query.
+output_scenario(bicycle_sharing_lane_with_regular_vehicle, description, log_dir, output_dir)

@@ -1,0 +1,47 @@
+# The user wants to find instances of a vehicle that starts to change lanes and then aborts the maneuver, returning to its original lane.
+# This can be characterized by a vehicle initiating a lane change and then exhibiting a strong lateral acceleration in the opposite direction to correct its path.
+
+# First, get all vehicles from the logs.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# We are interested in vehicles that are actively driving, so we can filter out stationary or parked vehicles.
+active_vehicles = scenario_not(stationary)(vehicles, log_dir)
+
+# --- Case 1: Aborting a left lane change ---
+
+# Identify vehicles that are in the process of changing lanes to the left.
+changing_lanes_left = changing_lanes(active_vehicles, log_dir, direction='left')
+
+# Identify vehicles that have a significant lateral acceleration to the right.
+# A negative acceleration indicates movement to the right. This represents the "going back" or corrective action.
+# A value of -1.0 is a reasonable threshold for a deliberate corrective maneuver.
+correcting_to_right = has_lateral_acceleration(active_vehicles, log_dir, max_accel=-1.0)
+
+# Find vehicles that are simultaneously changing left and accelerating hard to the right.
+# This intersection represents the moment the vehicle aborts the left lane change.
+aborted_left_change = scenario_and([changing_lanes_left, correcting_to_right])
+
+
+# --- Case 2: Aborting a right lane change ---
+
+# Identify vehicles that are in the process of changing lanes to the right.
+changing_lanes_right = changing_lanes(active_vehicles, log_dir, direction='right')
+
+# Identify vehicles that have a significant lateral acceleration to the left.
+# A positive acceleration indicates movement to the left. This represents the corrective action.
+# A value of 1.0 is a reasonable threshold.
+correcting_to_left = has_lateral_acceleration(active_vehicles, log_dir, min_accel=1.0)
+
+# Find vehicles that are simultaneously changing right and accelerating hard to the left.
+# This intersection represents the moment the vehicle aborts the right lane change.
+aborted_right_change = scenario_and([changing_lanes_right, correcting_to_left])
+
+
+# --- Combine the results ---
+
+# The final scenario is any vehicle that either aborts a left lane change or aborts a right lane change.
+vehicle_aborts_lane_change = scenario_or([aborted_left_change, aborted_right_change])
+
+# Output the resulting scenario.
+description = 'vehicle starting to switch lanes but then going back'
+output_scenario(vehicle_aborts_lane_change, description, log_dir, output_dir)

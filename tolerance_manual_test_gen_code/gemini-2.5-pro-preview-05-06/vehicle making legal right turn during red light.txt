@@ -1,0 +1,46 @@
+# The user wants to find instances of a vehicle making a legal right turn during a red light.
+# This is a complex scenario to define because the state of the traffic light is not directly available.
+# We can infer that a vehicle is at a red light if it makes a turn at an intersection while
+# there is active, perpendicular cross-traffic, implying the cross-traffic has a green light.
+# A "legal" turn implies the vehicle yields and doesn't collide with the cross-traffic. The functions
+# available do not allow for collision detection, so we will define the scenario as a vehicle turning
+# right at an intersection while perpendicular traffic is present.
+
+# First, get all vehicles in the dataset.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify all vehicles that are making a right turn.
+turning_right_vehicles = turning(vehicles, log_dir, direction='right')
+
+# We are only interested in right turns that occur at an intersection.
+vehicles_turning_right_at_intersection = on_intersection(turning_right_vehicles, log_dir)
+
+# Now, to infer the "red light" condition, we need to find other vehicles moving through the intersection
+# at the same time, but in a perpendicular direction.
+# First, get all moving vehicles that are on the intersection. We consider a vehicle "moving" if its speed is above 1.0 m/s.
+moving_vehicles = has_velocity(vehicles, log_dir, min_velocity=1.0)
+moving_vehicles_at_intersection = on_intersection(moving_vehicles, log_dir)
+
+# From the set of moving vehicles at the intersection, find those that are traveling perpendicularly
+# to our main vehicle of interest (the one turning right).
+cross_traffic = heading_in_relative_direction_to(
+    track_candidates=moving_vehicles_at_intersection,
+    related_candidates=vehicles_turning_right_at_intersection,
+    log_dir=log_dir,
+    direction='perpendicular'
+)
+
+# Finally, we identify the vehicles turning right at the intersection that have this
+# perpendicular cross-traffic present. We check for at least one cross-traffic vehicle
+# within a 50-meter forward distance, covering the span of the intersection.
+# This is the final scenario, representing a vehicle making a right turn on red.
+vehicle_making_legal_right_turn_on_red = has_objects_in_relative_direction(
+    track_candidates=vehicles_turning_right_at_intersection,
+    related_candidates=cross_traffic,
+    log_dir=log_dir,
+    direction="forward",
+    min_number=1,
+    within_distance=50
+)
+
+output_scenario(vehicle_making_legal_right_turn_on_red, description, log_dir, output_dir)

@@ -1,0 +1,15 @@
+description = 'box truck at stop sign'
+
+# Get all objects of the category 'BOX_TRUCK'
+# The 'BOX_TRUCK' category includes chassis cab trucks with an enclosed cube-shaped cargo area.
+box_trucks = get_objects_of_category(log_dir, category='BOX_TRUCK')
+
+# Identify box trucks that are at a stop sign.
+# The 'at_stop_sign' function identifies objects in a lane corresponding to a stop sign
+# and within a certain proximity (default 15m, with a forward threshold).
+# This directly addresses the "at stop sign" part of the description.
+box_trucks_at_stop_sign = at_stop_sign(box_trucks, log_dir)
+
+# Output the scenario.
+# This will save the identified instances of box trucks at stop signs.
+output_scenario(box_trucks_at_stop_sign, description, log_dir, output_dir)

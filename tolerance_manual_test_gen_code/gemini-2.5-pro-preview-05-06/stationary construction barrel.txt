@@ -1,0 +1,10 @@
+# description: stationary construction barrel
+# First, get all objects categorized as 'CONSTRUCTION_BARREL'.
+construction_barrels = get_objects_of_category(log_dir, category='CONSTRUCTION_BARREL')
+
+# Then, filter these construction barrels to find those that are stationary.
+# The stationary() function identifies objects that moved less than 2m over their observation length.
+stationary_construction_barrels = stationary(construction_barrels, log_dir)
+
+# Output the scenario.
+output_scenario(stationary_construction_barrels, description, log_dir, output_dir)

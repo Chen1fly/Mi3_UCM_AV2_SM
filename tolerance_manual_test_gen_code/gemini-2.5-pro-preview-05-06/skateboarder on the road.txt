@@ -1,0 +1,17 @@
+# The user wants to find a skateboarder on the road.
+# The dataset does not have a specific "SKATEBOARDER" category.
+# The closest available categories are "WHEELED_DEVICE" (which includes skateboards) and "WHEELED_RIDER" (the person riding the device).
+# The term "skateboarder" implies the person. The "WHEELED_RIDER" category is defined as a "Person actively riding or being carried by a wheeled device".
+# Therefore, using "WHEELED_RIDER" is the most accurate way to identify the person in the act of riding.
+# I will find all instances of "WHEELED_RIDER" and then filter for those that are on the road.
+# This might include riders of other devices like scooters or segways, but it is the most precise query possible given the available functions and categories.
+
+# Get all objects categorized as a "WHEELED_RIDER".
+wheeled_riders = get_objects_of_category(log_dir, category='WHEELED_RIDER')
+
+# Filter the wheeled riders to find only those that are on a road or bike lane.
+# The on_road function correctly identifies objects on the road surface, excluding sidewalks and parking lots.
+skateboarders_on_road = on_road(wheeled_riders, log_dir)
+
+# Output the final scenario containing the identified skateboarders on the road.
+output_scenario(skateboarders_on_road, description, log_dir, output_dir)

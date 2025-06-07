@@ -1,0 +1,26 @@
+description = "vehicles stopping to not block entrance to the road"
+
+# Get all vehicle objects from the logs.
+vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Identify vehicles that are near an intersection. We use a threshold of 10 meters
+# to capture vehicles that are close enough to be considered at the entrance.
+vehicles_near_intersection = near_intersection(vehicles, log_dir, threshold=10)
+
+# We want vehicles that are stopping, so we filter for vehicles with a very low velocity.
+# A maximum velocity of 1 m/s is chosen to represent a stopped or nearly stopped state.
+slow_or_stopped_vehicles = has_velocity(vehicles, log_dir, max_velocity=1)
+
+# To ensure the vehicles are stopping *before* the entrance and not in the middle of it,
+# we exclude vehicles that are directly on top of the intersection.
+vehicles_not_on_intersection = scenario_not(on_intersection)(vehicles, log_dir)
+
+# The final scenario is the intersection of these conditions:
+# 1. The vehicle is near an intersection.
+# 2. The vehicle is stopped or moving very slowly.
+# 3. The vehicle is not currently on the intersection.
+# This combination represents a vehicle pausing before entering a road or intersection,
+# effectively not blocking the entrance.
+vehicles_stopping_at_entrance = scenario_and([vehicles_near_intersection, slow_or_stopped_vehicles, vehicles_not_on_intersection])
+
+output_scenario(vehicles_stopping_at_entrance, description, log_dir, output_dir)

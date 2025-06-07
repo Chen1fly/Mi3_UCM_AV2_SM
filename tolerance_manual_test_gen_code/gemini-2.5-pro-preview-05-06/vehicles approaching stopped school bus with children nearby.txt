@@ -1,0 +1,53 @@
+# vehicles approaching stopped school bus with children nearby
+description = 'vehicles approaching stopped school bus with children nearby'
+
+# --- identify the relevant school buses -----------------------------------------------------------
+school_buses = get_objects_of_category(log_dir, category='SCHOOL_BUS')
+
+# limit to buses that are fully stopped
+stopped_school_buses = stationary(school_buses, log_dir)
+
+# --- confirm children (pedestrians) are near the stopped bus --------------------------------------
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# keep only those buses that have ≥ 1 pedestrian within 10 m
+buses_with_children_nearby = near_objects(
+    stopped_school_buses,
+    pedestrians,
+    log_dir,
+    distance_thresh=10,
+    min_objects=1
+)
+
+# --- identify moving vehicles that are approaching these buses ------------------------------------
+# 1) moving vehicles in general
+all_vehicles   = get_objects_of_category(log_dir, category='VEHICLE')
+moving_vehicles = scenario_not(stationary)(all_vehicles, log_dir)
+
+# 2) vehicles that have a qualifying bus directly ahead (≤ 40 m, roughly same lane)
+vehicles_with_bus_ahead = get_objects_in_relative_direction(
+    moving_vehicles,
+    buses_with_children_nearby,
+    log_dir,
+    direction='forward',      # bus is in front of the vehicle
+    min_number=1,
+    max_number=1,
+    within_distance=40,
+    lateral_thresh=3          # remain close to the bus’s lane center
+)
+
+# 3) additionally require the vehicle’s velocity vector to be oriented toward the bus
+vehicles_heading_toward_bus = heading_toward(
+    moving_vehicles,
+    stopped_school_buses,
+    log_dir,
+    angle_threshold=30,       # ≤ 30° between velocity and bus direction
+    minimum_speed=1,          # ensure the vehicle is actually moving
+    max_distance=40
+)
+
+# --- final scenario: intersection of the two approach criteria ------------------------------------
+approaching_vehicles = scenario_and([vehicles_with_bus_ahead, vehicles_heading_toward_bus])
+
+# --- output ---------------------------------------------------------------------------------------
+output_scenario(approaching_vehicles, description, log_dir, output_dir)

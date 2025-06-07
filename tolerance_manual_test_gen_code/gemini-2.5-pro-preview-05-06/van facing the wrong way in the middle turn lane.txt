@@ -1,0 +1,23 @@
+# The user is asking to find a "van facing the wrong way in the middle turn lane".
+# "Van" is a sub-category of "REGULAR_VEHICLE", so first I will get all regular vehicles.
+# There is no specific lane type for "middle turn lane", so I will assume it is a "VEHICLE" lane.
+# "Facing the wrong way" can be interpreted as heading opposite to the direction of the ego vehicle, which is assumed to be following the rules of the road.
+
+description = "van facing the wrong way in the middle turn lane"
+
+# Get all regular vehicles, as "van" is a type of regular vehicle.
+regular_vehicles = get_objects_of_category(log_dir, category="REGULAR_VEHICLE")
+
+# Get the ego vehicle to determine the correct direction of traffic.
+ego_vehicle = get_objects_of_category(log_dir, category="EGO_VEHICLE")
+
+# Find vehicles that are in a vehicle lane, which is the closest approximation for a turn lane.
+vehicles_in_vehicle_lane = on_lane_type(regular_vehicles, log_dir, lane_type='VEHICLE')
+
+# Find vehicles that are heading in the opposite direction of the ego vehicle.
+wrong_way_vehicles = heading_in_relative_direction_to(regular_vehicles, ego_vehicle, log_dir, direction='opposite')
+
+# The final scenario is the intersection of vehicles in a vehicle lane and those going the wrong way.
+van_facing_wrong_way = scenario_and([vehicles_in_vehicle_lane, wrong_way_vehicles])
+
+output_scenario(van_facing_wrong_way, description, log_dir, output_dir)

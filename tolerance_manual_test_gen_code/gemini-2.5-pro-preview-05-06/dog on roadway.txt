@@ -1,0 +1,15 @@
+description = 'dog on roadway'
+
+# Get all objects of category "DOG"
+# The 'DOG' category is specific to dogs, which matches the request.
+dogs = get_objects_of_category(log_dir, category='DOG')
+
+# Filter the dogs to find those that are on a roadway.
+# The on_road function is suitable here as it identifies objects on a road or bike lane,
+# excluding parking lots or other drivable areas not part of the main road network.
+# This aligns with the common understanding of "roadway".
+dogs_on_roadway = on_road(dogs, log_dir)
+
+# Output the scenario
+# This will save the identified instances of dogs on the roadway.
+output_scenario(dogs_on_roadway, description, log_dir, output_dir)

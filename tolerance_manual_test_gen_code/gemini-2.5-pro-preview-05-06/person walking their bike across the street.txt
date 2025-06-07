@@ -1,0 +1,29 @@
+# Find instances of a person walking their bike across the street.
+# This is defined as a pedestrian who is near a bicycle and is currently on the road.
+
+
+# First, we get all pedestrians and all bicycles in the scene.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+
+# A person walking their bike is a pedestrian who is very close to a bicycle.
+# We can find these by looking for pedestrians that have a bicycle object near them.
+# We will use a small distance threshold to be confident the pedestrian is with the bike.
+pedestrian_with_bike = near_objects(pedestrians, bicycles, log_dir, distance_thresh=2.0, min_objects=1)
+
+
+# The "walking" part implies the person is moving. We can filter for pedestrians that are not stationary.
+# We will consider any speed above 0.5 m/s as moving to account for slow walking speeds.
+moving_pedestrian_with_bike = has_velocity(pedestrian_with_bike, log_dir, min_velocity=0.5)
+
+
+# "Across the street" implies the person and their bike are on the road surface.
+person_walking_bike_on_road = on_road(moving_pedestrian_with_bike, log_dir)
+
+
+# We can be more specific and say they are not at a pedestrian crossing to find more dangerous situations.
+person_walking_bike_across_street = scenario_not(at_pedestrian_crossing)(person_walking_bike_on_road, log_dir)
+
+
+output_scenario(person_walking_bike_across_street, "person walking their bike across the street", log_dir, output_dir)

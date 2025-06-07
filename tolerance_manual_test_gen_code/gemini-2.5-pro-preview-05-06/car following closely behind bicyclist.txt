@@ -1,0 +1,38 @@
+# The user wants to find instances of a car following closely behind a bicyclist.
+
+# First, we need to get all the vehicles and bicyclists in the scene.
+# We use the 'VEHICLE' superclass to include all types of cars, trucks, and buses.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+# We get all bicyclists.
+bicyclists = get_objects_of_category(log_dir, category='BICYCLIST')
+
+# The 'following' function is ideal for identifying the general behavior of one object following another.
+# It ensures that the vehicle and bicyclist are moving in the same direction and in the same lane.
+# Here, 'vehicles' are the potential followers (track_candidates) and 'bicyclists' are the objects being followed (related_candidates).
+vehicles_following_bicyclists = following(vehicles, bicyclists, log_dir)
+
+# To satisfy the "closely behind" part of the request, we need to add a distance constraint.
+# The `has_objects_in_relative_direction` function can filter for objects that have another object
+# within a certain distance in a specific direction.
+# We look for vehicles (track_candidates) that have a bicyclist (related_candidates) 'forward' of them.
+# 'within_distance=10' specifies that the bicyclist must be within 10 meters to be considered "close".
+# 'max_number=1' ensures we are looking for a direct one-to-one following scenario.
+# 'lateral_thresh=1.5' is used to ensure the bicyclist is directly in the path of the car,
+# reducing false positives from adjacent lanes. This value represents half the width of a typical lane.
+vehicles_with_bicyclist_up_close = has_objects_in_relative_direction(
+    track_candidates=vehicles,
+    related_candidates=bicyclists,
+    log_dir=log_dir,
+    direction='forward',
+    max_number=1,
+    within_distance=10,
+    lateral_thresh=1.5
+)
+
+# Finally, we use `scenario_and` to find the intersection of the two conditions.
+# This gives us vehicles that are both in a 'following' behavior pattern with a bicyclist
+# AND are physically close behind them at the same timestamps.
+car_following_closely = scenario_and([vehicles_following_bicyclists, vehicles_with_bicyclist_up_close])
+
+# Output the resulting scenario.
+output_scenario(car_following_closely, description, log_dir, output_dir)

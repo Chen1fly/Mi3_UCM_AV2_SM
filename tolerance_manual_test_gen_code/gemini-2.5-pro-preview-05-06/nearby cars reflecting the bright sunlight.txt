@@ -1,0 +1,20 @@
+# The provided functions do not have the capability to detect visual properties such as sunlight reflection.
+# This script will instead identify cars that are near the ego vehicle, as "nearby cars" is the only part of the description
+# that can be addressed with the available tools. A distance of 50 meters is used as the threshold for "nearby".
+
+
+# Get the ego vehicle, which will serve as the point of reference for "nearby".
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+
+# Get all objects categorized as 'VEHICLE'.
+cars = get_objects_of_category(log_dir, category='VEHICLE')
+
+
+# Find all cars that are within a 50-meter radius of the ego vehicle.
+# We use reverse_relationship to focus the output on the nearby cars themselves, rather than the ego vehicle.
+nearby_cars_to_ego = reverse_relationship(near_objects)(ego_vehicle, cars, log_dir, distance_thresh=50)
+
+
+# Output the scenario, which now contains the cars that are near the ego vehicle.
+output_scenario(nearby_cars_to_ego, description, log_dir, output_dir)

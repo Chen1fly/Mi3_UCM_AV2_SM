@@ -1,0 +1,45 @@
+description = "vehicle being followed by ego vehicle while being overtaken on right"
+
+# Get all vehicles and the ego vehicle
+# "VEHICLE" is a superclass including REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, etc.
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+ego_vehicle = get_objects_of_category(log_dir, category="EGO_VEHICLE")
+
+# Condition 1: Identify vehicles (let's call them 'V') that are being followed by the ego vehicle.
+# The `following` function is defined as `following(follower_track, leader_candidates, ...)`.
+# It returns `{follower_uuid: {leader_uuid: [timestamps]}}`.
+# We want the vehicle V (the leader) as the primary key.
+# So, we use `reverse_relationship` to swap the roles.
+# `all_vehicles` will be treated as potential leaders (V), and `ego_vehicle` as the follower.
+# The result will be `{V_uuid: {ego_uuid: [timestamps_ego_is_following_V]}}`.
+vehicle_being_followed_by_ego = reverse_relationship(following)(
+    all_vehicles,  # These are the candidates for the vehicle being followed (V)
+    ego_vehicle,   # This is the ego vehicle, which is the follower
+    log_dir
+)
+
+# Condition 2: The vehicle V (which is being followed by ego) is being overtaken on its right.
+# The `being_crossed_by` function takes `track_candidates` (those being crossed)
+# and `related_candidates` (those doing the crossing).
+# Its output is a filtered version of `track_candidates`.
+# So, we use `vehicle_being_followed_by_ego` as `track_candidates`. This ensures that
+# we only consider vehicles that are already known to be followed by the ego.
+# The `related_candidates` (the overtaking vehicles, X) can be any vehicle from `all_vehicles`.
+# The thresholds `forward_thresh` and `lateral_thresh` are chosen based on the example
+# for "ego vehicle being overtaken on right by a semi" to define the overtaking interaction zone.
+# A `lateral_thresh` of 10m is quite wide, potentially covering multiple lanes, but used for consistency.
+final_scenario_vehicles = being_crossed_by(
+    track_candidates=vehicle_being_followed_by_ego,
+    related_candidates=all_vehicles, # Any vehicle can be the one overtaking
+    log_dir=log_dir,
+    direction="right",  # Overtaken on the right side of vehicle V
+    forward_thresh=5,   # Defines the longitudinal extent of the crossing interaction zone
+    lateral_thresh=10   # Defines the lateral extent of the crossing interaction zone
+)
+
+# The `final_scenario_vehicles` dictionary now contains the vehicles (V) that meet both conditions:
+# 1. V is being followed by the ego vehicle.
+# 2. V is simultaneously being overtaken on its right by some other vehicle (X).
+# The keys of `final_scenario_vehicles` are the UUIDs of such vehicles V,
+# and the values indicate the overtaking vehicle X and the timestamps of the combined event.
+output_scenario(final_scenario_vehicles, description, log_dir, output_dir)

@@ -1,0 +1,44 @@
+# description: vehicle aggressively passing another during a turn from the same lane
+# The goal is to identify a "passer" vehicle that aggressively overtakes a "victim" vehicle,
+# where the victim is in the process of turning, and both vehicles are in the same lane.
+
+# Get all vehicles from the logs.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# 1. Identify the "victim" vehicles: those that are turning.
+# The `turning` function returns vehicles that are executing a turn.
+turning_victims = turning(vehicles, log_dir)
+
+# 2. Identify potential "passer" vehicles.
+# A potential passer is any vehicle that is in the same lane as a turning victim.
+# The `in_same_lane` function will return a dictionary where the keys are the potential passers
+# and the relationships point to the turning victims they share a lane with.
+# The resulting structure is {potential_passer: {turning_victim: [timestamps]}}.
+passers_in_lane_with_victims = in_same_lane(vehicles, turning_victims, log_dir)
+
+# 3. Filter the potential passers to find those that are "aggressive".
+# We define aggressive as having a significant forward acceleration.
+# `accelerating` filters the primary tracks (the keys) of the input dictionary.
+# The result preserves the {passer: {victim}} relationship for only the aggressive passers.
+aggressive_passers_in_lane_with_victims = accelerating(passers_in_lane_with_victims, log_dir, min_accel=1.0)
+
+# 4. Define the general "passing" relationship from the passer's perspective.
+# `being_crossed_by` identifies the vehicle being passed. We use `reverse_relationship`
+# to get the passer as the primary track in the output dictionary.
+# We account for passes on both the left and right side.
+passing_on_left = reverse_relationship(being_crossed_by)(vehicles, vehicles, log_dir, direction='left')
+passing_on_right = reverse_relationship(being_crossed_by)(vehicles, vehicles, log_dir, direction='right')
+all_passing_relationships = scenario_or([passing_on_left, passing_on_right])
+
+# 5. Find the final scenario by taking the intersection of our two main dictionaries.
+# `aggressive_passers_in_lane_with_victims` contains {passer: victim} pairs where:
+#   - The passer is aggressive.
+#   - The victim is turning.
+#   - They are in the same lane.
+# `all_passing_relationships` contains all {passer: victim} pairs for any pass event.
+# `scenario_and` finds the common events, ensuring that the same passer is aggressively passing
+# the same turning victim in the same lane at the same time.
+aggressive_pass_in_turn = scenario_and([aggressive_passers_in_lane_with_victims, all_passing_relationships])
+
+# Output the identified scenario instances.
+output_scenario(aggressive_pass_in_turn, description, log_dir, output_dir)

@@ -1,0 +1,11 @@
+# The user is asking to find all instances of a 'railed vehicle'.
+# The 'get_objects_of_category' function can be used to retrieve all objects of a specific category.
+# In this case, the category is 'RAILED_VEHICLE'.
+
+description = 'railed vehicle'
+
+# Retrieve all objects categorized as 'RAILED_VEHICLE' from the dataset.
+railed_vehicles = get_objects_of_category(log_dir, category='RAILED_VEHICLE')
+
+# Output the scenario containing all found railed vehicles.
+output_scenario(railed_vehicles, description, log_dir, output_dir)

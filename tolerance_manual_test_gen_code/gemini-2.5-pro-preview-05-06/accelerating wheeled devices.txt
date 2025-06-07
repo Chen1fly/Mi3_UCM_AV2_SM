@@ -1,0 +1,12 @@
+# Description: accelerating wheeled devices
+description = 'accelerating wheeled devices'
+
+# Get all wheeled devices from the dataset
+wheeled_devices = get_objects_of_category(log_dir, category='WHEELED_DEVICE')
+
+# Filter for wheeled devices that are accelerating
+# The accelerating function by default uses min_accel=0.65 m/s^2, which indicates forward acceleration.
+accelerating_wheeled_devices = accelerating(wheeled_devices, log_dir)
+
+# Output the scenario
+output_scenario(accelerating_wheeled_devices, description, log_dir, output_dir)

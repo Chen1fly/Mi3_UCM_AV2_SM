@@ -1,0 +1,23 @@
+# The user wants to find instances of a truck unloading in the middle of the road.
+# This can be broken down into finding trucks that are stationary and on a road.
+description = "truck unloading in the middle of the road"
+
+# First, get all objects that are categorized as a "TRUCK".
+# This will include BOX_TRUCK, TRUCK, etc. if we used "VEHICLE" but the user was specific.
+trucks = get_objects_of_category(log_dir, category='TRUCK')
+
+# Next, we want to find the trucks that are not moving.
+# The stationary() function is a good way to identify parked or stopped vehicles.
+stationary_trucks = stationary(trucks, log_dir)
+
+# We also need to ensure the truck is on a road.
+# The on_road() function can identify objects on a road surface.
+trucks_on_road = on_road(trucks, log_dir)
+
+# To find trucks that are both stationary and on the road, we can use scenario_and.
+# This will give us the intersection of the two conditions, which represents
+# a truck that is stopped in the middle of a road.
+unloading_truck = scenario_and([stationary_trucks, trucks_on_road])
+
+# Finally, output the resulting scenario.
+output_scenario(unloading_truck, description, log_dir, output_dir)

@@ -1,0 +1,47 @@
+# The goal is to find instances where the ego vehicle is driving in the middle lane of a three-lane, one-way street.
+# This can be inferred by checking for the presence of other vehicles in the lanes to the immediate left and right of the ego vehicle,
+# and ensuring those vehicles are traveling in the same direction as the ego.
+
+description = "ego vehicle traveling down the middle of a three-lane one-way street"
+
+# Get the ego vehicle object.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all other vehicles in the scenario.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are moving. Stationary vehicles might be parked and not indicative of a traffic lane.
+moving_vehicles = scenario_not(stationary)(vehicles, log_dir)
+
+# Identify the vehicles that are traveling in the same direction as the ego vehicle.
+# This helps confirm that it's a one-way street.
+same_direction_vehicles = heading_in_relative_direction_to(moving_vehicles, ego_vehicle, log_dir, direction='same')
+
+# Find instances where the ego vehicle has a vehicle from the 'same_direction_vehicles' set to its left.
+# A small lateral_thresh helps ensure the vehicle is in the adjacent lane.
+ego_with_vehicle_on_left = has_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=same_direction_vehicles,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1,
+    lateral_thresh=3.0,
+    within_distance=50
+)
+
+# Find instances where the ego vehicle has a vehicle from the 'same_direction_vehicles' set to its right.
+ego_with_vehicle_on_right = has_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=same_direction_vehicles,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,
+    lateral_thresh=3.0,
+    within_distance=50
+)
+
+# The final scenario is when the ego vehicle has vehicles on BOTH its left and right traveling in the same direction.
+# This is a strong indication of being in the middle lane of a three-lane, one-way street.
+ego_in_middle_lane = scenario_and([ego_with_vehicle_on_left, ego_with_vehicle_on_right])
+
+output_scenario(ego_in_middle_lane, description, log_dir, output_dir)

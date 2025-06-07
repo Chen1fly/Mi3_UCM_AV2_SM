@@ -1,0 +1,18 @@
+# Scenario: pedestrian with multiple dogs
+description = 'pedestrian with multiple dogs'
+
+# Retrieve all pedestrians and dogs from the scenario
+peds = get_objects_of_category(log_dir, category='PEDESTRIAN')
+dogs = get_objects_of_category(log_dir, category='DOG')
+
+# A pedestrian is considered to have multiple dogs if at least two dogs are within 3 m at the same timestamp.
+peds_with_multiple_dogs = near_objects(
+    peds,                 # track_candidates: pedestrians
+    dogs,                 # related_candidates: dogs
+    log_dir, 
+    distance_thresh=3,    # keep the radius small (≈ leash length) to avoid false positives
+    min_objects=2         # “multiple” → at least two dogs
+)
+
+# Output the scenario in evaluation-ready format
+output_scenario(peds_with_multiple_dogs, description, log_dir, output_dir)

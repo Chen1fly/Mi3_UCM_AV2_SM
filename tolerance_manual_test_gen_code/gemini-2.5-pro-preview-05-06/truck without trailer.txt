@@ -1,0 +1,31 @@
+# Scenario: “truck without trailer”
+# Goal: identify truck cabs (semi-tractors) that do **not** have a vehicular trailer directly attached.
+
+description = 'truck without trailer'
+
+# ---------------------------------------------------------------------------
+# 1) Collect the relevant object categories.
+# ---------------------------------------------------------------------------
+truck_cabs = get_objects_of_category(log_dir, category='TRUCK_CAB')           # tractor units
+trailers   = get_objects_of_category(log_dir, category='VEHICULAR_TRAILER')   # anything towable
+
+# ---------------------------------------------------------------------------
+# 2) Exclude any truck cab that has at least one trailer immediately behind it.
+#    • direction='backward'   → trailer must sit behind the cab
+#    • within_distance=4 m    → captures only physically coupled trailers
+#    • lateral_thresh=1.5 m   → keeps the trailer roughly centered behind the cab
+# ---------------------------------------------------------------------------
+truck_cabs_without_trailer = scenario_not(has_objects_in_relative_direction)(
+    truck_cabs,
+    trailers,
+    log_dir,
+    direction='backward',
+    min_number=1,
+    within_distance=4,
+    lateral_thresh=1.5
+)
+
+# ---------------------------------------------------------------------------
+# 3) Export the resulting scenario.
+# ---------------------------------------------------------------------------
+output_scenario(truck_cabs_without_trailer, description, log_dir, output_dir)

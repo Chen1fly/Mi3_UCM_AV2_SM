@@ -1,0 +1,14 @@
+description = 'motorcycle near stop sign'
+# Get all motorcycle objects from the dataset
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+
+# Get all stop sign objects from the dataset
+stop_signs = get_objects_of_category(log_dir, category='STOP_SIGN')
+
+# Find motorcycles that are near stop signs.
+# near_objects by default uses a distance_thresh of 10 meters and min_objects of 1.
+# This means we are looking for motorcycles that are within 10 meters of at least one stop sign.
+motorcycles_near_stop_sign = near_objects(motorcycles, stop_signs, log_dir, distance_thresh=10)
+
+# Output the identified scenario
+output_scenario(motorcycles_near_stop_sign, description, log_dir, output_dir)

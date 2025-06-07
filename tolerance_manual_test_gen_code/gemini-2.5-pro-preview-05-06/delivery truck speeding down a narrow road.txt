@@ -1,0 +1,48 @@
+# The user wants to find instances of a delivery truck speeding down a narrow road.
+# I will break this down into three parts:
+# 1. Identifying delivery trucks. The "TRUCK" and "BOX_TRUCK" categories seem most appropriate for this.
+# 2. Identifying speeding vehicles. I will use the has_velocity function with a high min_velocity.
+# 3. Identifying a narrow road. A narrow road can be inferred by the presence of other vehicles close to both sides of the subject vehicle.
+
+# Get all truck and box_truck objects, as these are commonly used for deliveries.
+trucks = get_objects_of_category(log_dir, category='TRUCK')
+box_trucks = get_objects_of_category(log_dir, category='BOX_TRUCK')
+delivery_trucks = scenario_or([trucks, box_trucks])
+
+# Define "speeding" as traveling at a velocity greater than 15 m/s (approximately 33.5 mph).
+# This is a reasonable speed to be considered speeding on many non-highway roads.
+speeding_trucks = has_velocity(delivery_trucks, log_dir, min_velocity=15)
+
+# Get all other vehicles that could be on the sides of the road.
+other_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Find speeding trucks that have a vehicle to their left within a close lateral distance.
+# A small lateral_thresh suggests a narrow lane or road.
+trucks_with_vehicle_on_left = has_objects_in_relative_direction(
+    speeding_trucks,
+    other_vehicles,
+    log_dir,
+    direction='left',
+    min_number=1,
+    max_number=1,
+    within_distance=20,
+    lateral_thresh=1.5
+)
+
+# Find speeding trucks that have a vehicle to their right within a close lateral distance.
+trucks_with_vehicle_on_right = has_objects_in_relative_direction(
+    speeding_trucks,
+    other_vehicles,
+    log_dir,
+    direction='right',
+    min_number=1,
+    max_number=1,
+    within_distance=20,
+    lateral_thresh=1.5
+)
+
+# A truck is considered to be on a narrow road if it has vehicles close on both its left and right sides.
+speeding_on_narrow_road = scenario_and([trucks_with_vehicle_on_left, trucks_with_vehicle_on_right])
+
+description = 'delivery truck speeding down a narrow road'
+output_scenario(speeding_on_narrow_road, description, log_dir, output_dir)

@@ -1,0 +1,12 @@
+description = "unattended stroller"
+# An unattended stroller is a stroller that does not have a person nearby.
+# To find this, we first need to get all the strollers and all the pedestrians.
+strollers = get_objects_of_category(log_dir, category='STROLLER')
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+# We can assume that a pedestrian attending to a stroller will be very close to it.
+# We will use a distance of 2 meters as the threshold for a pedestrian being near a stroller.
+# We can use the `scenario_not` function in conjunction with `near_objects` to find strollers
+# that do NOT have a pedestrian within 2 meters.
+unattended_strollers = scenario_not(near_objects)(strollers, pedestrians, log_dir, distance_thresh=2)
+# Finally, we output the scenario.
+output_scenario(unattended_strollers, description, log_dir, output_dir)

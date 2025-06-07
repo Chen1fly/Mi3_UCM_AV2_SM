@@ -1,0 +1,38 @@
+# The goal is to find any vehicle that is being overtaken by the ego vehicle.
+# An overtake is defined as the ego vehicle passing a vehicle on either the left or the right side.
+
+
+# First, get all vehicles in the dataset and the ego vehicle specifically.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+
+# Overtaking involves movement, so we should filter out vehicles that are stationary (e.g., parked cars).
+# We apply this to the vehicles that could be overtaken.
+moving_vehicles = scenario_not(stationary)(vehicles, log_dir)
+
+
+# We use the `being_crossed_by` function to identify the overtake.
+# This function finds the `track_candidates` that are being crossed by the `related_candidates`.
+# In our case, the `track_candidates` are the `moving_vehicles`, and the `related_candidate` is the `ego_vehicle`.
+# We check for overtakes on both the left and right sides.
+
+
+# A left overtake means the ego vehicle crosses the plane extending from the left side of the other vehicle.
+# `forward_thresh` defines how far in front of the vehicle the crossing is checked.
+# `lateral_thresh` defines the width of the zone where the crossing is considered to be happening.
+overtaken_on_left_by_ego = being_crossed_by(moving_vehicles, ego_vehicle, log_dir, direction='left', forward_thresh=10, lateral_thresh=5)
+
+
+# Similarly, we find vehicles being overtaken on their right side.
+overtaken_on_right_by_ego = being_crossed_by(moving_vehicles, ego_vehicle, log_dir, direction='right', forward_thresh=10, lateral_thresh=5)
+
+
+# Since a vehicle can be overtaken on either side, we combine the results of the left and right overtakes
+# using `scenario_or`.
+vehicle_being_overtaken = scenario_or([overtaken_on_left_by_ego, overtaken_on_right_by_ego])
+
+
+# Finally, we output the resulting scenario with a clear description.
+description = 'vehicle being overtaken by the ego vehicle'
+output_scenario(vehicle_being_overtaken, description, log_dir, output_dir)

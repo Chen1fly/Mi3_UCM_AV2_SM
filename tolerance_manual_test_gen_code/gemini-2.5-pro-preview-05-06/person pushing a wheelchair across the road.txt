@@ -1,0 +1,23 @@
+description = "person pushing a wheelchair across the road"
+
+# Get all pedestrians and wheelchairs from the dataset.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+wheelchairs = get_objects_of_category(log_dir, category='WHEELCHAIR')
+
+# Identify pedestrians that are very close to a wheelchair, implying they are pushing it.
+# A distance threshold of 2 meters is used to define this proximity.
+person_pushing_wheelchair = near_objects(pedestrians, wheelchairs, log_dir, distance_thresh=2)
+
+# Filter for instances where the person pushing the wheelchair is on the road.
+person_on_road = on_road(person_pushing_wheelchair, log_dir)
+
+# A person "crossing" the road often means they are not at a designated crosswalk.
+# We exclude the cases where the person is at a pedestrian crossing to find these scenarios.
+person_crossing_road = scenario_not(at_pedestrian_crossing)(person_on_road, log_dir)
+
+# Ensure the person is actually moving while crossing the road.
+# A minimum velocity of 0.5 m/s filters out stationary individuals.
+moving_person_crossing = has_velocity(person_crossing_road, log_dir, min_velocity=0.5)
+
+# Output the final scenario containing instances of a person pushing a wheelchair across the road.
+output_scenario(moving_person_crossing, description, log_dir, output_dir)

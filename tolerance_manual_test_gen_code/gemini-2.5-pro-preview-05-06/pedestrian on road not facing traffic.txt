@@ -1,0 +1,53 @@
+# Description for the scenario to be implemented.
+description = "pedestrian on road not facing traffic"
+
+# Step 1: Get all pedestrian objects from the dataset.
+# 'PEDESTRIAN' category includes persons not driving or riding in/on a vehicle.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Step 2: Filter the pedestrians to include only those that are on a road.
+# 'on_road' identifies objects on a road or bike lane, excluding parking lots.
+peds_on_road = on_road(pedestrians, log_dir)
+
+# Step 3: Get all vehicle objects, which will represent "traffic".
+# 'VEHICLE' is a superclass for various types of vehicles (cars, trucks, buses, etc.).
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Step 4: Filter vehicles to include only those that are moving, representing active traffic.
+# 'has_velocity' filters objects based on their speed.
+# A minimum velocity of 0.5 m/s is used to distinguish moving vehicles from stationary ones,
+# as annotation jitter can cause stationary objects to have very low non-zero velocities.
+moving_traffic = has_velocity(vehicles, log_dir, min_velocity=0.5)
+
+# Step 5: Identify pedestrians on the road who are NOT facing any moving traffic.
+# This is achieved by using scenario_not with the facing_toward function.
+#
+# 'facing_toward(track_candidates, related_candidates, log_dir, within_angle, max_distance)'
+# identifies 'track_candidates' (pedestrians in this case) that have at least one
+# 'related_candidate' (moving traffic) within a cone in their forward direction.
+# 'within_angle=45.0' means the traffic object must be within +/- 45 degrees of the pedestrian's
+# forward axis. This defines a 90-degree total frontal cone for "facing".
+# 'max_distance=50.0' (default for facing_toward, explicitly stated here for clarity) means
+# the traffic must be within 50 meters to be considered.
+#
+# 'scenario_not(func)(track_candidates, *args_for_func, **kwargs_for_func)' returns
+# 'track_candidates' that do NOT satisfy 'func'.
+# In this case, it will return pedestrians from 'peds_on_road' for whom no 'moving_traffic'
+# object meets the 'facing_toward' criteria (i.e., no moving traffic is in their frontal 90-degree cone within 50m).
+peds_on_road_not_facing_traffic = scenario_not(facing_toward)(
+    peds_on_road,               # track_candidates for facing_toward, and the base set for scenario_not
+    moving_traffic,             # related_candidates for facing_toward
+    log_dir,                    # log_dir argument for facing_toward
+    within_angle=45.0,          # The angle on either side of the pedestrian's forward axis
+    max_distance=50.0           # Maximum distance for a traffic object to be considered
+)
+
+# Step 6: Output the resulting scenario.
+# This will save the identified instances (pedestrians on road not facing traffic)
+# along with their timestamps.
+output_scenario(
+    scenario=peds_on_road_not_facing_traffic,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

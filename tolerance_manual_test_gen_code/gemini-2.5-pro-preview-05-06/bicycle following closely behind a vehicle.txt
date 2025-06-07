@@ -1,0 +1,60 @@
+# description: bicycle following closely behind a vehicle
+
+# Get all bicycle objects from the logs.
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Get all vehicle objects from the logs. The 'VEHICLE' category is a superclass
+# including various types of vehicles like cars, trucks, buses, etc.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify bicycles that are actively following vehicles.
+# The 'following' function is defined as "simultaneously moving in the same direction and lane."
+# This captures the dynamic aspect of following.
+# It is assumed that this function returns a relational dictionary, structured as:
+# {bicycle_uuid: {vehicle_uuid_being_followed: [list_of_timestamps]}}
+# This structure links each following bicycle to the specific vehicle it is following.
+bicycles_that_are_following_vehicles = following(bicycles, vehicles, log_dir)
+
+# Identify bicycles that have a vehicle closely in front of them.
+# "Closely" is interpreted as being within a short specific distance. Here, 7 meters is chosen.
+# The 'has_objects_in_relative_direction' function is used for this geometric check.
+# - 'track_candidates=bicycles': We are looking from the bicycle's perspective.
+# - 'related_candidates=vehicles': We are looking for vehicles.
+# - 'direction="forward"': The vehicle should be in the forward direction relative to the bicycle.
+# - 'min_number=1': There must be at least one such vehicle.
+# - 'max_number=1': We are interested in the single closest vehicle in that direction.
+# - 'within_distance=7': This defines "closely" (e.g., within 7 meters).
+# - 'lateral_thresh=np.inf': This parameter defines maximum lateral distance from the sides of the tracked object.
+#   Given that bicycles and vehicles have different widths, using a specific small lateral threshold
+#   based on object sides can be problematic for alignment. np.inf effectively disables this constraint,
+#   relying on the 'following' function's "same lane" characteristic for proper alignment.
+# This function also returns a relational dictionary:
+# {bicycle_uuid: {vehicle_uuid_in_front: [list_of_timestamps]}}
+bicycles_with_a_vehicle_closely_in_front = has_objects_in_relative_direction(
+    track_candidates=bicycles,
+    related_candidates=vehicles,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=1,
+    within_distance=7,
+    lateral_thresh=np.inf
+)
+
+# Combine the two conditions using 'scenario_and'.
+# We are looking for instances where a bicycle is both 'following' a vehicle (as per the 'following' function's definition)
+# AND that same vehicle is 'closely in front' (as per the distance check).
+# The 'scenario_and' function is assumed to correctly intersect these relational dictionaries.
+# This means it will find common (bicycle_uuid, vehicle_uuid) pairs that appear in both input dictionaries
+# and then intersect their associated timestamps.
+bicycle_following_closely_behind_vehicle = scenario_and([
+    bicycles_that_are_following_vehicles,
+    bicycles_with_a_vehicle_closely_in_front
+])
+
+# Define the description string for the scenario.
+description = 'bicycle following closely behind a vehicle'
+
+# Output the final scenario.
+# This will save the instances of bicycles closely following vehicles according to the defined logic.
+output_scenario(bicycle_following_closely_behind_vehicle, description, log_dir, output_dir)

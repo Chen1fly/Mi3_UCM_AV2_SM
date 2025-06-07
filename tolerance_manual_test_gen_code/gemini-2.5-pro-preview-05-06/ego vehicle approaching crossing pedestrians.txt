@@ -1,0 +1,56 @@
+description = 'ego vehicle approaching crossing pedestrians'
+
+# Get the ego vehicle
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all pedestrians
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Filter ego vehicle to ensure it is moving with some intent
+# Minimum velocity of 1.0 m/s (~3.6 km/h)
+moving_ego_vehicle = has_velocity(ego_vehicle, log_dir, min_velocity=1.0)
+
+# Identify pedestrians in locations relevant to crossing behavior
+# Pedestrians on the road
+peds_on_road = on_road(pedestrians, log_dir)
+# Pedestrians at or very near a pedestrian crossing (within 2 meters)
+peds_at_crosswalk = at_pedestrian_crossing(pedestrians, log_dir, within_distance=2.0)
+
+# Combine these locations: pedestrians are relevant if on road OR at a crosswalk
+peds_in_relevant_locations = scenario_or([peds_on_road, peds_at_crosswalk])
+
+# Filter these pedestrians to ensure they are actively moving (e.g., walking, not stationary)
+# Velocity between 0.3 m/s (slow walk) and 3.0 m/s (fast walk/jog)
+moving_peds_in_relevant_locations = has_velocity(
+    peds_in_relevant_locations,
+    log_dir,
+    min_velocity=0.3,
+    max_velocity=3.0
+)
+
+# Filter these moving pedestrians to those whose heading is generally perpendicular to the ego vehicle's heading.
+# This helps identify pedestrians who are "crossing" the ego's path rather than moving along with/against it.
+# 'perpendicular' means pedestrian's heading is 45-135 degrees relative to ego's heading.
+# We need moving_ego_vehicle as the reference for direction.
+pedestrians_crossing_relative_to_ego = heading_in_relative_direction_to(
+    moving_peds_in_relevant_locations,
+    moving_ego_vehicle, # ego's heading is the reference
+    log_dir,
+    direction='perpendicular'
+)
+
+# Now, identify instances where the moving ego vehicle is heading towards these "crossing pedestrians".
+# - `angle_threshold=30.0`: Ego's velocity vector is within 30 degrees of the vector pointing from ego to pedestrian.
+# - `max_distance=50.0`: The pedestrian must be within 50 meters.
+# - `minimum_speed=0.5`: Ego must have a component of velocity towards the pedestrian of at least 0.5 m/s.
+ego_approaching_crossing_pedestrians = heading_toward(
+    moving_ego_vehicle,
+    pedestrians_crossing_relative_to_ego,
+    log_dir,
+    angle_threshold=30.0,
+    max_distance=50.0,
+    minimum_speed=0.5
+)
+
+# Output the scenario
+output_scenario(ego_approaching_crossing_pedestrians, description, log_dir, output_dir)

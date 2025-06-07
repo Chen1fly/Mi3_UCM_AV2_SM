@@ -1,0 +1,50 @@
+description = "two cars back from the ego vehicle"
+
+# Get the ego vehicle
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all regular vehicles, which correspond to "cars" (e.g., sedans, SUVs, vans, pickup trucks)
+# This is more precise than 'VEHICLE' which includes trucks, buses, etc.
+cars = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+# Find the first car directly behind the ego vehicle.
+# 'get_objects_in_relative_direction' returns a scenario dictionary where keys are the UUIDs
+# of the 'related_candidates' (in this case, 'cars') that meet the criteria.
+# track_candidates: The ego_vehicle is the reference.
+# related_candidates: We are looking for 'cars'.
+# direction='backward': We are looking behind the ego_vehicle.
+# min_number=1, max_number=1: We need exactly one car (the closest one).
+# within_distance=25: The car should be within 25 meters (a reasonable following distance).
+# lateral_thresh=0.5: The car should be well-aligned with the ego (mostly in the same lane).
+# A lateral_thresh of 0.5m means the center of the following car can be at most
+# (width_of_lead_car/2 + 0.5m) from the center of the lead car.
+# For a 2m wide lead car, its sides are at +/-1m. The zone for the follower's center is +/-1.5m.
+car_directly_behind_ego = get_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=cars,
+    log_dir=log_dir,
+    direction='backward',
+    min_number=1,
+    max_number=1,
+    within_distance=25.0,  # Using float for distances
+    lateral_thresh=0.5     # Using float for thresholds
+)
+
+# Find the second car, which is the car directly behind the 'car_directly_behind_ego'.
+# track_candidates: The 'car_directly_behind_ego' is now the reference.
+# related_candidates: We are still looking for 'cars' from the general pool of cars.
+# The parameters (direction, min/max_number, distance, lateral_thresh) are the same,
+# as we are looking for another car following in a similar manner.
+car_two_back_from_ego = get_objects_in_relative_direction(
+    track_candidates=car_directly_behind_ego,
+    related_candidates=cars,
+    log_dir=log_dir,
+    direction='backward',
+    min_number=1,
+    max_number=1,
+    within_distance=25.0,
+    lateral_thresh=0.5
+)
+
+# Output the scenario, which contains the UUIDs of cars that are two cars back from the ego vehicle.
+output_scenario(car_two_back_from_ego, description, log_dir, output_dir)

@@ -1,0 +1,18 @@
+# description: "vehicle changing lanes near message board trailer"
+
+# Get all vehicle objects from the logs.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify which of the vehicles are changing lanes.
+# The direction is not specified, so we look for both left and right changes.
+lane_changing_vehicles = changing_lanes(vehicles, log_dir)
+
+# Get all message board trailers from the logs.
+message_board_trailers = get_objects_of_category(log_dir, category='MESSAGE_BOARD_TRAILER')
+
+# Find the vehicles that are changing lanes and are also near a message board trailer.
+# A distance of 50 meters is used as the threshold for "near" to capture relevant events.
+lane_changing_vehicles_near_trailer = near_objects(lane_changing_vehicles, message_board_trailers, log_dir, distance_thresh=50)
+
+# Output the final scenario.
+output_scenario(lane_changing_vehicles_near_trailer, "vehicle changing lanes near message board trailer", log_dir, output_dir)

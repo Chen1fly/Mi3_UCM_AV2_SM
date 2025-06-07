@@ -1,0 +1,15 @@
+description = "pedestrian walking their dog"
+# Get all pedestrians and dogs from the dataset.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+dogs = get_objects_of_category(log_dir, category='DOG')
+
+# Filter for pedestrians and dogs that are not stationary to represent "walking".
+moving_pedestrians = scenario_not(stationary)(pedestrians, log_dir)
+moving_dogs = scenario_not(stationary)(dogs, log_dir)
+
+# Find instances where a moving pedestrian is near a moving dog.
+# A distance threshold of 3 meters is a reasonable approximation for someone walking a dog on a leash.
+pedestrian_with_dog = near_objects(moving_pedestrians, moving_dogs, log_dir, distance_thresh=3, min_objects=1)
+
+# Output the resulting scenario.
+output_scenario(pedestrian_with_dog, description, log_dir, output_dir)

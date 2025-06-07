@@ -1,0 +1,92 @@
+import numpy as np
+from pathlib import Path
+from typing import Literal
+
+# Assume log_dir and output_dir are predefined Path objects.
+# These would be provided by the execution environment.
+# Example:
+# log_dir = Path("/path/to/scenario/logs")
+# output_dir = Path("/path/to/output")
+
+description = "motorcycle passing between parked vehicles"
+
+# 1. Get all motorcycle objects from the dataset.
+# These are the primary objects of interest for our scenario.
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+
+# 2. Get all objects that can be considered 'vehicles' for the purpose of being "parked".
+# The 'VEHICLE' supercategory includes REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK, BUS, etc.
+# These are the objects that will form the "walls" between which the motorcycle passes.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# 3. Identify vehicles that are actually parked.
+# The stationary() function identifies objects that moved less than 2m over their entire observation period.
+# This is a robust way to determine if a vehicle is parked rather than temporarily stopped.
+parked_vehicles = stationary(all_vehicles, log_dir)
+
+# 4. Identify motorcycles that are currently moving (i.e., "passing").
+# A motorcycle "passing" implies it has some velocity.
+# We use has_velocity with a min_velocity of 0.5 m/s. According to the function's documentation,
+# stationary objects might show velocities up to 0.5 m/s due to jitter, so anything above this
+# indicates genuine movement.
+moving_motorcycles = has_velocity(motorcycles, log_dir, min_velocity=0.5)
+
+# 5. Find moving motorcycles that have at least one parked vehicle to their immediate left.
+# We use `has_objects_in_relative_direction` to check for this spatial relationship.
+# - `track_candidates` are the `moving_motorcycles`.
+# - `related_candidates` are the `parked_vehicles`.
+# - `direction='left'`: We are looking for parked vehicles to the left of the motorcycle.
+# - `min_number=1`: There must be at least one parked vehicle on the left.
+# - `max_number=1`: We are interested in the closest parked vehicle on that side. The function
+#   will create relationships with the closest `max_number` objects if `min_number` is met.
+# - `within_distance=5.0` (meters): The parked vehicle can be longitudinally within +/- 5 meters
+#   of the motorcycle. This allows for the motorcycle not being perfectly aligned with the
+#   centers of the parked vehicles it's passing between.
+# - `lateral_thresh=2.0` (meters): The parked vehicle's closest edge must be within 2.0 meters
+#   laterally from the motorcycle's left side. This defines a reasonable width for one side
+#   of the "channel" or "gap" the motorcycle is in.
+motorcycles_with_parked_vehicle_on_left = has_objects_in_relative_direction(
+    track_candidates=moving_motorcycles,
+    related_candidates=parked_vehicles,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1,
+    max_number=1,
+    within_distance=5.0,
+    lateral_thresh=2.0
+)
+
+# 6. Find moving motorcycles that have at least one parked vehicle to their immediate right.
+# The logic and parameters are symmetrical to finding vehicles on the left.
+motorcycles_with_parked_vehicle_on_right = has_objects_in_relative_direction(
+    track_candidates=moving_motorcycles,
+    related_candidates=parked_vehicles,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,
+    max_number=1,
+    within_distance=5.0,
+    lateral_thresh=2.0
+)
+
+# 7. Identify motorcycles that satisfy both conditions (parked vehicle on left AND on right) simultaneously.
+# A motorcycle is "passing between parked vehicles" if it is moving AND
+# it has a parked vehicle on its left AND it has a parked vehicle on its right at the same time.
+# `scenario_and` will find motorcycle UUIDs that are keys in both intermediate results,
+# and the associated timestamps will be the intersection of timestamps for each UUID, ensuring
+# both conditions hold concurrently.
+motorcycles_passing_between_parked_vehicles = scenario_and([
+    motorcycles_with_parked_vehicle_on_left,
+    motorcycles_with_parked_vehicle_on_right
+])
+
+# 8. Output the resulting scenario.
+# This function will save the identified instances (motorcycle UUIDs and timestamps)
+# in the specified evaluation-ready format.
+output_scenario(
+    scenario=motorcycles_passing_between_parked_vehicles,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir,
+    visualize=False # As per instruction: "Do not provide any visualization kwargs"
+)

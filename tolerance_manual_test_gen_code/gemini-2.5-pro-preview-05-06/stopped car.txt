@@ -1,0 +1,10 @@
+# description: stopped car
+# Get all regular vehicles
+regular_vehicles = get_objects_of_category(log_dir, category="REGULAR_VEHICLE")
+
+# Filter for vehicles that are stopped.
+# Stationary objects can have a velocity up to 0.5 m/s due to annotation jitter.
+# So, we consider a car "stopped" if its velocity is below this threshold.
+stopped_cars = has_velocity(regular_vehicles, log_dir, min_velocity=0, max_velocity=0.5)
+
+output_scenario(stopped_cars, description, log_dir, output_dir)

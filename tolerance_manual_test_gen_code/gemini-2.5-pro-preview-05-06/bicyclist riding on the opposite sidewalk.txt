@@ -1,0 +1,20 @@
+# The user wants to find instances of a bicyclist riding on the opposite sidewalk.
+description = "bicyclist riding on the opposite sidewalk"
+
+# First, we need to get all bicyclists in the dataset.
+bicyclists = get_objects_of_category(log_dir, category='BICYCLIST')
+
+# We also need to get the ego vehicle to determine the "opposite" side of the road.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# A sidewalk is not a road, so we can find bicyclists on the sidewalk by finding those that are not on the road.
+bicyclists_on_sidewalk = scenario_not(on_road)(bicyclists, log_dir)
+
+# Now, we need to find the bicyclists that are on the opposite side of the road relative to the ego vehicle.
+bicyclists_on_opposite_side = on_relative_side_of_road(bicyclists, ego_vehicle, log_dir, side='opposite')
+
+# Finally, we want the intersection of bicyclists on the sidewalk and bicyclists on the opposite side of the road.
+bicyclist_on_opposite_sidewalk = scenario_and([bicyclists_on_sidewalk, bicyclists_on_opposite_side])
+
+# Output the resulting scenario.
+output_scenario(bicyclist_on_opposite_sidewalk, description, log_dir, output_dir)

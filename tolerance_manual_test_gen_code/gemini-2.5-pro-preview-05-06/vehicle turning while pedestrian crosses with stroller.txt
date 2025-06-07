@@ -1,0 +1,67 @@
+# Scenario: vehicle turning while pedestrian crosses with stroller
+description = 'vehicle turning while pedestrian crosses with stroller'
+
+# -------------------------------------------------------------------
+# 1) Gather all vehicles and keep only those that are actively turning
+#    (either left or right) – this reduces false-positives to vehicles
+#    performing a genuine turning manoeuvre rather than simply curving.
+# -------------------------------------------------------------------
+vehicles        = get_objects_of_category(log_dir, category='VEHICLE')
+turning_left    = turning(vehicles, log_dir, direction='left')
+turning_right   = turning(vehicles, log_dir, direction='right')
+turning_vehicles = scenario_or([turning_left, turning_right])
+
+# -------------------------------------------------------------------
+# 2) Identify pedestrians who are pushing a stroller:
+#      • First get all pedestrians and all strollers.
+#      • A pedestrian within 2 m of at least one stroller is assumed
+#        to be accompanying / pushing it.
+# -------------------------------------------------------------------
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+strollers   = get_objects_of_category(log_dir, category='STROLLER')
+
+# Pedestrians “with stroller”
+peds_near_strollers = near_objects(
+    pedestrians,          # track_candidates
+    strollers,            # related_candidates
+    log_dir,
+    distance_thresh=2,    # ≤ 2 m centres → likely same pedestrian-stroller pair
+    min_objects=1
+)
+
+# -------------------------------------------------------------------
+# 3) Further restrict to those pedestrians who are actually on the
+#    marked pedestrian crossing – this avoids counting people waiting
+#    on the sidewalk or walking along the kerb.
+# -------------------------------------------------------------------
+peds_on_crosswalk = at_pedestrian_crossing(
+    peds_near_strollers,
+    log_dir,
+    within_distance=0.5   # inside the cross-walk boundaries
+)
+
+peds_with_stroller_crossing = scenario_and([
+    peds_near_strollers,
+    peds_on_crosswalk
+])
+
+# -------------------------------------------------------------------
+# 4) A qualifying scene occurs when the turning vehicle is *being
+#    crossed* in its forward direction by one of these stroller-pushing
+#    pedestrians.  “being_crossed_by” captures the temporal overlap of
+#    the pedestrian’s centroid moving across the vehicle’s mid-plane.
+# -------------------------------------------------------------------
+turning_vehicle_crossed = being_crossed_by(
+    turning_vehicles,                  # track_candidates
+    peds_with_stroller_crossing,       # related_candidates
+    log_dir,
+    direction='forward',               # cross in front of the vehicle
+    in_direction='either',             # allow either side-to-side motion
+    forward_thresh=5,                  # 5 m front/back extent of plane
+    lateral_thresh=3                   # keep crossings reasonably tight
+)
+
+# -------------------------------------------------------------------
+# 5) Export the final scenario in evaluation-ready format
+# -------------------------------------------------------------------
+output_scenario(turning_vehicle_crossed, description, log_dir, output_dir)

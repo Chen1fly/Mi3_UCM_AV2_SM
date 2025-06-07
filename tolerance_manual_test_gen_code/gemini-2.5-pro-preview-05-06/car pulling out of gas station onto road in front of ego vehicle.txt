@@ -1,0 +1,41 @@
+# The user wants to find instances of a car pulling out of a gas station onto a road in front of the ego vehicle.
+# This can be broken down into several steps:
+# 1. Identify the ego vehicle and all regular vehicles.
+# 2. Identify vehicles that are in a "gas station like" area. A good proxy for this is an area that is drivable but not a main road.
+# 3. Identify when one of these "gas station" vehicles pulls out in front of the ego vehicle. This can be detected by finding when the ego's forward path is crossed by one of these vehicles.
+# 4. Ensure that at the moment of pulling out, the car is actually on the road.
+
+# Get the ego vehicle, which is the reference point.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all regular vehicles, as the query specifies a "car".
+cars = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+# Find cars that are in a drivable area but not on a road. This identifies cars in parking lots, gas stations, etc.
+cars_in_drivable_area = in_drivable_area(cars, log_dir)
+cars_on_road = on_road(cars, log_dir)
+cars_not_on_road = scenario_not(on_road)(cars, log_dir)
+cars_in_gas_station_or_lot = scenario_and([cars_in_drivable_area, cars_not_on_road])
+
+# Find the cars from the "gas station" set that cross the ego vehicle's forward path.
+# We use `being_crossed_by` with the ego as the object being crossed.
+# `reverse_relationship` is used to make the car doing the crossing the primary object in the output scenario.
+# We look for crossings up to 30 meters in front of the ego.
+car_pulling_in_front_of_ego = reverse_relationship(being_crossed_by)(
+    ego_vehicle,
+    cars_in_gas_station_or_lot,
+    log_dir,
+    direction='forward',
+    forward_thresh=30
+)
+
+# A car "pulling out onto a road" must be on the road at the time of the event.
+# We take the intersection of the cars pulling in front of the ego and the cars that are on the road.
+car_pulling_out_onto_road = scenario_and([car_pulling_in_front_of_ego, cars_on_road])
+
+# To make the scenario more precise, the car pulling out should be moving and likely accelerating.
+moving_cars = has_velocity(car_pulling_out_onto_road, log_dir, min_velocity=1.0)
+accelerating_cars = accelerating(moving_cars, log_dir, min_accel=0.5)
+
+# The final scenario is the accelerating cars that meet all the previous criteria.
+output_scenario(accelerating_cars, "car pulling out of gas station onto road in front of ego vehicle", log_dir, output_dir)

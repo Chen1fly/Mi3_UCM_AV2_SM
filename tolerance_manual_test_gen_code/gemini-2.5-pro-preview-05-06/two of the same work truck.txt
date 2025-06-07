@@ -1,0 +1,22 @@
+# The user wants to find scenarios with two of the same work truck.
+# "Work truck" can be interpreted as the "TRUCK" or "BOX_TRUCK" categories.
+# First, we get all objects belonging to the "TRUCK" category.
+trucks = get_objects_of_category(log_dir, category='TRUCK')
+
+# Next, we get all objects belonging to the "BOX_TRUCK" category.
+box_trucks = get_objects_of_category(log_dir, category='BOX_TRUCK')
+
+# We can combine these two categories into a single 'work_trucks' scenario dictionary
+# using scenario_or. This will give us all instances of either a TRUCK or a BOX_TRUCK.
+work_trucks = scenario_or([trucks, box_trucks])
+
+# To find two of the same work truck, we can look for work trucks that are near other work trucks.
+# We can use the near_objects function for this. We'll use the 'work_trucks' dictionary
+# for both the track_candidates and the related_candidates.
+# We set min_objects=2 to ensure that we find a work truck only when there is at least one other work truck nearby (totaling two).
+# We set include_self=False to prevent a truck from being counted as being near itself.
+# A distance_thresh of 25 meters is a reasonable distance to consider the trucks as being in the same scene.
+two_work_trucks = near_objects(work_trucks, work_trucks, log_dir, distance_thresh=25, min_objects=2, include_self=True)
+
+# Finally, we output the resulting scenario.
+output_scenario(two_work_trucks, description, log_dir, output_dir)

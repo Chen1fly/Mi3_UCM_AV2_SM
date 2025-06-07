@@ -1,0 +1,57 @@
+# Description: motorcycle or pedestrian within 5 meters to the right
+
+# Get all motorcycle objects from the logs.
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+
+# Get all pedestrian objects from the logs.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Combine the motorcycles and pedestrians into a single scenario dictionary.
+# These are the primary objects (targets) we are interested in finding.
+targets_of_interest = scenario_or([motorcycles, pedestrians])
+
+# Get all objects of any category. These will serve as the "related_candidates"
+# that could be to the right of our targets.
+all_other_objects = get_objects_of_category(log_dir, category='ANY')
+
+# Use has_objects_in_relative_direction to find instances of targets_of_interest
+# (motorcycles or pedestrians) that have at least one object from all_other_objects
+# to their right, within a specified proximity.
+#
+# Parameters:
+# - track_candidates: The set of objects we are analyzing (motorcycles or pedestrians).
+# - related_candidates: The set of objects we are looking for in the relative direction (any object).
+# - log_dir: Path to scenario logs.
+# - direction='right': We are looking for objects to the right of the track_candidates.
+# - min_number=1: We require at least one related object to be present in that direction.
+# - within_distance=5.0: This is the maximum distance along the track_candidate's 'right' axis
+#   that a related object can be.
+# - lateral_thresh=1.0: This is the maximum distance the related object can be from the
+#   track_candidate's sides that are parallel to the 'right' direction (i.e., its front/back).
+#   Effectively, this limits how far forward or backward (along the track_candidate's heading)
+#   the related object can be. A value of 1.0m means the related object is quite close to being
+#   directly abeam the track_candidate.
+#   With within_distance=5.0 and lateral_thresh=1.0, the maximum Euclidean distance to a
+#   related object satisfying these conditions would be sqrt(5.0^2 + 1.0^2) = sqrt(26) approx 5.099 meters.
+#   This setting aims for precision by keeping the related object close to the 5-meter radial distance
+#   while ensuring it's primarily to the "right".
+scenario_motorcycle_or_pedestrian_with_object_to_right = has_objects_in_relative_direction(
+    track_candidates=targets_of_interest,
+    related_candidates=all_other_objects,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,
+    within_distance=5.0,
+    lateral_thresh=1.0
+)
+
+# Output the resulting scenario.
+# The scenario_motorcycle_or_pedestrian_with_object_to_right dictionary will contain
+# track UUIDs of motorcycles or pedestrians that satisfy the condition, along with
+# timestamps and the UUIDs of the related objects found to their right.
+output_scenario(
+    scenario_motorcycle_or_pedestrian_with_object_to_right,
+    description, # The description variable is assumed to be predefined
+    log_dir,
+    output_dir
+)

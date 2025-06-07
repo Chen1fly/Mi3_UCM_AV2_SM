@@ -1,0 +1,8 @@
+# The user is asking to find instances of an "excavator"
+# There is no "EXCAVATOR" category in the dataset.
+# The closest category would be "TRUCK" which includes utility trucks, or "LARGE_VEHICLE".
+# We will use the "TRUCK" category as a proxy for "excavator" since an excavator is a type of utility truck.
+# This may result in false positives as it will include all trucks.
+description = "excavator"
+excavator_proxy = get_objects_of_category(log_dir, category="TRUCK")
+output_scenario(excavator_proxy, description, log_dir, output_dir)

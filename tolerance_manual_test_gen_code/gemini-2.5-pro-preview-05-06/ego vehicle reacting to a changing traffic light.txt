@@ -1,0 +1,37 @@
+# The objective is to find instances where the ego vehicle reacts to a changing traffic light.
+# A reaction is defined as a significant change in acceleration (braking or accelerating)
+# while near and facing a traffic light.
+
+description = 'ego vehicle reacting to a changing traffic light'
+
+# Get the ego vehicle.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all traffic lights. Note that the available category is 'TRAFFIC_LIGHT_TRAILER'.
+traffic_lights = get_objects_of_category(log_dir, category='TRAFFIC_LIGHT_TRAILER')
+
+# Find when the ego vehicle is near an intersection, as traffic lights are typically located at intersections.
+# A threshold of 50 meters is used to define "near".
+ego_near_intersection = near_intersection(ego_vehicle, log_dir, threshold=50)
+
+# To ensure the traffic light is relevant to the ego vehicle, we filter for instances
+# where the ego vehicle is facing towards a traffic light.
+# We use a 45-degree angle and a 50-meter distance threshold.
+ego_facing_light = facing_toward(ego_near_intersection, traffic_lights, log_dir, within_angle=45, max_distance=50)
+
+# A reaction to a changing traffic light can be either braking (for a yellow or red light)
+# or accelerating (for a green light).
+# We define braking as a forward acceleration less than -1.0 m/s^2.
+braking_ego = accelerating(ego_vehicle, log_dir, max_accel=-1.0)
+
+# We define accelerating as a forward acceleration greater than 1.0 m/s^2.
+accelerating_ego = accelerating(ego_vehicle, log_dir, min_accel=1.0)
+
+# The ego vehicle can be either braking or accelerating in reaction to the light.
+reacting_ego = scenario_or([braking_ego, accelerating_ego])
+
+# The final scenario is the intersection of the ego vehicle being near and facing a traffic light,
+# and the ego vehicle exhibiting a reaction (braking or accelerating).
+ego_reacting_to_light = scenario_and([ego_facing_light, reacting_ego])
+
+output_scenario(ego_reacting_to_light, description, log_dir, output_dir)

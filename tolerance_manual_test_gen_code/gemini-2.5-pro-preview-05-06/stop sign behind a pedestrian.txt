@@ -1,0 +1,34 @@
+description = 'stop sign behind a pedestrian'
+
+# Get all pedestrian objects from the logs
+# These will be our primary objects of interest (track_candidates).
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get all stop sign objects from the logs
+# These are the objects we are looking for in relation to the pedestrians.
+stop_signs = get_objects_of_category(log_dir, category='STOP_SIGN')
+
+# Find pedestrians that have a stop sign behind them.
+# The 'direction' is 'backward' from the pedestrian's point of view.
+# We require at least one stop sign ('min_number=1').
+# We are interested in relating to the closest such stop sign if multiple exist ('max_number=1').
+# 'within_distance' specifies the maximum longitudinal distance (e.g., 5 meters)
+# for the stop sign to be considered "behind" the pedestrian.
+# 'lateral_thresh' specifies the maximum lateral distance (e.g., 1 meter)
+# from the sides of the pedestrian for the stop sign. This helps ensure the
+# stop sign is somewhat aligned with the pedestrian's backward path.
+pedestrians_with_stop_sign_behind = has_objects_in_relative_direction(
+    track_candidates=pedestrians,
+    related_candidates=stop_signs,
+    log_dir=log_dir,
+    direction='backward',
+    min_number=1,
+    max_number=1,
+    within_distance=5.0,  # Stop sign should be relatively close behind the pedestrian (5 meters)
+    lateral_thresh=1.0  # Stop sign should be within 1 meter laterally from the pedestrian's backward path
+)
+
+# Output the resulting scenario
+# This will save the identified instances (pedestrians with a stop sign behind them)
+# in the specified output directory.
+output_scenario(pedestrians_with_stop_sign_behind, description, log_dir, output_dir)

@@ -1,0 +1,55 @@
+# The user wants to find instances of a pedestrian waving for the ego vehicle to continue.
+# This is a complex social interaction that cannot be directly detected with the available functions.
+# However, we can identify the conditions under which this interaction is most likely to occur.
+# The scenario involves a pedestrian and the ego vehicle, both likely stationary or nearly stationary,
+# positioned for a face-to-face interaction where the pedestrian would yield the right-of-way.
+
+# Key conditions for the scenario:
+# 1. The ego vehicle is stopped or moving very slowly, as if waiting for something.
+# 2. A pedestrian is also stationary, indicating they are not actively crossing.
+# 3. The pedestrian is in front of the ego vehicle and relatively close.
+# 4. The pedestrian is facing the ego vehicle, a prerequisite for any direct communication like a wave.
+
+description = 'pedestrian waving for ego vehicle to continue'
+
+# First, get all instances of pedestrians and the ego vehicle.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Identify when the ego vehicle is stopped or nearly stopped. A velocity below 1.0 m/s is a good proxy for this state.
+stopped_ego_vehicle = has_velocity(ego_vehicle, log_dir, max_velocity=1.0)
+
+# A pedestrian waving for the ego to proceed would likely be stationary.
+# We use a low velocity threshold to find pedestrians who are not actively walking.
+stationary_pedestrians = has_velocity(pedestrians, log_dir, max_velocity=0.5)
+
+# Next, we find the stationary pedestrians who are in front of the stopped ego vehicle.
+# To do this, we can query for pedestrians that have a stopped ego vehicle 'backward' from their perspective.
+# A distance of 15 meters is a reasonable range for this kind of interaction.
+# The keys of the resulting dictionary will be the pedestrian UUIDs that satisfy this condition.
+pedestrians_in_front_of_ego = get_objects_in_relative_direction(
+    track_candidates=stationary_pedestrians,
+    related_candidates=stopped_ego_vehicle,
+    log_dir=log_dir,
+    direction='backward',
+    within_distance=15
+)
+
+# The interaction also requires the pedestrian to be facing the ego vehicle.
+# We can find this by looking for stationary pedestrians facing towards the stopped ego vehicle.
+# We'll use a `within_angle` of 45 degrees to capture a general "facing" direction.
+pedestrians_facing_ego = facing_toward(
+    track_candidates=stationary_pedestrians,
+    related_candidates=stopped_ego_vehicle,
+    log_dir=log_dir,
+    within_angle=45,
+    max_distance=15
+)
+
+# The final scenario is the intersection of these conditions: a stationary pedestrian who is both
+# in front of and facing a stopped ego vehicle. This captures the specific context where a
+# "wave to continue" gesture is most plausible.
+pedestrian_waving_at_ego = scenario_and([pedestrians_in_front_of_ego, pedestrians_facing_ego])
+
+# Output the final scenario.
+output_scenario(pedestrian_waving_at_ego, description, log_dir, output_dir)

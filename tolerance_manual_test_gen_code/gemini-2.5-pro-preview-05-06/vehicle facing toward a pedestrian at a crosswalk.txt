@@ -1,0 +1,36 @@
+# description: vehicle facing toward a pedestrian at a crosswalk
+
+# Get all vehicle objects from the logs.
+# 'VEHICLE' is a superclass including various types of vehicles.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Get all pedestrian objects from the logs.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Identify pedestrians that are at or very near a pedestrian crossing.
+# The `at_pedestrian_crossing` function uses a default `within_distance` of 1 meter,
+# meaning the pedestrian's center is within 1m of the crossing boundaries.
+pedestrians_at_crosswalk = at_pedestrian_crossing(pedestrians, log_dir, within_distance=1.0)
+
+# Identify vehicles that are facing toward the pedestrians who are at a crosswalk.
+# `facing_toward` checks if the `related_candidates` (pedestrians_at_crosswalk)
+# are within a certain angle (default 22.5 degrees on either side, so a 45-degree cone)
+# of the `track_candidates`' (vehicles) forward axis and within a maximum distance (default 50m).
+# This function returns the vehicles that meet this condition.
+vehicles_facing_pedestrian_at_crosswalk = facing_toward(
+    track_candidates=vehicles,
+    related_candidates=pedestrians_at_crosswalk,
+    log_dir=log_dir,
+    within_angle=22.5,  # Default, but specified for clarity. Pedestrian is in a 45-degree FOV of the vehicle.
+    max_distance=50.0   # Default, but specified for clarity. Pedestrian is within 50m.
+)
+
+# Output the resulting scenario.
+# This will contain the vehicles that are facing towards a pedestrian at a crosswalk,
+# along with the timestamps when this condition is met.
+output_scenario(
+    vehicles_facing_pedestrian_at_crosswalk,
+    description = 'vehicle facing toward a pedestrian at a crosswalk',
+    log_dir=log_dir,
+    output_dir=output_dir
+)

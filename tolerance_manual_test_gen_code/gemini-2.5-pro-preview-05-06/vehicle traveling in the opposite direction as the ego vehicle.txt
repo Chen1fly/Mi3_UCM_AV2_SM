@@ -1,0 +1,23 @@
+# Define the description for the scenario
+description = 'vehicle traveling in the opposite direction as the ego vehicle'
+
+# Get all objects categorized as 'VEHICLE'
+# This will include REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, BOX_TRUCK, BUS, SCHOOL_BUS, ARTICULATED_BUS, TRUCK, and RAILED_VEHICLE
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Get the ego vehicle
+ego_vehicle = get_objects_of_category(log_dir, category="EGO_VEHICLE")
+
+# Identify vehicles that are traveling in the opposite direction relative to the ego vehicle.
+# The 'heading_in_relative_direction_to' function defines 'opposite' as traveling in a direction
+# 135-180 degrees from the direction the related candidates (ego_vehicle in this case) are heading.
+vehicles_traveling_opposite_ego = heading_in_relative_direction_to(
+    track_candidates=all_vehicles,
+    related_candidates=ego_vehicle,
+    log_dir=log_dir,
+    direction='opposite'
+)
+
+# Output the scenario
+# This will save the identified instances of vehicles traveling in the opposite direction as the ego vehicle.
+output_scenario(vehicles_traveling_opposite_ego, description, log_dir, output_dir)

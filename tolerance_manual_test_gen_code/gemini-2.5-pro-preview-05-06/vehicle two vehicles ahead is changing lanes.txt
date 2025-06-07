@@ -1,0 +1,98 @@
+description = "vehicle two vehicles ahead is changing lanes"
+
+# Get EGO vehicle.
+# The problem asks for instances of "a" vehicle, which typically refers to the EGO vehicle
+# as the primary observer in autonomous driving datasets unless specified otherwise.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all other vehicles (non-EGO).
+# Based on the provided category definitions, 'VEHICLE' is a superclass that does
+# not explicitly include 'EGO_VEHICLE'. Thus, 'other_vehicles' should be disjoint from 'ego_vehicle'.
+other_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Step 1: Identify all vehicles (let's call them V2) that are changing lanes.
+# lc_v2_dict will be a scenario dictionary: {v2_uuid: [timestamps_when_v2_is_changing_lane]}
+lc_v2_dict = changing_lanes(other_vehicles, log_dir)
+
+# Step 2: Identify vehicles (let's call them V1) that are directly behind
+# these lane-changing vehicles (V2) at the exact time V2 is changing lanes.
+# For V1 to be behind V2, V2 must be in the 'forward' direction relative to V1.
+# The function `has_objects_in_relative_direction` returns a dictionary structured as:
+# {track_candidate_uuid: {related_candidate_uuid: [timestamps_relation_holds], ...}, ...}
+# In this call, V1s are 'track_candidates' and V2s (from lc_v2_dict) are 'related_candidates'.
+v1_has_v2_in_front_relations = has_objects_in_relative_direction(
+    track_candidates=other_vehicles,    # Potential V1s
+    related_candidates=lc_v2_dict,      # Potential V2s (these are the vehicles actively changing lanes)
+    log_dir=log_dir,
+    direction='forward',                # V2 is in front of V1
+    min_number=1,                       # V1 must have at least one such V2 in front
+    max_number=1,                       # We are interested in the closest V2 (first vehicle ahead of V1)
+    within_distance=30,                 # V2 is within 30 meters of V1 (reasonable following distance)
+    lateral_thresh=1.0                  # V2 is in the same lane as V1.
+                                        # A 1.0m threshold implies that the side of V2 is within 1m of the side of V1,
+                                        # keeping them closely aligned in the same lane.
+)
+
+# Filter the above relations: We need V1s only at timestamps where V2 (in front of V1)
+# is *actually* changing lanes.
+# v1_behind_changing_v2_dict will be: {v1_uuid: [timestamps_when_v1_is_directly_behind_a_changing_v2]}
+v1_behind_changing_v2_dict = {}
+for v1_uuid, related_v2_map in v1_has_v2_in_front_relations.items():
+    # V1 should be from 'other_vehicles', so it should not be an EGO vehicle.
+    # This check is a safeguard.
+    if ego_vehicle and v1_uuid in ego_vehicle:
+        continue
+
+    timestamps_for_this_v1_in_critical_state = []
+    for v2_uuid, ts_v2_is_ahead_of_v1 in related_v2_map.items():
+        # Ensure this v2_uuid is one of the vehicles identified as changing lanes (i.e., in lc_v2_dict).
+        if v2_uuid in lc_v2_dict:
+            ts_v2_is_changing_lane = lc_v2_dict[v2_uuid]
+            
+            # Intersect timestamps: Find when V2 is (A) ahead of V1 and (B) V2 is changing lane.
+            valid_timestamps = sorted(list(set(ts_v2_is_ahead_of_v1) & set(ts_v2_is_changing_lane)))
+            timestamps_for_this_v1_in_critical_state.extend(valid_timestamps)
+            
+    if timestamps_for_this_v1_in_critical_state:
+        # Consolidate all valid timestamps for this v1_uuid
+        v1_behind_changing_v2_dict[v1_uuid] = sorted(list(set(timestamps_for_this_v1_in_critical_state)))
+
+# Step 3: Identify EGO vehicle instances that are directly behind a V1 vehicle (from v1_behind_changing_v2_dict)
+# at the critical timestamps identified in the previous step.
+# For EGO to be behind V1, V1 must be in the 'forward' direction relative to EGO.
+# Here, EGO is the 'track_candidate' and V1s (from v1_behind_changing_v2_dict) are 'related_candidates'.
+ego_has_v1_in_front_relations = has_objects_in_relative_direction(
+    track_candidates=ego_vehicle,       # EGO vehicle is the observer
+    related_candidates=v1_behind_changing_v2_dict, # V1s that are behind a changing V2
+    log_dir=log_dir,
+    direction='forward',                # V1 is in front of EGO
+    min_number=1,                       # EGO must have at least one such V1 in front
+    max_number=1,                       # We are interested in the closest V1 (first vehicle ahead of EGO)
+    within_distance=30,                 # V1 is within 30 meters of EGO
+    lateral_thresh=1.0                  # V1 is in the same lane as EGO
+)
+
+# Filter these EGO relations: We need EGO instances only at timestamps where the V1
+# (in front of EGO) is itself in the state of being behind a lane-changing V2.
+# final_ego_scenario_dict will be: {ego_uuid: [timestamps_fulfilling_the_full_scenario]}
+final_ego_scenario_dict = {}
+for current_ego_uuid, related_v1_map in ego_has_v1_in_front_relations.items():
+    # current_ego_uuid will be the UUID of the ego_vehicle.
+    timestamps_for_this_ego_fulfilling_scenario = []
+    for v1_uuid, ts_v1_is_ahead_of_ego in related_v1_map.items():
+        # Ensure this v1_uuid is one of the V1s identified as being behind a changing V2.
+        if v1_uuid in v1_behind_changing_v2_dict:
+            ts_v1_is_in_critical_state = v1_behind_changing_v2_dict[v1_uuid]
+            
+            # Intersect timestamps: Find when V1 is (A) ahead of EGO and (B) V1 is in its critical state.
+            valid_timestamps = sorted(list(set(ts_v1_is_ahead_of_ego) & set(ts_v1_is_in_critical_state)))
+            timestamps_for_this_ego_fulfilling_scenario.extend(valid_timestamps)
+            
+    if timestamps_for_this_ego_fulfilling_scenario:
+        # Consolidate all valid timestamps for this ego_uuid
+        final_ego_scenario_dict[current_ego_uuid] = sorted(list(set(timestamps_for_this_ego_fulfilling_scenario)))
+
+# Output the final scenario dictionary for the EGO vehicle.
+# This dictionary contains the EGO vehicle's UUID and the list of timestamps
+# when the condition "vehicle two vehicles ahead is changing lanes" is met.
+output_scenario(final_ego_scenario_dict, description, log_dir, output_dir)

@@ -1,0 +1,62 @@
+# description: the active vehicle in front of the vehicle ahead
+# This scenario aims to find a sequence of three vehicles: V1 -> V2 -> V3,
+# where V2 is "the vehicle ahead" (of V1), and V3 is "the active vehicle in front of" V2.
+# The final output will be a scenario dictionary representing these V3s.
+
+# Step 1: Get all objects of category 'VEHICLE'.
+# This forms the pool of all potential vehicles (V1, V2, V3) in the scene.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Step 2: Identify active vehicles.
+# "Active" vehicles are those that are not stationary. The `stationary` function identifies
+# objects that moved less than 2m over their entire observation period.
+# `scenario_not(stationary)` gives us vehicles that are moving or have moved significantly.
+# This `active_vehicles` set will be used to ensure that V3 is active.
+active_vehicles = scenario_not(stationary)(all_vehicles, log_dir)
+
+# Step 3: Identify V2 ("the vehicle ahead").
+# A V2 is any vehicle that is in front of another vehicle (V1).
+# We use `get_objects_in_relative_direction` where:
+# - `track_candidates=all_vehicles`: Any vehicle can serve as the reference vehicle V1.
+# - `related_candidates=all_vehicles`: We search for V2s within this set.
+# - `direction='forward'`: V2 must be in the forward direction of V1.
+# - `max_number=1`: This ensures we find "the" vehicle ahead (the closest one).
+# - `min_number=1`: At least one such vehicle must exist.
+# - `within_distance=50`: Sets a reasonable maximum distance for V2 to be considered "ahead" of V1.
+# The result, `vehicles_V2_are_ahead`, is a scenario dictionary. Its keys are the UUIDs of
+# V2 vehicles, and values are lists of timestamps when they were in front of some V1.
+vehicles_V2_are_ahead = get_objects_in_relative_direction(
+    track_candidates=all_vehicles,
+    related_candidates=all_vehicles,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=1,
+    within_distance=50  # Default value from function signature, deemed appropriate
+)
+
+# Step 4: Identify V3 ("the active vehicle in front of the vehicle ahead").
+# V3 must be an active vehicle, and it must be in front of a V2 found in the previous step.
+# We use `get_objects_in_relative_direction` again:
+# - `track_candidates=vehicles_V2_are_ahead`: These are the V2s, serving as reference.
+# - `related_candidates=active_vehicles`: We search for V3s only among active vehicles.
+# - `direction='forward'`: V3 must be in the forward direction of V2.
+# - `max_number=1`: Ensures we find "the" active vehicle (closest one) in front of V2.
+# - `min_number=1`: At least one such active vehicle must exist.
+# - `within_distance=50`: Maximum distance for V3 to be considered in front of V2.
+# The result, `target_scenario_V3`, is a scenario dictionary. Its keys are the UUIDs of
+# V3 vehicles, and values are lists of timestamps when all conditions are met.
+target_scenario_V3 = get_objects_in_relative_direction(
+    track_candidates=vehicles_V2_are_ahead,
+    related_candidates=active_vehicles,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=1,
+    within_distance=50  # Default value, consistent with previous step
+)
+
+# Step 5: Output the final scenario.
+# This scenario dictionary contains the V3 vehicles that match the full description:
+# "the active vehicle in front of the vehicle ahead".
+output_scenario(target_scenario_V3, description, log_dir, output_dir)

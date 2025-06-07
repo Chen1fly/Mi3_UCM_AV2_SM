@@ -1,0 +1,51 @@
+description = "vehicle parallel parking"
+
+# To identify a vehicle that is parallel parked, we will look for a stationary vehicle
+# that is positioned on a road with other stationary vehicles directly in front of and behind it.
+
+# First, get all objects categorized as 'VEHICLE'.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Next, filter this set to only include vehicles that are stationary.
+# This is a key characteristic of a parked vehicle.
+stationary_vehicles = stationary(vehicles, log_dir)
+
+# We are interested in vehicles parked on the road, so we filter out vehicles in parking lots or other areas.
+parked_vehicles_on_road = on_road(stationary_vehicles, log_dir)
+
+# Now, we identify vehicles from our set of 'parked_vehicles_on_road' that have another
+# vehicle from the same set directly in front of them.
+# 'within_distance=7' is used as a reasonable length of a parking spot, allowing for some space between cars.
+# 'lateral_thresh=1.0' ensures the vehicles are aligned in a single line, typical for parallel parking.
+vehicles_with_car_in_front = has_objects_in_relative_direction(
+    track_candidates=parked_vehicles_on_road,
+    related_candidates=parked_vehicles_on_road,
+    log_dir=log_dir,
+    direction="forward",
+    max_number=1,
+    within_distance=7,
+    lateral_thresh=1.0
+)
+
+# Similarly, we identify vehicles that have another parked vehicle directly behind them,
+# using the same distance and lateral constraints.
+vehicles_with_car_behind = has_objects_in_relative_direction(
+    track_candidates=parked_vehicles_on_road,
+    related_candidates=parked_vehicles_on_road,
+    log_dir=log_dir,
+    direction="backward",
+    max_number=1,
+    within_distance=7,
+    lateral_thresh=1.0
+)
+
+# A vehicle is considered parallel parked if it meets both conditions:
+# having a parked vehicle in front AND a parked vehicle behind.
+# We use 'scenario_and' to find the intersection of the two previously defined scenarios.
+parallel_parked_vehicles = scenario_and([
+    vehicles_with_car_in_front,
+    vehicles_with_car_behind
+])
+
+# Finally, output the scenario.
+output_scenario(parallel_parked_vehicles, description, log_dir, output_dir)

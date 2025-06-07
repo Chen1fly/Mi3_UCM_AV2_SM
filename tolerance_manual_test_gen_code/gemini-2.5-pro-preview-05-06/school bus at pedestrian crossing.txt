@@ -1,0 +1,11 @@
+description = 'school bus at pedestrian crossing'
+# Get all objects categorized as SCHOOL_BUS
+school_buses = get_objects_of_category(log_dir, category='SCHOOL_BUS')
+
+# Filter school buses to find those that are at a pedestrian crossing
+# The default within_distance for at_pedestrian_crossing is 1 meter, which means the object is within 1 meter of the crossing,
+# or inside the crossing if the distance is 0. This seems appropriate for "at pedestrian crossing".
+school_buses_at_crossing = at_pedestrian_crossing(school_buses, log_dir)
+
+# Output the scenario
+output_scenario(school_buses_at_crossing, description, log_dir, output_dir)

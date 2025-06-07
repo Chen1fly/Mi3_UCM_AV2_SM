@@ -1,0 +1,46 @@
+# The user wants to find scenarios where a vehicle goes through an intersection in front of the ego vehicle,
+# implying the other vehicle does not have the right of way.
+# This can be broken down into several conditions:
+# 1. There is an ego vehicle.
+# 2. There is another vehicle.
+# 3. Both the ego vehicle and the other vehicle are in an intersection.
+# 4. The other vehicle crosses the path of the ego vehicle. "In front of" implies the crossing happens across the ego's forward direction.
+
+# First, get all vehicles and the ego vehicle.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Next, identify when these objects are on an intersection.
+vehicles_on_intersection = on_intersection(vehicles, log_dir)
+ego_on_intersection = on_intersection(ego_vehicle, log_dir)
+
+# Now, we need to find the instances where a vehicle on the intersection crosses in front of the ego vehicle, which is also on the intersection.
+# The `being_crossed_by` function is suitable for this. We'll check for crossings over the ego's forward midplane.
+# The ego vehicle will be the `track_candidates` and the other vehicles will be the `related_candidates`.
+# A `forward_thresh` of 30 meters should be sufficient to cover the space within an intersection in front of the ego.
+# A `lateral_thresh` of 5 meters ensures we capture the vehicle as it completes its crossing maneuver.
+ego_being_crossed_on_intersection = being_crossed_by(
+    ego_on_intersection,
+    vehicles_on_intersection,
+    log_dir,
+    direction='forward',
+    forward_thresh=30,
+    lateral_thresh=5
+)
+
+# The `being_crossed_by` function returns the `track_candidates` (the ego vehicle) that were crossed.
+# However, the request asks for the "vehicle going through intersection", which is the other vehicle.
+# We can use `reverse_relationship` to swap the keys of the output dictionary to be the crossing vehicles.
+vehicle_crossing_ego = reverse_relationship(being_crossed_by)(
+    ego_on_intersection,
+    vehicles_on_intersection,
+    log_dir,
+    direction='forward',
+    forward_thresh=30,
+    lateral_thresh=5
+)
+
+# This final scenario dictionary now contains the vehicles that crossed in front of the ego vehicle while both were in an intersection.
+# This situation strongly implies a right-of-way violation.
+description = 'vehicle going through intersection in front of ego vehicle without right of way'
+output_scenario(vehicle_crossing_ego, description, log_dir, output_dir)

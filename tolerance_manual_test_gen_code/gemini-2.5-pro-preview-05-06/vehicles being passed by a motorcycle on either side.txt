@@ -1,0 +1,64 @@
+# Description: vehicles being passed by a motorcycle on either side
+
+# Get all vehicles in the scenario
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Get all motorcycles in the scenario
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+
+# Filter for motorcycles that are currently moving
+# Using a min_velocity of 0.5 m/s to distinguish from stationary/jitter.
+moving_motorcycles = has_velocity(motorcycles, log_dir, min_velocity=0.5)
+
+# Define the parameters for the passing interaction.
+# forward_thresh: This defines the longitudinal extent of the interaction zone along the side of the vehicle.
+# A value of 5m means the detection zone extends 5m from the front and rear edges of the vehicle being passed.
+# For a car of ~5m length, this creates a total interaction length of 5m (car) + 2*5m = 15m.
+passing_forward_thresh = 5.0
+
+# lateral_thresh: This defines how far (laterally) from the vehicle's side the motorcycle can be
+# while still being considered as "passing". A value of 2.5m ensures the motorcycle is relatively close,
+# e.g., in an adjacent lane or the same lane.
+passing_lateral_thresh = 2.5
+
+# Scenario: Vehicles being passed by a motorcycle on their left side
+# The 'track_candidates' are the vehicles being passed.
+# The 'related_candidates' are the moving motorcycles doing the passing.
+# direction="left": The motorcycle is crossing the vehicle's left-side midplane.
+# in_direction="clockwise": For a left-side pass, this means the motorcycle is moving from relatively behind to relatively in front of the vehicle.
+vehicles_passed_on_left_by_motorcycle = being_crossed_by(
+    track_candidates=vehicles,
+    related_candidates=moving_motorcycles,
+    log_dir=log_dir,
+    direction="left",
+    in_direction="clockwise",
+    forward_thresh=passing_forward_thresh,
+    lateral_thresh=passing_lateral_thresh
+)
+
+# Scenario: Vehicles being passed by a motorcycle on their right side
+# direction="right": The motorcycle is crossing the vehicle's right-side midplane.
+# in_direction="counterclockwise": For a right-side pass, this means the motorcycle is moving from relatively behind to relatively in front of the vehicle.
+vehicles_passed_on_right_by_motorcycle = being_crossed_by(
+    track_candidates=vehicles,
+    related_candidates=moving_motorcycles,
+    log_dir=log_dir,
+    direction="right",
+    in_direction="counterclockwise",
+    forward_thresh=passing_forward_thresh,
+    lateral_thresh=passing_lateral_thresh
+)
+
+# Combine the two scenarios: vehicles passed on either left OR right side
+vehicles_passed_by_motorcycle_either_side = scenario_or([
+    vehicles_passed_on_left_by_motorcycle,
+    vehicles_passed_on_right_by_motorcycle
+])
+
+# Output the combined scenario
+output_scenario(
+    vehicles_passed_by_motorcycle_either_side,
+    description="vehicles being passed by a motorcycle on either side",
+    log_dir=log_dir,
+    output_dir=output_dir
+)

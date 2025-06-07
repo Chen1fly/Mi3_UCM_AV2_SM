@@ -1,0 +1,50 @@
+# Description: vehicle facing and heading toward pedestrian group
+
+# Get all vehicles in the scenario
+vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Get all pedestrians in the scenario
+pedestrians = get_objects_of_category(log_dir, category="PEDESTRIAN")
+
+# Step 1: Identify vehicles that have a "pedestrian group" in front of them.
+# A "pedestrian group" is defined here as at least 2 pedestrians.
+# "Facing" is captured by `direction="forward"` and a reasonable `lateral_thresh`.
+# `min_number=2`: Defines the minimum size of the pedestrian group.
+# `within_distance=25.0`: The pedestrians must be within 25 meters in front of the vehicle.
+# `lateral_thresh=1.5`: Pedestrians can be up to 1.5 meters from the sides of the vehicle's path.
+# If vehicle width is ~2m, this means a 2m + 2*1.5m = 5m wide corridor.
+vehicles_with_ped_group_in_front = has_objects_in_relative_direction(
+    track_candidates=vehicles,
+    related_candidates=pedestrians,
+    log_dir=log_dir,
+    direction="forward",
+    min_number=2,
+    within_distance=25.0,
+    lateral_thresh=1.5
+)
+
+# Step 2: From the vehicles identified above, select those that are "heading toward" a pedestrian.
+# This ensures the vehicle is not just stationary with pedestrians in front, but actively moving towards one.
+# `track_candidates` are the vehicles already identified as having a group in front.
+# `related_candidates` are all pedestrians; the vehicle must be heading towards at least one of them.
+# `angle_threshold=15.0`: The vehicle's velocity vector must be within 15 degrees of the vector to a pedestrian. This ensures precise heading.
+# `minimum_speed=0.5`: The vehicle must be moving at least 0.5 m/s.
+# `max_distance=25.0`: The pedestrian it's heading towards must be within 25 meters, consistent with the previous step.
+vehicles_facing_and_heading_toward_ped_group = heading_toward(
+    track_candidates=vehicles_with_ped_group_in_front,
+    related_candidates=pedestrians,
+    log_dir=log_dir,
+    angle_threshold=15.0,
+    minimum_speed=0.5,
+    max_distance=25.0
+)
+
+# Output the scenario
+# The `vehicles_facing_and_heading_toward_ped_group` dictionary now contains
+# the vehicle UUIDs and timestamps that satisfy all conditions.
+output_scenario(
+    vehicles_facing_and_heading_toward_ped_group,
+    description="vehicle facing and heading toward pedestrian group",
+    log_dir=log_dir,
+    output_dir=output_dir
+)

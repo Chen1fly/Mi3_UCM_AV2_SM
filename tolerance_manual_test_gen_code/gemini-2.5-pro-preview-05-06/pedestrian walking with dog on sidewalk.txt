@@ -1,0 +1,121 @@
+import numpy as np
+from pathlib import Path
+from typing import Literal
+
+# Assume log_dir and output_dir are predefined Path objects.
+# For example:
+# from pathlib import Path
+# log_dir = Path("/path/to/scenario/logs")
+# output_dir = Path("/path/to/output_scenarios")
+
+description = "pedestrian walking with dog on sidewalk"
+
+# 1. Get all pedestrian objects from the logs.
+# These are the primary objects of interest.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# 2. Get all dog objects from the logs.
+# These are the related objects.
+dogs = get_objects_of_category(log_dir, category='DOG')
+
+# 3. Filter for pedestrians that are actively walking.
+# According to `has_velocity` documentation, stationary objects may have a velocity up to 0.5 m/s
+# due to annotation jitter. We set `min_velocity` slightly above this threshold to ensure
+# the pedestrian is indeed moving.
+walking_pedestrians = has_velocity(pedestrians, log_dir, min_velocity=0.51)
+
+# 4. Identify walking pedestrians who have a dog nearby (i.e., "with dog").
+# Since there isn't a direct "is_near_in_all_directions" function that returns the primary track,
+# we use `has_objects_in_relative_direction` for all four cardinal directions (forward, backward, left, right).
+# If a dog is found in any of these zones relative to the pedestrian, we consider the condition met.
+# A distance of 2 meters for both longitudinal (`within_distance`) and lateral (`lateral_thresh`)
+# reach is chosen as a reasonable proximity for a dog to be "with" a pedestrian (e.g., on a leash).
+# `min_number=1` ensures that at least one dog must be present in the specified zone.
+prox_distance = 2.0  # The longitudinal reach from the pedestrian for the check.
+prox_lateral = 2.0   # The lateral reach from the pedestrian's sides for the check.
+
+# Check for dogs in front of the pedestrian
+ped_with_dog_forward = has_objects_in_relative_direction(
+    track_candidates=walking_pedestrians,
+    related_candidates=dogs,
+    log_dir=log_dir,
+    direction="forward",
+    min_number=1,
+    within_distance=prox_distance,
+    lateral_thresh=prox_lateral
+)
+
+# Check for dogs behind the pedestrian
+ped_with_dog_backward = has_objects_in_relative_direction(
+    track_candidates=walking_pedestrians,
+    related_candidates=dogs,
+    log_dir=log_dir,
+    direction="backward",
+    min_number=1,
+    within_distance=prox_distance,
+    lateral_thresh=prox_lateral
+)
+
+# Check for dogs to the left of the pedestrian
+ped_with_dog_left = has_objects_in_relative_direction(
+    track_candidates=walking_pedestrians,
+    related_candidates=dogs,
+    log_dir=log_dir,
+    direction="left",
+    min_number=1,
+    within_distance=prox_distance,
+    lateral_thresh=prox_lateral
+)
+
+# Check for dogs to the right of the pedestrian
+ped_with_dog_right = has_objects_in_relative_direction(
+    track_candidates=walking_pedestrians,
+    related_candidates=dogs,
+    log_dir=log_dir,
+    direction="right",
+    min_number=1,
+    within_distance=prox_distance,
+    lateral_thresh=prox_lateral
+)
+
+# A pedestrian is considered "with dog" if a dog is found in any of these relative zones.
+# `scenario_or` combines the results, including pedestrians that meet any of the conditions.
+pedestrians_with_dog = scenario_or([
+    ped_with_dog_forward,
+    ped_with_dog_backward,
+    ped_with_dog_left,
+    ped_with_dog_right
+])
+
+# 5. Filter these pedestrians (who are walking and with a dog) to be "on a sidewalk".
+# There is no direct "on_sidewalk" function. We approximate a sidewalk as an area that is
+# NEITHER a road NOR a (vehicular) drivable area.
+# This should capture sidewalks, pedestrian paths, and similar non-vehicular areas.
+
+# First, filter out pedestrians (walking with dogs) that are on a road.
+# `on_road` identifies objects on a road or bike lane.
+# `scenario_not(on_road)` will return pedestrians_with_dog that are NOT on_road.
+peds_with_dog_not_on_road = scenario_not(on_road)(
+    pedestrians_with_dog, # track_candidates for on_road
+    log_dir
+)
+
+# Next, from the remaining pedestrians (walking with dogs, not on a road),
+# filter out those that are in a drivable area.
+# `in_drivable_area` identifies objects within areas intended for vehicle movement.
+# `scenario_not(in_drivable_area)` will return peds_with_dog_not_on_road that are NOT in_drivable_area.
+peds_walking_with_dog_on_sidewalk = scenario_not(in_drivable_area)(
+    peds_with_dog_not_on_road, # track_candidates for in_drivable_area
+    log_dir
+)
+
+# Output the final scenario.
+# The `peds_walking_with_dog_on_sidewalk` dictionary contains UUIDs of pedestrians
+# who meet all specified criteria, along with the timestamps of when these conditions are met.
+output_scenario(
+    scenario=peds_walking_with_dog_on_sidewalk,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+    # visualize=False is the default for output_scenario, and no specific visualization_kwargs are needed.
+)

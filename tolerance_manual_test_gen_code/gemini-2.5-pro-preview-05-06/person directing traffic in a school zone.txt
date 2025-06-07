@@ -1,0 +1,21 @@
+# The user wants to find a person directing traffic in a school zone.
+# The best way to identify a person directing traffic is to use the 'OFFICIAL_SIGNALER' category.
+# A school zone can be inferred by the presence of a 'SCHOOL_BUS'.
+# Therefore, the scenario can be defined as an 'OFFICIAL_SIGNALER' near a 'SCHOOL_BUS'.
+
+description = "person directing traffic in a school zone"
+
+# First, get all instances of official signalers.
+person_directing_traffic = get_objects_of_category(log_dir, category='OFFICIAL_SIGNALER')
+
+# Next, get all instances of school buses.
+school_buses = get_objects_of_category(log_dir, category='SCHOOL_BUS')
+
+# An official signaler directing traffic will be on the road.
+person_directing_traffic_on_road = on_road(person_directing_traffic, log_dir)
+
+# Find the signalers that are near a school bus.
+# A distance of 30 meters is a reasonable threshold to capture the context of a school zone around a bus.
+person_directing_traffic_in_school_zone = near_objects(person_directing_traffic_on_road, school_buses, log_dir, distance_thresh=30)
+
+output_scenario(person_directing_traffic_in_school_zone, description, log_dir, output_dir)

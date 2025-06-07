@@ -1,0 +1,14 @@
+# The user wants to find vehicles with their left turn signal on.
+# The `turning` function is the most appropriate for this scenario, as a turn signal's purpose is to indicate a turn.
+description = "vehicle with their left turn signal on"
+
+# First, get all vehicles in the scenario.
+vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Next, filter these vehicles to only include those that are turning left.
+# This function identifies vehicles that are in the process of making a left turn,
+# which is the intended action when a left turn signal is active.
+vehicles_turning_left = turning(vehicles, log_dir, direction="left")
+
+# Finally, output the scenario containing only the vehicles that are turning left.
+output_scenario(vehicles_turning_left, description, log_dir, output_dir)

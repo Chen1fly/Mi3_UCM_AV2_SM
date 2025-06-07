@@ -1,0 +1,69 @@
+description = 'vehicle being overtaken while approaching another vehicle'
+
+# Get all vehicles in the scenario
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are actively moving.
+# These will be candidates for the vehicle being overtaken (let's call it v1)
+# and the vehicle performing the overtake (let's call it v2).
+# A minimum velocity helps filter out stationary or very slowly drifting objects.
+active_vehicles = has_velocity(all_vehicles, log_dir, min_velocity=1.0) # 1.0 m/s is a reasonable threshold for "moving"
+
+# Part 1: Identify vehicles (v1) that are being overtaken by another active vehicle (v2).
+# We use 'being_crossed_by' for this. The 'track_candidates' are potential v1s,
+# and 'related_candidates' are potential v2s.
+# For an overtake on the left of v1 by v2: v2 is on v1's left, and v2 moves from v1's rear-left to v1's front-left.
+# This corresponds to direction='left' and in_direction='clockwise' based on examples.
+# For an overtake on the right: direction='right' and in_direction='counterclockwise'.
+# forward_thresh: How far the interaction zone for crossing extends along v1's axis.
+#                 Based on examples, a smaller value like 5m seems appropriate, indicating v2 is relatively close longitudinally.
+# lateral_thresh: How far out laterally v2 can be from v1. 3m roughly corresponds to an adjacent lane.
+
+v1_overtaken_on_left = being_crossed_by(
+    track_candidates=active_vehicles,
+    related_candidates=active_vehicles,
+    log_dir=log_dir,
+    direction='left',
+    in_direction='clockwise',
+    forward_thresh=5.0, # See explanation above
+    lateral_thresh=3.0
+)
+
+v1_overtaken_on_right = being_crossed_by(
+    track_candidates=active_vehicles,
+    related_candidates=active_vehicles,
+    log_dir=log_dir,
+    direction='right',
+    in_direction='counterclockwise',
+    forward_thresh=5.0, # See explanation above
+    lateral_thresh=3.0
+)
+
+# Combine scenarios where v1 is overtaken on either left or right.
+# The keys in this dictionary are the UUIDs of v1 (vehicles being overtaken).
+v1_is_being_overtaken = scenario_or([v1_overtaken_on_left, v1_overtaken_on_right])
+
+# Part 2: Identify active vehicles (v1) that are approaching another vehicle (let's call it v3).
+# v3 can be any vehicle, including stationary ones (e.g., v1 approaching a parked car or stopped traffic).
+# 'heading_toward' is suitable here: it checks if v1's velocity vector points towards v3.
+# angle_threshold: The maximum angular difference between v1's velocity vector and the vector from v1 to v3.
+# minimum_speed: v1's component of velocity towards v3. Ensures actual approach.
+# max_distance: How far away v3 can be to be considered "being approached".
+v1_is_approaching_another_vehicle = heading_toward(
+    track_candidates=active_vehicles,      # v1 must be an active vehicle
+    related_candidates=all_vehicles,       # v3 can be any vehicle
+    log_dir=log_dir,
+    angle_threshold=30.0,  # Allows for some deviation in heading, e.g., slight curve
+    minimum_speed=1.0,     # v1 must be closing in on v3 with at least 1.0 m/s
+    max_distance=75.0      # v3 is within a 75m range
+)
+
+# Part 3: Combine the conditions.
+# We want v1 that is *simultaneously* being overtaken (Part 1) AND approaching another vehicle (Part 2).
+# 'scenario_and' finds track UUIDs (v1s) that exist in both input scenario dictionaries for an overlapping timestamp.
+target_scenario = scenario_and([v1_is_being_overtaken, v1_is_approaching_another_vehicle])
+
+# Output the resulting scenario
+# The 'target_scenario' dictionary will contain the UUIDs of vehicles (v1)
+# that meet the full description, along with the relevant timestamps.
+output_scenario(target_scenario, description, log_dir, output_dir)

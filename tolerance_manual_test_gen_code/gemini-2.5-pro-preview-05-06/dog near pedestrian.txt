@@ -1,0 +1,18 @@
+# Scenario: dog near pedestrian
+description = 'dog near pedestrian'
+
+# Retrieve all dogs and pedestrians present in the log
+dogs = get_objects_of_category(log_dir, category='DOG')
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Find dogs that come within 3 m of at least one pedestrian
+dogs_near_pedestrians = near_objects(
+    dogs,            # track_candidates: dogs
+    pedestrians,     # related_candidates: pedestrians
+    log_dir,
+    distance_thresh=3,  # tighter distance threshold to avoid false positives
+    min_objects=1       # require at least one pedestrian nearby
+)
+
+# Output the results
+output_scenario(dogs_near_pedestrians, description, log_dir, output_dir)

@@ -1,0 +1,46 @@
+# description: dog crossing in front of vehicle
+
+# Get all dog objects from the logs.
+# The 'DOG' category specifically identifies dogs.
+dogs = get_objects_of_category(log_dir, category='DOG')
+
+# Get all vehicle objects from the logs.
+# 'VEHICLE' is a superclass including various types of vehicles like cars, trucks, buses.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify instances where dogs are crossing in front of vehicles.
+#
+# The `being_crossed_by` function is used to find `track_candidates` (in this case, vehicles)
+# that are being crossed by `related_candidates` (in this case, dogs).
+# - `track_candidates=vehicles`: We are looking at vehicles as the objects whose path is being crossed.
+# - `related_candidates=dogs`: We are interested in dogs as the objects performing the crossing.
+# - `log_dir=log_dir`: Path to the scenario logs.
+# - `direction="forward"`: This specifies that the crossing must occur over the vehicle's
+#   forward midplane, meaning the dog is crossing in front of the vehicle.
+#   The default value for `forward_thresh` is 10.0 meters, which defines how far
+#   this "forward" midplane extends from the front edge of the vehicle.
+#   The default value for `lateral_thresh` is 5.0 meters, which defines the width
+#   of the zone where the crossing is considered active after the midplane is breached.
+#
+# The `reverse_relationship` wrapper is applied to `being_crossed_by`.
+# If `being_crossed_by(A, B)` returns A's that are crossed by B, then
+# `reverse_relationship(being_crossed_by)(A, B)` will return B's that are crossing A.
+# In this scenario, it means the output dictionary will be keyed by the UUIDs of the dogs
+# that are performing the crossing action in front of vehicles, along with the timestamps
+# of these events. This aligns with the description where the "dog" is the primary actor.
+dogs_crossing_in_front_of_vehicles = reverse_relationship(being_crossed_by)(
+    track_candidates=vehicles,
+    related_candidates=dogs,
+    log_dir=log_dir,
+    direction="forward"
+)
+
+# Output the resulting scenario.
+# This will save the identified instances of dogs crossing in front of vehicles
+# in the specified output format and directory.
+output_scenario(
+    scenario=dogs_crossing_in_front_of_vehicles,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

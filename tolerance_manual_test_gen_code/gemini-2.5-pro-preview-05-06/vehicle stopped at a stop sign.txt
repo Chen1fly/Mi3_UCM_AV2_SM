@@ -1,0 +1,27 @@
+description = 'vehicle stopped at a stop sign'
+
+# Get all objects of category 'VEHICLE'
+# This will be the base set of objects we analyze.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are spatially located at a stop sign.
+# The 'at_stop_sign' function identifies objects in a lane corresponding to a stop sign
+# and within a certain proximity (default forward_thresh=10m from the stop sign
+# in its front direction, and overall within 15m).
+vehicles_at_sign_location = at_stop_sign(vehicles, log_dir)
+
+# Identify vehicles that are currently stopped or have very low velocity.
+# According to 'has_velocity' documentation, stationary objects can have up to 0.5 m/s velocity due to jitter.
+# So, we define "stopped" as having a velocity between 0.0 m/s and 0.5 m/s.
+# min_velocity is set to 0.0 to include vehicles that are perfectly still.
+# max_velocity is set to 0.5 to account for annotation jitter for stationary objects.
+stopped_vehicles = has_velocity(vehicles, log_dir, min_velocity=0.0, max_velocity=0.5)
+
+# Combine the two conditions: the vehicle must be at a stop sign's location AND be stopped.
+# 'scenario_and' creates a new scenario dictionary containing only the track UUIDs and timestamps
+# that are present in both input scenario dictionaries.
+vehicle_stopped_at_stop_sign = scenario_and([vehicles_at_sign_location, stopped_vehicles])
+
+# Output the resulting scenario.
+# This will save the instances of vehicles stopped at a stop sign for evaluation or further use.
+output_scenario(vehicle_stopped_at_stop_sign, description, log_dir, output_dir)

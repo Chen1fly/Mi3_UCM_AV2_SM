@@ -1,0 +1,23 @@
+# Define the description of the scenario
+description = "pedestrians walking around a vehicle parked on a crosswalk"
+
+# Get all vehicles and pedestrians from the dataset
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Identify vehicles that are parked (stationary)
+parked_vehicles = stationary(vehicles, log_dir)
+
+# Identify parked vehicles that are on a pedestrian crossing
+# A distance of 0 ensures the vehicle's bounding box intersects with the crosswalk area.
+vehicles_on_crosswalk = at_pedestrian_crossing(parked_vehicles, log_dir, within_distance=0)
+
+# Identify pedestrians that are not stationary (i.e., walking)
+walking_pedestrians = scenario_not(stationary)(pedestrians, log_dir)
+
+# Find walking pedestrians that are near the vehicles parked on the crosswalk.
+# A distance_thresh of 5 meters is used to capture pedestrians in the immediate vicinity of the vehicle.
+pedestrians_around_vehicle = near_objects(walking_pedestrians, vehicles_on_crosswalk, log_dir, distance_thresh=5, min_objects=1)
+
+# Output the final scenario
+output_scenario(pedestrians_around_vehicle, description, log_dir, output_dir)

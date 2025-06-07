@@ -1,0 +1,19 @@
+description = 'bicycle in vehicle lane with vehicle'
+
+# Get all bicycle objects
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# Get all objects belonging to the 'VEHICLE' superclass
+# This includes REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, BOX_TRUCK, BUS, SCHOOL_BUS, ARTICULATED_BUS, TRUCK, and RAILED_VEHICLE
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify bicycles that are on a lane designated for 'VEHICLE' traffic
+bicycles_on_vehicle_lane = on_lane_type(bicycles, log_dir, lane_type='VEHICLE')
+
+# From the bicycles that are on a vehicle lane,
+# identify those that are in the same lane as any of the 'VEHICLE' objects.
+# The resulting scenario will have bicycle UUIDs as keys.
+bicycle_in_vehicle_lane_with_a_vehicle = in_same_lane(bicycles_on_vehicle_lane, all_vehicles, log_dir)
+
+# Output the scenario
+output_scenario(bicycle_in_vehicle_lane_with_a_vehicle, description, log_dir, output_dir)

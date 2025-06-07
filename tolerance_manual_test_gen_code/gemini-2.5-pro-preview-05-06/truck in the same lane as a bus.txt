@@ -1,0 +1,27 @@
+# Description: truck in the same lane as a bus
+
+# Get all truck objects from the dataset
+# The 'TRUCK' category includes vehicles like delivery trucks, mail trucks, garbage trucks, etc.,
+# but excludes 'BOX_TRUCK' and 'TRUCK_CAB' unless they also fit the broader 'TRUCK' definition.
+trucks = get_objects_of_category(log_dir, category='TRUCK')
+
+# Get all bus objects from the dataset
+# The 'BUS' category includes standard city buses.
+# 'SCHOOL_BUS' and 'ARTICULATED_BUS' are separate categories. If the description implies all types of buses,
+# we might need to combine these, but "a bus" usually refers to the standard 'BUS' category.
+# For this interpretation, we will stick to the 'BUS' category.
+buses = get_objects_of_category(log_dir, category='BUS')
+
+# Identify trucks that are in the same lane as a bus
+# The `in_same_lane` function takes `track_candidates` (trucks) and `related_candidates` (buses).
+# It returns a scenario dictionary where keys are UUIDs of trucks that are in the same lane
+# as at least one bus, and values are lists of timestamps when this condition is met.
+trucks_in_same_lane_as_bus = in_same_lane(trucks, buses, log_dir)
+
+# Define the description for the output
+description = 'truck in the same lane as a bus'
+
+# Output the scenario
+# This will save the identified instances (trucks in the same lane as a bus)
+# in an evaluation-ready format.
+output_scenario(trucks_in_same_lane_as_bus, description, log_dir, output_dir)

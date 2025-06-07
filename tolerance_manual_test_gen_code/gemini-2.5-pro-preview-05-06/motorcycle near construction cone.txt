@@ -1,0 +1,16 @@
+# Define the description of the scenario
+description = 'motorcycle near construction cone'
+
+# Get all motorcycle objects from the dataset
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+
+# Get all construction cone objects from the dataset
+construction_cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+
+# Find instances where motorcycles are near construction cones.
+# The default distance_thresh for near_objects is 10 meters, which is a reasonable proximity for this scenario.
+# The default min_objects is 1, which means at least one construction cone must be near the motorcycle.
+motorcycle_near_cone = near_objects(motorcycles, construction_cones, log_dir, distance_thresh=10)
+
+# Output the identified scenario
+output_scenario(motorcycle_near_cone, description, log_dir, output_dir)

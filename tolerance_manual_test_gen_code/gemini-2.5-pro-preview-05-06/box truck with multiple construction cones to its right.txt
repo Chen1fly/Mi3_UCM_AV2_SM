@@ -1,0 +1,38 @@
+description = 'box truck with multiple construction cones to its right'
+
+# Get all objects of category 'BOX_TRUCK'
+# These will be the primary objects we are analyzing (track_candidates).
+box_trucks = get_objects_of_category(log_dir, category='BOX_TRUCK')
+
+# Get all objects of category 'CONSTRUCTION_CONE'
+# These are the related objects we are looking for in relation to the box trucks.
+construction_cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+
+# Find instances where a box truck has multiple (at least 2) construction cones to its right.
+# The function `has_objects_in_relative_direction` is used for this:
+# - `track_candidates`: The box_trucks we identified.
+# - `related_candidates`: The construction_cones we are looking for.
+# - `log_dir`: Path to scenario logs.
+# - `direction='right'`: Specifies that we are looking for cones on the right side of the box trucks.
+# - `min_number=2`: "multiple" implies at least two cones.
+# - `within_distance=5.0`: This parameter defines how far out (to the right, perpendicular to the truck's heading)
+#   a cone can be from the truck's right side to be considered. 5.0 meters is a reasonable distance,
+#   suggesting cones are in an adjacent lane or on the immediate shoulder.
+# - `lateral_thresh=5.0`: This parameter constrains the position of the cones along the length of the truck (parallel to its heading).
+#   It means a cone's center can be at most 5.0 meters ahead of the truck's front end or behind its rear end.
+#   This ensures the cones are primarily alongside the truck, rather than far in front or far behind it.
+#   This precision helps avoid false positives where cones might be generally to the right but not closely associated with the truck's immediate vicinity.
+box_truck_with_cones_to_right = has_objects_in_relative_direction(
+    track_candidates=box_trucks,
+    related_candidates=construction_cones,
+    log_dir=log_dir,
+    direction='right',
+    min_number=2,
+    within_distance=5.0,
+    lateral_thresh=5.0
+)
+
+# Output the scenario.
+# This will save the identified instances (box trucks meeting the criteria and the corresponding timestamps)
+# for evaluation or further analysis.
+output_scenario(box_truck_with_cones_to_right, description, log_dir, output_dir)

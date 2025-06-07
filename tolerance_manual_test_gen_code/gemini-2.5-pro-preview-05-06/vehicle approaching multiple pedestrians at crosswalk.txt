@@ -1,0 +1,82 @@
+# Description for the scenario
+description = 'vehicle approaching multiple pedestrians at crosswalk'
+
+# Step 1: Get all vehicles and pedestrians from the logs.
+# These are the primary categories of objects involved in the scenario.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+all_pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Step 2: Filter for vehicles that are actively moving.
+# The term "approaching" implies that the vehicle is in motion, not stationary.
+# A minimum velocity of 1.0 m/s (approximately 3.6 km/h or 2.2 mph) is used.
+# This threshold helps distinguish true movement from potential sensor jitter (which can show velocities up to ~0.5 m/s for stationary objects).
+moving_vehicles = has_velocity(
+    track_candidates=all_vehicles,
+    log_dir=log_dir,
+    min_velocity=1.0
+)
+
+# Step 3: Identify pedestrians who are located at or very near a pedestrian crossing.
+# The phrase "at crosswalk" specifies the location of the pedestrians.
+# 'within_distance=2.0' means the center of the pedestrian object must be within 2 meters
+# of the boundary of a designated pedestrian crossing area.
+peds_at_crosswalk = at_pedestrian_crossing(
+    track_candidates=all_pedestrians,
+    log_dir=log_dir,
+    within_distance=2.0
+)
+
+# Step 4: Find moving vehicles that have *multiple* pedestrians (who are themselves at a crosswalk)
+# in their forward direction and within a defined proximity.
+# This step combines several aspects: the vehicle is moving, there are multiple pedestrians,
+# these pedestrians are at a crosswalk, and they are positioned in front of the vehicle.
+# - track_candidates: We are interested in the 'moving_vehicles' identified in Step 2.
+# - related_candidates: The objects we are looking for in relation to these vehicles are the 'peds_at_crosswalk' from Step 3.
+# - direction='forward': The pedestrians must be in the forward direction from the vehicle's perspective.
+# - min_number=2: This directly addresses the "multiple pedestrians" requirement (i.e., at least two).
+# - max_number=np.inf: We are interested if the minimum number is met; there's no upper limit on how many pedestrians.
+# - within_distance=30.0: The pedestrians must be within 30 meters longitudinally (ahead of the vehicle).
+#   This defines a relevant zone where "approaching" is meaningful.
+# - lateral_thresh=2.0: The pedestrians must be within 2 meters laterally from the sides of the vehicle's projected path.
+#   This ensures they are reasonably in line with the vehicle's trajectory, not far off to the side.
+vehicles_with_multiple_peds_in_front_at_crosswalk = has_objects_in_relative_direction(
+    track_candidates=moving_vehicles,
+    related_candidates=peds_at_crosswalk,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=2,
+    max_number=np.inf,
+    within_distance=30.0,
+    lateral_thresh=2.0
+)
+
+# Step 5: Refine the selection to ensure these vehicles are indeed "approaching" by checking their heading and motion vector.
+# Having pedestrians in front is a necessary but not sufficient condition for "approaching".
+# The vehicle's movement should also be directed towards (at least one of) these pedestrians.
+# - track_candidates: The vehicles identified in Step 4, which already meet the spatial criteria.
+# - related_candidates: Still 'peds_at_crosswalk'. The vehicle should be heading towards pedestrians who are at the crosswalk.
+# - angle_threshold=30.0: The vehicle's velocity vector should be within a 30-degree cone pointing towards a pedestrian.
+#   This allows for slight misalignments while still capturing the intent of heading towards.
+# - minimum_speed=0.5: The component of the vehicle's velocity *towards* the pedestrian must be at least 0.5 m/s.
+#   This confirms active closure, complementing the overall speed check from 'has_velocity'.
+#   (Note: The 'heading_toward' docstring mentions 'minimum_accel' in the description but the parameter is 'minimum_speed').
+# - max_distance=30.0: Consistent with 'within_distance' used in Step 4, ensuring the heading check applies to relevantly close pedestrians.
+final_scenario_vehicles = heading_toward(
+    track_candidates=vehicles_with_multiple_peds_in_front_at_crosswalk,
+    related_candidates=peds_at_crosswalk, # Check heading towards any of the peds at crosswalk
+    log_dir=log_dir,
+    angle_threshold=30.0,
+    minimum_speed=0.5,
+    max_distance=30.0
+)
+
+# Output the scenario.
+# The 'final_scenario_vehicles' dictionary contains vehicle UUIDs (and associated timestamps)
+# that satisfy all the conditions of the described scenario.
+output_scenario(
+    scenario=final_scenario_vehicles,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir,
+    visualize=False
+)

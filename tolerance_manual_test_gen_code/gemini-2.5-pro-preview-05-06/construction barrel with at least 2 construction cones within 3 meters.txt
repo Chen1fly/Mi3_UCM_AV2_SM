@@ -1,0 +1,33 @@
+# Description for the scenario to be identified.
+description = 'construction barrel with at least 2 construction cones within 3 meters'
+
+# Fetch all objects categorized as 'CONSTRUCTION_BARREL'.
+# These are the primary objects we are interested in finding.
+construction_barrels = get_objects_of_category(log_dir, category='CONSTRUCTION_BARREL')
+
+# Fetch all objects categorized as 'CONSTRUCTION_CONE'.
+# These are the related objects we will check for proximity to the barrels.
+construction_cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+
+# Identify construction barrels that have at least 2 construction cones within a 3-meter radius.
+# The `near_objects` function is used for this:
+# - The first argument (`track_uuid` in the function definition) is the set of primary objects (construction_barrels).
+# - The second argument (`candidate_uuids` in the function definition) is the set of related objects to look for (construction_cones).
+# - `log_dir` is the path to the scenario logs.
+# - `distance_thresh=3` specifies that the cones must be within 3 meters of a barrel.
+# - `min_objects=2` specifies that there must be at least 2 cones near the barrel.
+# - `include_self=False` (the default) ensures that if a track_candidate somehow also appeared in related_candidates
+#   (not the case here as categories are distinct), it wouldn't be counted towards `min_objects`.
+barrels_with_nearby_cones = near_objects(
+    construction_barrels,
+    construction_cones,
+    log_dir,
+    distance_thresh=3,
+    min_objects=2
+)
+
+# Output the scenario.
+# `barrels_with_nearby_cones` is expected to be a scenario dictionary where keys are the UUIDs of
+# construction barrels that meet the criteria. The values would detail timestamps and the specific
+# cone UUIDs that satisfy the condition for each barrel.
+output_scenario(barrels_with_nearby_cones, description, log_dir, output_dir)

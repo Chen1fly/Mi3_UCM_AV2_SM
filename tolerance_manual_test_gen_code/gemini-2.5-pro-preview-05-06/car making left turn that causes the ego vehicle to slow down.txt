@@ -1,0 +1,33 @@
+# The user wants to find instances of a car making a left turn that causes the ego vehicle to slow down.
+
+# First, get all vehicles that could be making a turn.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter these vehicles to only include those that are making a left turn.
+left_turning_vehicles = turning(vehicles, log_dir, direction='left')
+
+# Get the ego vehicle.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Identify the timestamps when the ego vehicle is slowing down.
+# A negative acceleration indicates slowing down or braking.
+# Based on the function documentation, a value less than -0.65 reliably indicates braking.
+slowing_ego = accelerating(ego_vehicle, log_dir, max_accel=-0.65)
+
+# Now, we want to find the left-turning vehicles that have the slowing ego vehicle behind them.
+# This implies that the turning vehicle is in front of the ego vehicle and is likely the reason for the ego vehicle slowing down.
+# We will consider a distance of up to 50 meters to be relevant.
+car_causing_ego_to_slow_down = has_objects_in_relative_direction(
+    track_candidates=left_turning_vehicles,
+    related_candidates=slowing_ego,
+    log_dir=log_dir,
+    direction='backward',
+    min_number=1,
+    within_distance=50
+)
+
+# Define the description of the scenario.
+description = 'car making left turn that causes the ego vehicle to slow down'
+
+# Output the resulting scenario.
+output_scenario(car_causing_ego_to_slow_down, description, log_dir, output_dir)

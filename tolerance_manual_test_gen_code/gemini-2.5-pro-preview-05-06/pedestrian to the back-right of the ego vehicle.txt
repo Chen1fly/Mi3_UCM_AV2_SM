@@ -1,0 +1,68 @@
+# Description: pedestrian to the back-right of the ego vehicle
+
+# Get all pedestrian objects
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get the ego vehicle object
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# To find pedestrians to the back-right of the ego vehicle, we need to find pedestrians
+# that satisfy two conditions simultaneously from the ego's perspective:
+# 1. The pedestrian is to the RIGHT of the ego vehicle.
+# 2. The pedestrian is to the BACK (BEHIND) of the ego vehicle.
+
+# We will use reverse_relationship with get_objects_in_relative_direction.
+# This allows us to make the pedestrian the primary key in the resulting dictionaries,
+# which is suitable for use with scenario_and to combine conditions on the pedestrian.
+
+# reversed_get_objects_in_relative_direction will have `pedestrians` as `track_candidates`
+# and `ego_vehicle` as `related_candidates`. The `direction` parameter will be from
+# the pedestrian's point of view.
+
+reversed_get_objects_in_relative_direction = reverse_relationship(get_objects_in_relative_direction)
+
+# Condition 1: Pedestrian is to the RIGHT of the ego vehicle.
+# This is equivalent to: The ego vehicle is to the LEFT of the pedestrian.
+# We look for pedestrians (track_candidates) that have the ego_vehicle (related_candidates)
+# in their 'left' direction.
+# We use min_number=1 because we are interested in cases where the ego vehicle *is* to the pedestrian's left.
+# Default within_distance=50 and lateral_thresh=np.inf will be used.
+peds_with_ego_to_their_left = reversed_get_objects_in_relative_direction(
+    track_candidates=pedestrians,
+    related_candidates=ego_vehicle,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1  # Ensure the ego vehicle is actually found in this direction
+)
+# The result `peds_with_ego_to_their_left` is a scenario dict:
+# {ped_uuid: {ego_uuid: [timestamps_ego_is_left_of_ped]}}
+
+# Condition 2: Pedestrian is BEHIND the ego vehicle.
+# This is equivalent to: The ego vehicle is IN FRONT of the pedestrian.
+# We look for pedestrians (track_candidates) that have the ego_vehicle (related_candidates)
+# in their 'forward' direction.
+peds_with_ego_in_front_of_them = reversed_get_objects_in_relative_direction(
+    track_candidates=pedestrians,
+    related_candidates=ego_vehicle,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1  # Ensure the ego vehicle is actually found in this direction
+)
+# The result `peds_with_ego_in_front_of_them` is a scenario dict:
+# {ped_uuid: {ego_uuid: [timestamps_ego_is_front_of_ped]}}
+
+# Now, we combine these two conditions using scenario_and.
+# We are looking for pedestrians who satisfy both conditions simultaneously.
+# scenario_and will find common pedestrian UUIDs and intersect their associated timestamps
+# (assuming the related ego_vehicle UUID is the same, which it will be).
+pedestrian_to_back_right_of_ego = scenario_and([
+    peds_with_ego_to_their_left,
+    peds_with_ego_in_front_of_them
+])
+# The result `pedestrian_to_back_right_of_ego` is a scenario dict:
+# {ped_uuid: {ego_uuid: [timestamps_ped_is_back_right_of_ego]}}
+# This dictionary identifies pedestrians that are to the back-right of the ego vehicle
+# and the timestamps when this condition holds.
+
+description = 'pedestrian to the back-right of the ego vehicle'
+output_scenario(pedestrian_to_back_right_of_ego, description, log_dir, output_dir)

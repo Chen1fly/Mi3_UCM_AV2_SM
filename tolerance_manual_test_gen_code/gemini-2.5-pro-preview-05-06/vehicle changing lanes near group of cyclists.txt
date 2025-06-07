@@ -1,0 +1,51 @@
+# -------------------------------------------------------------------------
+# Scenario: vehicle changing lanes near group of cyclists
+#
+# The goal is to capture instances where a motor vehicle performs a lane
+# change while in close proximity to a *group* of cyclists.  To minimise
+# false-positives we:
+#   • Require the vehicle to be explicitly flagged as changing lanes.
+#   • Count *cyclists* as either the rider (BICYCLIST) or the bicycle
+#     object itself (BICYCLE) because annotation practice varies.
+#   • Keep only cyclists that are on the road and moving (v > 0.5 m/s) to
+#     avoid parked bikes or dismounted riders.
+#   • Define “group” as ≥ 3 distinct cyclists within 12 m of the vehicle
+#     at the same timestamp.
+# -------------------------------------------------------------------------
+
+description = 'vehicle changing lanes near group of cyclists'
+
+# --- 1. Identify the lane-changing vehicles --------------------------------
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+lane_changing_vehicles = changing_lanes(vehicles, log_dir)  # vehicles that actually change lanes
+
+# --- 2. Gather all cyclist tracks -----------------------------------------
+bicyclists = get_objects_of_category(log_dir, category='BICYCLIST')  # riders
+bicycles   = get_objects_of_category(log_dir, category='BICYCLE')    # bicycles
+
+# Combine to ensure we don’t miss cases where only one of the two classes
+# is annotated.
+all_cyclists = scenario_or([bicyclists, bicycles])
+
+# --- 3. Filter cyclists to those that are on-road and actively moving -----
+cyclists_on_road   = on_road(all_cyclists, log_dir)
+moving_cyclists    = has_velocity(cyclists_on_road, log_dir, min_velocity=0.5)
+
+# --- 4. Find lane-changing vehicles near a *group* of cyclists ------------
+# - distance_thresh=12 m keeps the interaction local
+# - min_objects=3   enforces “group” (≥ 3 cyclists)
+lane_changes_near_group_of_cyclists = near_objects(
+    lane_changing_vehicles,   # track_candidates
+    moving_cyclists,          # related_candidates
+    log_dir,
+    distance_thresh=12,
+    min_objects=3
+)
+
+# --- 5. Export the scenario ------------------------------------------------
+output_scenario(
+    lane_changes_near_group_of_cyclists,
+    description,
+    log_dir,
+    output_dir
+)

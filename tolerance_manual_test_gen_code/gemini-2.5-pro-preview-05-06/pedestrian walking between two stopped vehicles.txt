@@ -1,0 +1,70 @@
+description = 'pedestrian walking between two stopped vehicles'
+
+# Get all pedestrian objects from the logs.
+peds = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Filter for pedestrians that are currently "walking".
+# "Walking" implies motion, so we check for a minimum velocity.
+# A small min_velocity (e.g., 0.2 m/s) distinguishes from being perfectly stationary,
+# accounting for the act of walking. Using np.inf for max_velocity to include any walking speed.
+walking_peds = has_velocity(peds, log_dir, min_velocity=0.2, max_velocity=np.inf)
+
+# Get all vehicle objects from the logs.
+# The 'VEHICLE' superclass includes REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, etc.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are "stopped".
+# "Stopped" implies very low or zero velocity.
+# max_velocity=0.5 m/s allows for some annotation jitter or very slow creeping (e.g., in dense traffic),
+# effectively capturing vehicles that are not actively driving.
+stopped_vehicles = has_velocity(vehicles, log_dir, min_velocity=0.0, max_velocity=0.5)
+
+# Find walking pedestrians that have at least one stopped vehicle directly in front of them.
+# - track_candidates: The walking pedestrians we are focusing on.
+# - related_candidates: The stopped vehicles we are looking for relative to these pedestrians.
+# - direction='forward': Looking in the pedestrian's direction of travel.
+# - min_number=1: We need at least one such stopped vehicle in front.
+# - max_number=1: If multiple stopped vehicles are in front, this focuses on the closest one,
+#                 enhancing precision for "between".
+# - within_distance=3.0 (meters): The pedestrian should be close to this front vehicle.
+#   This is the maximum longitudinal distance from the pedestrian's front to the vehicle's rear.
+# - lateral_thresh=1.0 (meters): The vehicle should be reasonably aligned with the pedestrian's path.
+#   This constrains how far the vehicle can be to the side of the pedestrian's line of travel.
+#   A pedestrian is ~0.5m wide. This allows the vehicle (e.g., 2m wide) to be fairly centered.
+peds_with_vehicle_in_front = has_objects_in_relative_direction(
+    track_candidates=walking_peds,
+    related_candidates=stopped_vehicles,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=1,
+    within_distance=3.0,
+    lateral_thresh=1.0
+)
+
+# Find walking pedestrians that have at least one stopped vehicle directly behind them.
+# Parameters are similar to finding the vehicle in front, but the direction is 'backward'.
+# This looks for a stopped vehicle behind the pedestrian.
+peds_with_vehicle_behind = has_objects_in_relative_direction(
+    track_candidates=walking_peds,
+    related_candidates=stopped_vehicles,
+    log_dir=log_dir,
+    direction='backward',
+    min_number=1,
+    max_number=1,
+    within_distance=3.0,
+    lateral_thresh=1.0
+)
+
+# A pedestrian is "walking between two stopped vehicles" if they satisfy both conditions simultaneously:
+# 1. They are walking and have a stopped vehicle in front (as per peds_with_vehicle_in_front).
+# 2. They are walking and have a stopped vehicle behind (as per peds_with_vehicle_behind).
+# The scenario_and function will find pedestrians (identified by their UUIDs) and the specific timestamps
+# where both these conditions are met.
+peds_walking_between_stopped_vehicles = scenario_and([
+    peds_with_vehicle_in_front,
+    peds_with_vehicle_behind
+])
+
+# Output the resulting scenario, which contains the pedestrians matching the description.
+output_scenario(peds_walking_between_stopped_vehicles, description, log_dir, output_dir)

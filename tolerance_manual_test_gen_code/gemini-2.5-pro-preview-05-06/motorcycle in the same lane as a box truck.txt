@@ -1,0 +1,22 @@
+# Define the description of the scenario
+description = 'motorcycle in the same lane as a box truck'
+
+# Get all motorcycle objects from the dataset
+# The 'MOTORCYCLE' category includes motorized vehicles with two wheels where the rider straddles the engine.
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+
+# Get all box truck objects from the dataset
+# The 'BOX_TRUCK' category includes chassis cab trucks with an enclosed cube-shaped cargo area.
+box_trucks = get_objects_of_category(log_dir, category='BOX_TRUCK')
+
+# Identify motorcycles that are in the same lane as a box truck.
+# The `in_same_lane` function takes two sets of objects (track_candidates and related_candidates)
+# and returns a scenario dictionary where the keys are UUIDs of objects from track_candidates
+# that are in the same lane as at least one object from related_candidates.
+# In this case, we are looking for motorcycles (track_candidates) that share a lane with box trucks (related_candidates).
+motorcycle_in_same_lane_as_box_truck = in_same_lane(motorcycles, box_trucks, log_dir)
+
+# Output the identified scenario.
+# This function will save the results in an evaluation-ready format.
+# Visualization is off by default, and no specific visualization_kwargs are provided.
+output_scenario(motorcycle_in_same_lane_as_box_truck, description, log_dir, output_dir)

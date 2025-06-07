@@ -1,0 +1,42 @@
+# Define the scenario description
+description = "isolated objects"
+
+# Get all objects of any category from the logs.
+# These are the candidates we will check for isolation.
+all_objects = get_objects_of_category(log_dir, category="ANY")
+
+# Define the parameters for an object to be considered "isolated".
+# An object is isolated if there are no other objects within this distance.
+# This value can be adjusted based on how "isolated" should be interpreted.
+# 25 meters is chosen as a reasonable distance; objects further apart might be considered isolated.
+isolation_distance_threshold = 25.0  # in meters
+
+# We are looking for objects that have 0 *other* objects nearby.
+# The `near_objects` function can find objects that *are* near other objects.
+# We will set `min_objects=1` to find objects that have at least one other object nearby.
+# The `include_self=False` parameter (which is the default for `near_objects`) ensures that
+# an object is not considered "near" to itself when counting nearby objects.
+min_nearby_objects_for_not_isolated_check = 1
+
+# Find objects that are NOT isolated.
+# These are objects that have at least `min_nearby_objects_for_not_isolated_check` (i.e., 1) other object(s)
+# within the `isolation_distance_threshold`.
+# The first `all_objects` is the set of tracks we are interested in.
+# The second `all_objects` is the set of candidates to check for proximity against.
+# `scenario_not(func)(track_candidates, *args_for_func)` will compute `func(track_candidates, *args_for_func)`
+# and then return `track_candidates` minus the result of `func`.
+# So, we want to find objects in `all_objects` for which `near_objects` (when checking against `all_objects`) is false.
+isolated_objects_scenario = scenario_not(near_objects)(
+    all_objects,  # The set of objects to filter from (input track_dict for scenario_not)
+    all_objects,  # The `candidate_uuids` for the `near_objects` call
+    log_dir=log_dir,
+    distance_thresh=isolation_distance_threshold,
+    min_objects=min_nearby_objects_for_not_isolated_check,
+    include_self=False  # Ensures we are looking for *other* objects nearby. This is the default.
+)
+
+# Output the resulting scenario.
+# `isolated_objects_scenario` will contain objects from `all_objects` that do not have any other object
+# (from `all_objects`) within `isolation_distance_threshold` meters, along with the timestamps
+# when this condition is met.
+output_scenario(isolated_objects_scenario, description, log_dir, output_dir)

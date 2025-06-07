@@ -1,0 +1,15 @@
+# description: accelerating truck
+
+# Get all objects categorized as 'TRUCK'.
+# The 'TRUCK' category includes vehicles like delivery trucks, mail trucks, garbage trucks, etc.,
+# but excludes BOX_TRUCK and TRUCK_CAB which are separate categories.
+trucks = get_objects_of_category(log_dir, category='TRUCK')
+
+# Identify trucks that are accelerating.
+# The 'accelerating' function by default considers objects with a forward acceleration
+# greater than 0.65 m/s^2 as accelerating. This threshold is generally reliable.
+accelerating_trucks = accelerating(trucks, log_dir)
+
+# Output the scenario.
+# This will save the track UUIDs of accelerating trucks and the timestamps when they are accelerating.
+output_scenario(accelerating_trucks, description, log_dir, output_dir)

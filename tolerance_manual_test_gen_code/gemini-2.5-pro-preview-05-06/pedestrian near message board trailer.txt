@@ -1,0 +1,19 @@
+# The user wants to find scenarios where a pedestrian is near a message board trailer.
+# I will first get all the pedestrians and all the message board trailers in the scene.
+# Then, I will use the near_objects function to find pedestrians that are near at least one message board trailer.
+# Finally, I will output the resulting scenario.
+
+description = "pedestrian near message board trailer"
+
+# Get all pedestrians from the log data.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get all message board trailers from the log data.
+message_board_trailers = get_objects_of_category(log_dir, category='MESSAGE_BOARD_TRAILER')
+
+# Find pedestrians that are near at least one message board trailer.
+# A distance threshold of 5 meters is chosen to ensure the pedestrian is in close proximity to the trailer.
+pedestrian_near_trailer = near_objects(pedestrians, message_board_trailers, log_dir, distance_thresh=5, min_objects=1)
+
+# Output the identified scenarios.
+output_scenario(pedestrian_near_trailer, description, log_dir, output_dir)

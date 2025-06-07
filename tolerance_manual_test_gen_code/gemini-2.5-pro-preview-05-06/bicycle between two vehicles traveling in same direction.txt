@@ -1,0 +1,89 @@
+description = 'bicycle between two vehicles traveling in same direction'
+
+# Get all bicycles and vehicles from the log data.
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter for bicycles and vehicles that are actually moving.
+# A minimum velocity helps to exclude parked or very slow-moving objects.
+# 0.5 m/s is a common threshold.
+moving_bicycles = has_velocity(bicycles, log_dir, min_velocity=0.5)
+moving_vehicles = has_velocity(vehicles, log_dir, min_velocity=0.5)
+
+# Define proximity parameters for considering a bicycle "between" vehicles.
+# within_distance: Maximum longitudinal distance to the front/back vehicle (e.g., 20 meters).
+# lateral_thresh: Maximum lateral distance from the bicycle's path to the side of the other vehicles.
+# A small lateral threshold (e.g., 2.0 meters) helps ensure they are roughly in line, like in the same or adjacent lanes.
+distance_for_between = 20.0
+lateral_threshold_for_between = 2.0
+
+# Identify relationships: for each moving bicycle, find the closest moving vehicle in front of it.
+# `get_objects_in_relative_direction` returns a dictionary where keys are `track_candidates` (bicycle UUIDs)
+# and values are dictionaries of `{related_candidate_uuid: [timestamps]}` (e.g., {front_vehicle_uuid: [timestamps]}).
+# We specify min_number=1 and max_number=1 to focus on the single closest vehicle in the specified direction.
+rels_bicycle_to_front_vehicle = get_objects_in_relative_direction(
+    track_candidates=moving_bicycles,
+    related_candidates=moving_vehicles,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,  # Ensure there is at least one vehicle in front.
+    max_number=1,  # Consider only the closest one.
+    within_distance=distance_for_between,
+    lateral_thresh=lateral_threshold_for_between
+)
+
+# Identify relationships: for each moving bicycle, find the closest moving vehicle behind it.
+rels_bicycle_to_back_vehicle = get_objects_in_relative_direction(
+    track_candidates=moving_bicycles,
+    related_candidates=moving_vehicles,
+    log_dir=log_dir,
+    direction='backward',
+    min_number=1,  # Ensure there is at least one vehicle behind.
+    max_number=1,  # Consider only the closest one.
+    within_distance=distance_for_between,
+    lateral_thresh=lateral_threshold_for_between
+)
+
+# Filter for bicycles that are traveling in the same direction as their specific front vehicle.
+# `heading_in_relative_direction_to` is used here.
+# `track_candidates` is `moving_bicycles` (a simple scenario dict: {bicycle_uuid: [timestamps]}).
+# `related_candidates` is `rels_bicycle_to_front_vehicle` (a relational dict: {bicycle_uuid: {front_vehicle_uuid: [timestamps]}}).
+# The function is assumed to intelligently link each bicycle in `moving_bicycles` to its specific
+# front vehicle detailed in `rels_bicycle_to_front_vehicle` for the direction comparison.
+# The output is a simple scenario dict of bicycles satisfying this condition: {bicycle_uuid: [timestamps]}.
+bicycles_samedir_as_front_vehicle = heading_in_relative_direction_to(
+    track_candidates=moving_bicycles,
+    related_candidates=rels_bicycle_to_front_vehicle,
+    log_dir=log_dir,
+    direction='same'  # 'same' implies a relative heading angle within approx. 0-45 degrees.
+)
+
+# Filter for bicycles that are traveling in the same direction as their specific back vehicle.
+bicycles_samedir_as_back_vehicle = heading_in_relative_direction_to(
+    track_candidates=moving_bicycles,
+    related_candidates=rels_bicycle_to_back_vehicle,
+    log_dir=log_dir,
+    direction='same'
+)
+
+# Combine all conditions using `scenario_and`.
+# We need bicycles that:
+# 1. Have a specific front vehicle AND are traveling in the same direction as it (captured by `bicycles_samedir_as_front_vehicle`).
+# 2. Have a specific back vehicle AND are traveling in the same direction as it (captured by `bicycles_samedir_as_back_vehicle`).
+# The `scenario_and` function will find bicycles (and their timestamps) present in both these resulting sets.
+# This effectively means the bicycle is between a front and a back vehicle, and all three are traveling
+# in approximately the same direction.
+bicycle_between_vehicles_same_direction = scenario_and([
+    bicycles_samedir_as_front_vehicle,
+    bicycles_samedir_as_back_vehicle
+])
+
+# Output the resulting scenario.
+# `bicycle_between_vehicles_same_direction` will be a scenario dictionary where keys are bicycle UUIDs
+# and values are lists of timestamps when the condition is met.
+output_scenario(
+    bicycle_between_vehicles_same_direction,
+    description,
+    log_dir,
+    output_dir
+)

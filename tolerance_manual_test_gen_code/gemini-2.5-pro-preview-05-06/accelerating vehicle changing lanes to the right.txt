@@ -1,0 +1,22 @@
+description = 'accelerating vehicle changing lanes to the right'
+
+# Get all objects of category 'VEHICLE'
+# This will be the base set of objects we analyze.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are accelerating.
+# According to the function's documentation, "Values over 1.0 reliably indiciates accelerating."
+# We use min_accel=1.0 to be precise and capture significant acceleration.
+accelerating_vehicles = accelerating(vehicles, log_dir, min_accel=1.0)
+
+# Identify vehicles that are changing lanes to the right.
+vehicles_changing_lanes_right = changing_lanes(vehicles, log_dir, direction='right')
+
+# Combine the two conditions using scenario_and.
+# This ensures that the identified vehicles are *both* accelerating *and* changing lanes to the right.
+# The resulting dictionary will contain track UUIDs and timestamps where both conditions are met.
+accelerating_vehicle_changing_lanes_to_right = scenario_and([accelerating_vehicles, vehicles_changing_lanes_right])
+
+# Output the resulting scenario.
+# The visualize parameter is set to False as per instructions.
+output_scenario(accelerating_vehicle_changing_lanes_to_right, description, log_dir, output_dir, visualize=False)

@@ -1,0 +1,45 @@
+# Description for the scenario
+description = 'vehicle being passed on the left by another vehicle'
+
+# Get all objects of the 'VEHICLE' category.
+# The 'VEHICLE' superclass includes various types of vehicles like cars, trucks, buses, etc.
+# Both the vehicle being passed and the vehicle doing the passing are "vehicles".
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter for vehicles that are not stationary. "Passing" implies a dynamic traffic situation
+# involving movement. The `stationary` function helps filter out parked or inactive vehicles.
+# This aligns with examples like 'overtaking_on_left' which operate on moving vehicles.
+active_vehicles = scenario_not(stationary)(all_vehicles, log_dir)
+
+# Identify vehicles that are being passed on their left by other active vehicles.
+# The `being_crossed_by` function is suitable here. The track_candidates will be the vehicles
+# that are "being passed".
+# - track_candidates: `active_vehicles`. These are the vehicles potentially being passed.
+# - related_candidates: `active_vehicles`. These are the vehicles potentially doing the passing.
+# - direction="left": This specifies that the passing event occurs on the left side
+#   of the `track_candidate` (the vehicle being passed).
+# - in_direction="clockwise": This parameter is crucial for defining the nature of the crossing.
+#   Based on the provided example `overtaking_on_left = being_crossed_by(moving_cars, moving_cars, log_dir, direction="left", in_direction="clockwise", forward_thresh=4)`,
+#   this combination is understood to correctly identify an overtaking maneuver (passing from behind to front)
+#   on the specified side. "Being passed by" is the passive voice of "overtaking".
+# - forward_thresh=4: This value is adopted from the `overtaking_on_left` example. It likely defines
+#   the longitudinal proximity or extent related to the midplane crossing that constitutes a pass.
+#   Using the example's value aims for precision.
+# - lateral_thresh=5: This is the default value for `lateral_thresh` in the `being_crossed_by` function's
+#   definition. The `overtaking_on_left` example did not specify `lateral_thresh`, so it would
+#   implicitly use this default. It likely defines the lateral distance from the midplane.
+vehicles_being_passed_on_left = being_crossed_by(
+    track_candidates=active_vehicles,
+    related_candidates=active_vehicles,
+    log_dir=log_dir,
+    direction="left",
+    in_direction="clockwise",
+    forward_thresh=4,
+    lateral_thresh=5 # Default value from function signature, consistent with 'overtaking_on_left' example not overriding it
+)
+
+# Output the resulting scenario.
+# The `vehicles_being_passed_on_left` dictionary will contain the UUIDs of vehicles
+# that meet the condition of being passed on their left by another vehicle,
+# along with the timestamps when this occurs.
+output_scenario(vehicles_being_passed_on_left, description, log_dir, output_dir)

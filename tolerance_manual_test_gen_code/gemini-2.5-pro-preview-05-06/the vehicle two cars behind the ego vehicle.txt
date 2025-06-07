@@ -1,0 +1,81 @@
+description = "the vehicle two cars behind the ego vehicle"
+
+# 1. Get the EGO_VEHICLE.
+# The EGO_VEHICLE is the vehicle collecting the data.
+# This function returns a scenario dictionary: {ego_vehicle_uuid: [list_of_timestamps]}
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# 2. Get all other vehicles.
+# The 'VEHICLE' category is a superclass for various types of vehicles (cars, trucks, buses)
+# and does not include the 'EGO_VEHICLE'.
+# This returns a scenario dictionary: {vehicle_uuid: [list_of_timestamps]}
+other_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# 3. Define parameters for identifying a vehicle "directly behind" another.
+
+# within_distance: Maximum longitudinal distance (e.g., center-to-center) for a vehicle
+# to be considered "directly behind" the leading vehicle.
+# A typical car length is around 4.5 meters. The gap between cars can vary.
+# Example: car_length (4.5m) + gap (e.g., 2m to 10m).
+# Center-to-center distance = (leader_car_length/2) + gap + (follower_car_length/2)
+#                        = leader_car_length (assuming similar size) + gap.
+# If gap is 2m, distance approx 4.5m + 2m = 6.5m.
+# If gap is 10m, distance approx 4.5m + 10m = 14.5m.
+# A threshold of 20.0 meters for `within_distance` provides a reasonable upper bound
+# to capture vehicles that are "directly behind".
+longitudinal_distance_threshold = 20.0
+
+# lateral_thresh: Maximum lateral distance the center of the related (following) vehicle
+# can be from the *sides* of the tracked (leading) vehicle.
+# If the leading vehicle is W meters wide, its sides effectively create a corridor.
+# The center of the following vehicle must be within a lateral span of W + 2*lateral_thresh,
+# centered on the leading vehicle.
+# A typical car width (W) is about 2 meters. A lane width is about 3-3.7 meters.
+# If lateral_thresh = 1.0 meter, the effective lateral search corridor width is 2m + 2*1.0m = 4m.
+# This is slightly wider than a single lane, allowing for vehicles not perfectly centered,
+# but still ensuring the following vehicle is largely in line with the leading vehicle.
+# This helps in being precise and avoiding false positives from adjacent lanes far off.
+lateral_distance_threshold = 1.0
+
+# 4. Find the first vehicle directly behind the EGO_VEHICLE (let's call this Car 1).
+# The function `get_objects_in_relative_direction` returns a scenario dictionary where keys are
+# the UUIDs of the `related_candidates` (in this case, `other_vehicles`) that satisfy the condition.
+# `min_number=1` and `max_number=1` ensure we find exactly one such vehicle if one exists
+# within the specified distance and lateral constraints.
+car1_behind_ego = get_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=other_vehicles,
+    log_dir=log_dir,
+    direction='backward',
+    min_number=1,      # We need to find at least one vehicle.
+    max_number=1,      # We only want the closest single vehicle.
+    within_distance=longitudinal_distance_threshold,
+    lateral_thresh=lateral_distance_threshold
+)
+
+# 5. Find the second vehicle, which is directly behind "Car 1" (let's call this Car 2).
+# Now, `car1_behind_ego` (the scenario dictionary of Car 1s) acts as the `track_candidates`.
+# We search for another vehicle from `other_vehicles` that is directly behind Car 1.
+# The parameters for "directly behind" remain the same.
+# The result, `vehicle_two_cars_behind_ego`, will be a scenario dictionary where keys are
+# the UUIDs of Car 2s.
+vehicle_two_cars_behind_ego = get_objects_in_relative_direction(
+    track_candidates=car1_behind_ego,
+    related_candidates=other_vehicles, # Search pool is still all other vehicles.
+    log_dir=log_dir,
+    direction='backward',
+    min_number=1,      # We need to find at least one vehicle behind Car 1.
+    max_number=1,      # We only want the closest single vehicle behind Car 1.
+    within_distance=longitudinal_distance_threshold,
+    lateral_thresh=lateral_distance_threshold
+)
+
+# 6. Output the scenario.
+# The `vehicle_two_cars_behind_ego` dictionary contains the UUIDs of vehicles
+# that are two cars behind the ego vehicle, and the timestamps for when this condition holds.
+output_scenario(
+    scenario=vehicle_two_cars_behind_ego,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

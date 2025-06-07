@@ -1,0 +1,42 @@
+description = 'multiple motorcycles ahead of the ego vehicle'
+
+# Get the EGO_VEHICLE.
+# This function returns a dictionary where the key is the EGO_VEHICLE's UUID
+# and the value is a list of timestamps it's present.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all MOTORCYCLE objects.
+# This returns a dictionary where keys are UUIDs of motorcycles
+# and values are lists of timestamps each motorcycle is present.
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+
+# Find motorcycles that are ahead of the ego vehicle.
+# We use get_objects_in_relative_direction because the "referred objects" in the description
+# are the motorcycles themselves. This function is expected to return a scenario dictionary
+# where keys are the UUIDs of these motorcycles.
+# - track_candidates: The EGO_VEHICLE, from whose perspective we are looking.
+# - related_candidates: The MOTORCYCLEs, which we are looking for.
+# - direction='forward': Specifies that motorcycles should be ahead of the ego vehicle.
+# - min_number=2: Crucial for "multiple". This means the condition is met only if at least
+#   two motorcycles are found ahead of the ego vehicle at a given timestamp.
+#   The returned motorcycles will be those that are part of such a group.
+# - max_number=np.inf: If more than 'min_number' of motorcycles are found, all of them
+#   that meet the criteria will be included in the result. np.inf is used as per function signatures.
+# - within_distance=50: Default maximum distance (in meters) for an object to be considered "ahead".
+# - lateral_thresh=np.inf: Default maximum lateral distance. np.inf means motorcycles can be anywhere
+#   laterally, as long as they are in the "forward" cone defined by within_distance.
+multiple_motorcycles_ahead_of_ego = get_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=motorcycles,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=2,
+    max_number=np.inf, # As per function signature default
+    within_distance=50.0,    # Default value from function signature
+    lateral_thresh=np.inf  # Default value from function signature
+)
+
+# Output the resulting scenario.
+# The 'multiple_motorcycles_ahead_of_ego' dictionary is expected to contain motorcycle UUIDs
+# as keys and lists of timestamps (when they were part of "multiple motorcycles ahead of ego") as values.
+output_scenario(multiple_motorcycles_ahead_of_ego, description, log_dir, output_dir)

@@ -1,0 +1,95 @@
+# Description: Find instances of a motorcycle overtaking a vehicle.
+# "Overtaking" is defined as a moving motorcycle passing a moving vehicle,
+# either on the vehicle's left or right side, while both are on a road.
+# The output will identify the motorcycles performing the overtake.
+
+description = "motorcycle overtaking a vehicle"
+
+# Get all motorcycle objects from the logs.
+all_motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+# Get all vehicle objects from the logs. The 'VEHICLE' superclass includes cars, trucks, buses,
+# etc., but importantly excludes motorcycles. This ensures we find motorcycles overtaking
+# other types of vehicles, not other motorcycles (unless specifically desired).
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# --- Filter for active participants on the road ---
+
+# Motorcycles involved in overtaking must be actively moving.
+# A minimum velocity of 1.0 m/s helps ensure genuine movement, distinct from sensor noise or stationary jitter.
+active_motorcycles = has_velocity(all_motorcycles, log_dir, min_velocity=1.0)
+# Overtaking is primarily a road maneuver, so we filter for motorcycles on a road.
+active_motorcycles_on_road = on_road(active_motorcycles, log_dir)
+
+# Vehicles being overtaken are also expected to be in motion for a typical "overtake" scenario.
+active_vehicles = has_velocity(all_vehicles, log_dir, min_velocity=1.0)
+# Ensure the vehicle being overtaken is also on a road.
+active_vehicles_on_road = on_road(active_vehicles, log_dir)
+
+# --- Define parameters for the 'being_crossed_by' function ---
+# These thresholds define the spatial interaction zone for an overtake maneuver.
+
+# forward_thresh: Defines how far the midplane (from the vehicle's edge) extends along the direction of travel.
+#                 The crossing event must occur within this longitudinal zone.
+#                 A value of 4.0 meters is chosen based on similar examples (e.g., car overtaking car),
+#                 suggesting a relatively compact interaction for the overtake.
+overtake_forward_thresh = 4.0
+
+# lateral_thresh: Defines the maximum lateral distance the motorcycle's centroid can be from the
+#                 vehicle's side midplane and still be considered part of the overtaking event.
+#                 A value of 3.0 meters is chosen to accommodate overtaking in an adjacent lane
+#                 (typical lane width is around 3-3.7m).
+overtake_lateral_thresh = 3.0
+
+# --- Identify motorcycles overtaking on the vehicle's left side ---
+# The 'being_crossed_by' function identifies 'track_candidates' (vehicles)
+# that are being crossed by 'related_candidates' (motorcycles).
+# 'direction="left"': The motorcycle is crossing the vehicle's left-side midplane.
+# 'in_direction="clockwise"': For a left-side plane, "clockwise" typically means the
+#                             related object (motorcycle) moves from the rear towards the front
+#                             relative to the track object (vehicle), which is characteristic of overtaking.
+# 'reverse_relationship': This wrapper function is crucial. It modifies 'being_crossed_by'
+#                         so that the output dictionary's primary keys are the UUIDs of the
+#                         'related_candidates' (motorcycles) performing the action,
+#                         aligning with the goal of finding "motorcycle overtaking...".
+motorcycles_overtaking_on_left = reverse_relationship(being_crossed_by)(
+    track_candidates=active_vehicles_on_road,
+    related_candidates=active_motorcycles_on_road,
+    log_dir=log_dir,
+    direction="left",
+    in_direction="clockwise",
+    forward_thresh=overtake_forward_thresh,
+    lateral_thresh=overtake_lateral_thresh
+)
+
+# --- Identify motorcycles overtaking on the vehicle's right side ---
+# 'direction="right"': The motorcycle is crossing the vehicle's right-side midplane.
+# 'in_direction="counterclockwise"': For a right-side plane, "counterclockwise" typically means
+#                                    the related object (motorcycle) moves from the rear towards
+#                                    the front, consistent with a right-side overtake.
+motorcycles_overtaking_on_right = reverse_relationship(being_crossed_by)(
+    track_candidates=active_vehicles_on_road,
+    related_candidates=active_motorcycles_on_road,
+    log_dir=log_dir,
+    direction="right",
+    in_direction="counterclockwise",
+    forward_thresh=overtake_forward_thresh,
+    lateral_thresh=overtake_lateral_thresh
+)
+
+# --- Combine left and right overtaking scenarios ---
+# A motorcycle is considered to be overtaking if it performs the maneuver on either the left OR the right side.
+# 'scenario_or' combines the results from both types of overtakes.
+motorcycles_performing_overtake = scenario_or([
+    motorcycles_overtaking_on_left,
+    motorcycles_overtaking_on_right
+])
+
+# Output the final scenario.
+# The 'motorcycles_performing_overtake' dictionary will contain motorcycle UUIDs as keys.
+# The values will detail timestamps and the UUIDs of the vehicles they overtook.
+output_scenario(
+    scenario=motorcycles_performing_overtake,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

@@ -1,0 +1,54 @@
+import numpy as np
+from pathlib import Path
+from typing import Literal
+
+# Assume log_dir and output_dir are predefined Path objects.
+# Assume np is available as it's used in function signatures.
+
+description = "bus within 5 meters to either side of ego vehicle"
+
+# Get EGO_VEHICLE objects. There is usually only one ego vehicle per log.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get BUS objects.
+buses = get_objects_of_category(log_dir, category='BUS')
+
+# Find buses that are to the left of the ego vehicle.
+# The `get_objects_in_relative_direction` function is expected to return a scenario dictionary
+# of the `related_candidates` (in this case, buses) that satisfy the condition
+# relative to `track_candidates` (in this case, the ego vehicle).
+# `lateral_thresh=5` means the bus must be within 5 meters laterally from the left side of the ego vehicle.
+# `within_distance=50` is the default longitudinal search range.
+# `min_number=1` ensures that we are looking for cases where at least one bus is present to the left.
+buses_to_left_of_ego = get_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=buses,
+    log_dir=log_dir,
+    direction="left",
+    min_number=1,
+    max_number=np.inf,   # We want to identify all such buses, not just a limited number.
+    within_distance=50,  # Default longitudinal search distance.
+    lateral_thresh=5     # Key constraint: bus is within 5 meters laterally.
+)
+
+# Find buses that are to the right of the ego vehicle.
+# Similar logic as for the left side.
+buses_to_right_of_ego = get_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=buses,
+    log_dir=log_dir,
+    direction="right",
+    min_number=1,
+    max_number=np.inf,
+    within_distance=50,
+    lateral_thresh=5
+)
+
+# Combine the results: we want buses that are either to the left OR to the right of the ego vehicle.
+# `scenario_or` will merge the two dictionaries. If a bus UUID is present in both
+# (e.g., at different times or if conditions overlap), `scenario_or` handles the union of timestamps.
+# The resulting dictionary `buses_to_side_of_ego` will have bus UUIDs as keys.
+buses_to_side_of_ego = scenario_or([buses_to_left_of_ego, buses_to_right_of_ego])
+
+# Output the scenario.
+output_scenario(buses_to_side_of_ego, description, log_dir, output_dir)

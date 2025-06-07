@@ -1,0 +1,18 @@
+description = 'ego vehicle near articulated bus'
+# Get all EGO_VEHICLE objects from the logs.
+# The EGO_VEHICLE is the vehicle collecting the data for the dataset.
+ego_vehicles = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all ARTICULATED_BUS objects from the logs.
+# Articulated buses are buses that can bend (articulate) towards the center and typically have a third set of wheels.
+articulated_buses = get_objects_of_category(log_dir, category='ARTICULATED_BUS')
+
+# Find instances where an ego vehicle is near an articulated bus.
+# The 'near_objects' function identifies timestamps when a tracked object (ego_vehicle)
+# is near a specified set of related objects (articulated_buses).
+# By default, 'near' is defined as within 10 meters, and we are looking for at least 1 articulated bus.
+ego_near_articulated_bus = near_objects(ego_vehicles, articulated_buses, log_dir, distance_thresh=10, min_objects=1)
+
+# Output the scenario.
+# This will save the identified instances to a file in an evaluation-ready format.
+output_scenario(ego_near_articulated_bus, description, log_dir, output_dir)

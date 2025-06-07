@@ -1,0 +1,20 @@
+description= "cop car sitting on median"
+# There is no specific category for "cop car", so we will look for regular vehicles that match the behavior.
+# "sitting" implies the vehicle is stationary.
+# "on median" implies the vehicle is not in a normal drivable lane. We can approximate this by finding vehicles that are not on the road.
+
+
+# Get all regular vehicles, as police cars are often this type.
+regular_vehicles = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+
+# Find vehicles that are stationary.
+stationary_vehicles = stationary(regular_vehicles, log_dir)
+
+
+# A vehicle on a median would not be considered on the road.
+# We can find vehicles that are not on the road by using scenario_not with the on_road function.
+cop_car_on_median = scenario_not(on_road)(stationary_vehicles, log_dir)
+
+
+output_scenario(cop_car_on_median, description, log_dir, output_dir)

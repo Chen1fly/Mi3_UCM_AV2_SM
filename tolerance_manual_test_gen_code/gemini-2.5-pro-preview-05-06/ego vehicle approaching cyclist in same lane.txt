@@ -1,0 +1,67 @@
+# Assume log_dir and output_dir are predefined Path objects.
+# from pathlib import Path
+# log_dir = Path("path/to/log_dir")
+# output_dir = Path("path/to/output_dir")
+# Also assume np and Literal are available if function signatures need them.
+# import numpy as np
+# from typing import Literal
+
+description = "ego vehicle approaching cyclist in same lane"
+
+# Step 1: Identify the ego vehicle.
+# 'ego_vehicle' will be a scenario dictionary like {ego_uuid: [timestamps]}.
+ego_vehicle = get_objects_of_category(log_dir, category="EGO_VEHICLE")
+
+# Step 2: Identify all bicyclists.
+# 'bicyclists' will be a scenario dictionary like {bicyclist_uuid: [timestamps]}.
+# We use "BICYCLIST" (person on a bike) rather than "BICYCLE" (the bike itself),
+# as "cyclist" implies a person.
+bicyclists = get_objects_of_category(log_dir, category="BICYCLIST")
+
+# Step 3: Filter bicyclists to include only those who are in the same lane as the ego vehicle.
+# The 'in_same_lane' function identifies objects from 'track_candidates' (bicyclists)
+# that are in the same lane as any object from 'related_candidates' (ego_vehicle).
+# The output 'cyclists_in_egos_lane' is expected to be a scenario dictionary:
+# {bicyclist_uuid: [timestamps_when_this_bicyclist_is_in_the_same_lane_as_the_ego_vehicle]}.
+# These timestamps are critical because they restrict the context for the "approaching" check.
+cyclists_in_egos_lane = in_same_lane(
+    track_candidates=bicyclists,
+    related_candidates=ego_vehicle,
+    log_dir=log_dir
+)
+
+# Step 4: Identify instances where the ego vehicle is heading towards one of the bicyclists
+# who have been confirmed (by Step 3) to be in the same lane at those specific times.
+# The 'heading_toward' function checks if 'track_candidates' (ego_vehicle) are
+# moving towards 'related_candidates' (the filtered 'cyclists_in_egos_lane').
+# The function internally handles timestamp intersection, so the "heading_toward" condition
+# will only be true at timestamps where the ego is heading towards a cyclist AND
+# that cyclist is in the same lane as the ego (due to the timestamps in 'cyclists_in_egos_lane').
+# - track_candidates: The ego vehicle.
+# - related_candidates: The bicyclists already filtered to be in the same lane as the ego.
+# - angle_threshold: The angular difference between ego's velocity vector and the
+#   relative position vector to the cyclist must be within this threshold (e.g., cyclist is in front).
+# - minimum_speed: The ego vehicle must have at least this component of speed towards the cyclist,
+#   ensuring active approach.
+# - max_distance: Defines the maximum radial distance for the "approaching" interaction.
+# The result 'ego_approaching_cyclist_in_same_lane' will be a scenario dictionary:
+# {ego_uuid: {bicyclist_uuid: [timestamps_meeting_all_conditions]}}
+ego_approaching_cyclist_in_same_lane = heading_toward(
+    track_candidates=ego_vehicle,
+    related_candidates=cyclists_in_egos_lane,
+    log_dir=log_dir,
+    angle_threshold=22.5,  # Default, implies cyclist is generally in front of ego's movement vector
+    minimum_speed=0.5,     # Ensures ego is actively moving towards the cyclist (m/s)
+    max_distance=50.0      # Limits interaction to a reasonable "approaching" distance (meters)
+)
+
+# Step 5: Output the final scenario.
+# The 'ego_approaching_cyclist_in_same_lane' dictionary contains ego vehicle UUIDs as primary keys,
+# and for each, a dictionary of related bicyclist UUIDs with the timestamps when the
+# "ego vehicle approaching cyclist in same lane" condition is met.
+output_scenario(
+    scenario=ego_approaching_cyclist_in_same_lane,
+    description=description,
+    log_dir=log_dir,
+    output_dir=output_dir
+)

@@ -1,0 +1,30 @@
+description = "ego vehicle navigating intersection with a broken traffic light"
+
+# Get the ego vehicle, which is the primary actor in this scenario.
+ego_vehicle = get_objects_of_category(log_dir, category="EGO_VEHICLE")
+
+# Identify all instances where the ego vehicle is on or inside an intersection.
+ego_on_intersection = on_intersection(ego_vehicle, log_dir)
+
+# To identify a "broken" traffic light, we look for objects that typically replace or manage traffic when a light is out of service.
+# These can be temporary traffic light trailers.
+traffic_light_trailers = get_objects_of_category(log_dir, category="TRAFFIC_LIGHT_TRAILER")
+
+# Or, it could be an official signaler directing the flow of traffic.
+official_signalers = get_objects_of_category(log_dir, category="OFFICIAL_SIGNALER")
+
+# We create a combined scenario that includes either of these indicators.
+broken_traffic_light_indicators = scenario_or([traffic_light_trailers, official_signalers])
+
+# We then find the moments when the ego vehicle, while on an intersection, is near any of these indicators.
+# A distance threshold of 50 meters is used to ensure we capture indicators controlling the intersection the ego is on.
+ego_navigating_broken_light_intersection = near_objects(
+    ego_on_intersection, 
+    broken_traffic_light_indicators, 
+    log_dir, 
+    distance_thresh=50, 
+    min_objects=1
+)
+
+# Output the final scenario.
+output_scenario(ego_navigating_broken_light_intersection, description, log_dir, output_dir)

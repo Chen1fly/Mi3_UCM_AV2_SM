@@ -1,0 +1,32 @@
+# Scenario: group of at least 3 moving bicyclists within 5 meters of each other
+description = 'group of at least 3 moving bicyclists within 5 meters of each other'
+
+# ---------------------------------------------------------------------
+# 1. Retrieve all bicyclists (people actively riding bicycles).
+# ---------------------------------------------------------------------
+bicyclists = get_objects_of_category(log_dir, category='BICYCLIST')
+
+# ---------------------------------------------------------------------
+# 2. Keep only bicyclists that are actually moving.
+#    `stationary()` returns riders that moved <2 m over their track.
+#    We exclude those using `scenario_not(stationary)`.
+# ---------------------------------------------------------------------
+moving_bicyclists = scenario_not(stationary)(bicyclists, log_dir)
+
+# ---------------------------------------------------------------------
+# 3. Identify bicyclists that have at least TWO *other* moving bicyclists
+#    within 5 m at the same timestamp.  This implies a group size ≥3.
+# ---------------------------------------------------------------------
+bicyclist_groups = near_objects(
+    moving_bicyclists,      # track_candidates: each moving bicyclist
+    moving_bicyclists,      # related_candidates: other moving bicyclists
+    log_dir,
+    distance_thresh=5,      # 5 m proximity threshold
+    min_objects=2,          # need ≥2 neighbours (group of ≥3)
+    include_self=False      # do not count the tracked bicyclist itself
+)
+
+# ---------------------------------------------------------------------
+# 4. Output the scenario in evaluation-ready format.
+# ---------------------------------------------------------------------
+output_scenario(bicyclist_groups, description, log_dir, output_dir)

@@ -1,0 +1,21 @@
+description = "people entering a vehicle on the road"
+
+# Get all pedestrians and vehicles from the dataset.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Find all vehicles that are on a road.
+vehicles_on_road = on_road(vehicles, log_dir)
+
+# A person typically enters a vehicle when it is not moving.
+# Filter for vehicles on the road that are stationary.
+stationary_vehicles_on_road = stationary(vehicles_on_road, log_dir)
+
+# To identify a person "entering" a vehicle, we look for pedestrians that are very close to a stationary vehicle.
+# A distance of 1.5 meters is used as a threshold to indicate that the pedestrian is right next to the vehicle,
+# which is a strong indication they might be entering or exiting.
+# The main tracked object is the pedestrian.
+people_entering_vehicle = near_objects(pedestrians, stationary_vehicles_on_road, log_dir, distance_thresh=1.5)
+
+# Output the scenario, which contains the pedestrians found to be entering a vehicle.
+output_scenario(people_entering_vehicle, description, log_dir, output_dir)

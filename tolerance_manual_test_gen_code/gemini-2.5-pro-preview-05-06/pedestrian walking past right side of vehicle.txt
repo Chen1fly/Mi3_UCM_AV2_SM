@@ -1,0 +1,48 @@
+description = 'pedestrian walking past right side of vehicle'
+
+# 1. Get all relevant object categories
+# We need vehicles (as the reference objects) and pedestrians (as the actors).
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# 2. Filter for pedestrians that are actually walking.
+# The `has_velocity` function identifies objects within a velocity range.
+# Its documentation states: "Stationary objects may have a velocity up to 0.5 m/s due to annotation jitter."
+# To be precise and select pedestrians that are genuinely "walking", we should use a minimum velocity
+# slightly above this jitter threshold. min_velocity=0.6 m/s is a reasonable choice.
+walking_pedestrians = has_velocity(pedestrians, log_dir, min_velocity=0.6)
+
+# 3. Identify pedestrians "walking past the right side of a vehicle".
+# The function `being_crossed_by` is suitable here. It identifies when a `track_candidate` (vehicle)
+# is being crossed by a `related_candidate` (pedestrian).
+# - `track_candidates=vehicles`: The vehicles whose side is being passed.
+# - `related_candidates=walking_pedestrians`: The pedestrians who are moving and doing the passing.
+# - `direction='right'`: Specifies that the pedestrian is crossing the vehicle's right-side midplane.
+# - `in_direction='either'`: The pedestrian can be moving from the vehicle's front towards its back,
+#   or from its back towards its front, along the side. "Walking past" does not specify a particular
+#   relative direction of movement along the side.
+# - `forward_thresh=5.0`: This parameter defines the extent of the "crossing zone" or "gate"
+#   along the length of the vehicle's side. A value of 5.0 meters is chosen to approximate
+#   the length of a typical vehicle, ensuring the interaction covers a significant portion of the vehicle's side.
+# - `lateral_thresh=1.5`: After the pedestrian's centroid crosses the vehicle's right-side midplane,
+#   they are considered to be "crossing" as long as they remain within 1.5 meters laterally
+#   from that plane. This ensures the pedestrian is close to the vehicle's side.
+#
+# The `being_crossed_by` function returns the `track_candidates` (vehicles) that meet the criteria.
+# Since the description focuses on the "pedestrian walking past", the pedestrian is the primary
+# object of interest. Therefore, we use `reverse_relationship` to make the pedestrian UUIDs
+# the keys in the resulting scenario dictionary.
+
+peds_walking_past_vehicle_right_side = reverse_relationship(being_crossed_by)(
+    track_candidates=vehicles,
+    related_candidates=walking_pedestrians,
+    log_dir=log_dir,
+    direction='right',
+    in_direction='either',
+    forward_thresh=5.0,
+    lateral_thresh=1.5
+)
+
+# 4. Output the resulting scenario.
+# This will save the identified instances for evaluation or further use.
+output_scenario(peds_walking_past_vehicle_right_side, description, log_dir, output_dir)

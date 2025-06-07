@@ -1,0 +1,29 @@
+# Scenario: group of three people
+description = 'group of three people'
+
+# 1. Collect every pedestrian in the log
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# 2. Find pedestrians that have at least TWO *other* pedestrians within 3 m.
+#    - `include_self=False` ensures the reference pedestrian is not counted.
+#    - The tight 3 m radius helps reduce false-positives from larger crowds.
+ped_near_two_plus = near_objects(
+    pedestrians,      # track_candidates
+    pedestrians,      # related_candidates
+    log_dir,
+    distance_thresh=3,
+    min_objects=2,
+    include_self=False
+)
+
+# 3. Keep only those pedestrians that are near *exactly* two others
+#    (i.e. they form a trio rather than a larger group).
+groups_of_three = {}
+for ped_uuid, related_peds in ped_near_two_plus.items():
+    # `related_peds` is a dict keyed by the two (or more) neighbouring pedestrian UUIDs.
+    # Requiring exactly two neighbours yields a three-person group.
+    if len(related_peds) == 2:
+        groups_of_three[ped_uuid] = related_peds
+
+# 4. Save the resulting scenario
+output_scenario(groups_of_three, description, log_dir, output_dir)

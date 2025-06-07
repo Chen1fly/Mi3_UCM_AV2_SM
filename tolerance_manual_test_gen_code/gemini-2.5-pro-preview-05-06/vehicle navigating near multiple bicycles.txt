@@ -1,0 +1,47 @@
+# Scenario description
+description = 'vehicle navigating near multiple bicycles'
+
+# ---------------------------------------------------------------------------
+# 1. Collect and filter the primary track candidates (vehicles)
+# ---------------------------------------------------------------------------
+# All vehicles in the scenario
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Exclude parked / long-term stationary vehicles so that we only consider vehicles actively navigating
+active_vehicles = scenario_not(stationary)(vehicles, log_dir)
+
+# ---------------------------------------------------------------------------
+# 2. Collect the related candidates (bicycles & bicyclists)
+# ---------------------------------------------------------------------------
+# Stand-alone bicycles (may or may not have a rider)
+bicycles     = get_objects_of_category(log_dir, category='BICYCLE')
+# Riders on bicycles
+bicyclists   = get_objects_of_category(log_dir, category='BICYCLIST')
+
+# Combine both into one scenario dictionary
+all_bikes = scenario_or([bicycles, bicyclists])
+
+# Keep only those bicycles that are on the roadway or bike lane
+bikes_on_road = on_road(all_bikes, log_dir)
+
+# ---------------------------------------------------------------------------
+# 3. Find vehicles that are near multiple bicycles
+# ---------------------------------------------------------------------------
+# “Near” = within 10 m, and require at least two distinct bicycles in view
+vehicles_near_multiple_bikes = near_objects(
+    active_vehicles,          # track_candidates
+    bikes_on_road,            # related_candidates
+    log_dir,
+    distance_thresh=10,       # maximum separation in metres
+    min_objects=2             # at least two bicycles
+)
+
+# ---------------------------------------------------------------------------
+# 4. Export the results
+# ---------------------------------------------------------------------------
+output_scenario(
+    vehicles_near_multiple_bikes,
+    description,
+    log_dir,
+    output_dir
+)

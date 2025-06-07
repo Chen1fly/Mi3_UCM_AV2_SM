@@ -1,0 +1,104 @@
+# description: lane splitting motorcycle
+# Lane splitting is moving between two cars that are in adjacent lanes, usually during slow traffic
+
+# Get all motorcycle objects
+motorcycles = get_objects_of_category(log_dir, category='MOTORCYCLE')
+
+# Filter for motorcycles that are not stationary (i.e., are moving)
+active_motorcycles = scenario_not(stationary)(motorcycles, log_dir)
+
+# Get all vehicle objects that could be adjacent to the motorcycles
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are to the left of an active motorcycle.
+# - `track_candidates`: active_motorcycles (we are looking from the motorcycle's perspective)
+# - `related_candidates`: vehicles (these are the objects we are looking for)
+# - `direction='left'`: vehicles to the left of the motorcycle
+# - `min_number=1, max_number=1`: interested in cases with exactly one vehicle immediately to the left
+# - `within_distance=4`: the vehicle should be within 4 meters longitudinally (front/back) of the motorcycle
+# - `lateral_thresh=2`: the lateral distance from the side of the motorcycle to the side of the vehicle is at most 2 meters.
+# `get_objects_in_relative_direction` returns a dict of the related_candidates (vehicles)
+# So, `vehicles_left_of_motorcycle` will be: {vehicle_uuid: {motorcycle_uuid_it_is_left_of: [timestamps]}}
+vehicles_left_of_motorcycle = get_objects_in_relative_direction(
+    track_candidates=active_motorcycles,
+    related_candidates=vehicles,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1,
+    max_number=1,
+    within_distance=4,
+    lateral_thresh=2
+)
+
+# Identify vehicles that are to the right of an active motorcycle, with similar conditions.
+# `vehicles_right_of_motorcycle` will be: {vehicle_uuid: {motorcycle_uuid_it_is_right_of: [timestamps]}}
+vehicles_right_of_motorcycle = get_objects_in_relative_direction(
+    track_candidates=active_motorcycles,
+    related_candidates=vehicles,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1,
+    max_number=1,
+    within_distance=4,
+    lateral_thresh=2
+)
+
+# The example implies a condition: "Motorcycle must be in the same lane as one of the cars."
+# This part of the logic identifies motorcycles that are in the same lane as a vehicle to their right.
+# - `track_candidates=active_motorcycles`: we are checking motorcycles.
+# - `related_candidates=vehicles_right_of_motorcycle`: we are checking against the set of vehicles known to be to the right of some motorcycle.
+# `motorcycle_in_lane_with_vehicle_to_its_right` will be: {motorcycle_uuid: [timestamps]} for motorcycles fulfilling this.
+motorcycle_in_lane_with_vehicle_to_its_right = in_same_lane(
+    track_candidates=active_motorcycles, # Check from the set of all active motorcycles
+    related_candidates=vehicles_right_of_motorcycle, # Are they in the same lane as any of these vehicles?
+    log_dir=log_dir
+)
+
+# This part identifies motorcycles that are in the same lane as a vehicle to their left.
+# `motorcycle_in_lane_with_vehicle_to_its_left` will be: {motorcycle_uuid: [timestamps]}
+motorcycle_in_lane_with_vehicle_to_its_left = in_same_lane(
+    track_candidates=active_motorcycles, # Check from the set of all active motorcycles
+    related_candidates=vehicles_left_of_motorcycle, # Are they in the same lane as any of these vehicles?
+    log_dir=log_dir
+)
+
+# Now, combine these conditions for lane splitting.
+# A motorcycle is lane splitting if EITHER:
+# 1. It's in the same lane as a vehicle to its RIGHT, AND it ALSO has a vehicle to its LEFT.
+#    - `track_candidates`: Motorcycles that are in the same lane as a vehicle to their right.
+#    - `related_candidates`: The general pool of vehicles that can be to the left of a motorcycle.
+#    - `direction='left'`: Ensure there's a vehicle to the left.
+#    `has_objects_in_relative_direction` returns a dict of the track_candidates (motorcycles) that satisfy the condition.
+condition1_motorcycles = has_objects_in_relative_direction(
+    track_candidates=motorcycle_in_lane_with_vehicle_to_its_right,
+    related_candidates=vehicles_left_of_motorcycle,
+    log_dir=log_dir,
+    direction='left',
+    min_number=1, # Default, but explicit for clarity
+    max_number=1, # Ensuring it's one specific vehicle
+    within_distance=4,
+    lateral_thresh=2
+)
+
+# OR
+# 2. It's in the same lane as a vehicle to its LEFT, AND it ALSO has a vehicle to its RIGHT.
+#    - `track_candidates`: Motorcycles that are in the same lane as a vehicle to their left.
+#    - `related_candidates`: The general pool of vehicles that can be to the right of a motorcycle.
+#    - `direction='right'`: Ensure there's a vehicle to the right.
+condition2_motorcycles = has_objects_in_relative_direction(
+    track_candidates=motorcycle_in_lane_with_vehicle_to_its_left,
+    related_candidates=vehicles_right_of_motorcycle,
+    log_dir=log_dir,
+    direction='right',
+    min_number=1, # Default, but explicit for clarity
+    max_number=1, # Ensuring it's one specific vehicle
+    within_distance=4,
+    lateral_thresh=2
+)
+
+# Combine the two conditions using scenario_or.
+# The result will be a scenario dictionary of motorcycles that are lane splitting.
+lane_splitting_motorcycles = scenario_or([condition1_motorcycles, condition2_motorcycles])
+
+description = 'lane splitting motorcycle'
+output_scenario(lane_splitting_motorcycles, description, log_dir, output_dir)

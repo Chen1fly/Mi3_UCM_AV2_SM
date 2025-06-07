@@ -1,0 +1,33 @@
+# Scenario: vehicle turning right near construction zone
+description = 'vehicle turning right near construction zone'
+
+# --------------------------------------------------------------------------- #
+# 1) Retrieve all vehicular objects in the log
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# 2) Keep only the vehicles that are executing a right-hand turn
+right_turning_vehicles = turning(vehicles, log_dir, direction='right')
+
+# --------------------------------------------------------------------------- #
+# 3) Retrieve construction-zone indicators (cones and barrels)
+construction_cones   = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+construction_barrels = get_objects_of_category(log_dir, category='CONSTRUCTION_BARREL')
+
+# 4) Merge the two construction-object sets into a single scenario dict
+construction_objects = scenario_or([construction_cones, construction_barrels])
+
+# --------------------------------------------------------------------------- #
+# 5) Select right-turning vehicles that are within 10 m of at least one
+#    construction object.  A small distance threshold helps minimise false
+#    positives while still capturing genuine “construction zone” situations.
+right_turn_near_construction = near_objects(
+    right_turning_vehicles,                # track_candidates
+    construction_objects,                  # related_candidates
+    log_dir,
+    distance_thresh=10,                    # metres
+    min_objects=1,                         # at least one nearby cone/barrel
+)
+
+# --------------------------------------------------------------------------- #
+# 6) Write the scenario to disk in evaluation-ready format
+output_scenario(right_turn_near_construction, description, log_dir, output_dir)

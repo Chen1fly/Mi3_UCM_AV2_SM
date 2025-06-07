@@ -1,0 +1,57 @@
+# Description: ego vehicle approaching construction barrels with a vehicle turning right ahead
+
+# Get the EGO_VEHICLE, which is the primary subject of our scenario.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all construction barrels in the scenario.
+construction_barrels = get_objects_of_category(log_dir, category='CONSTRUCTION_BARREL')
+
+# Get all vehicles, which will be filtered for those turning right.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify vehicles that are turning right.
+# The 'turning' function filters for vehicles performing a turn.
+vehicles_turning_right = turning(all_vehicles, log_dir, direction='right')
+
+# Identify instances where the ego vehicle is approaching (heading toward) construction barrels.
+# 'heading_toward' checks if the ego's velocity vector is pointing towards barrels.
+# max_distance=50: Barrels are within 50 meters.
+# minimum_speed=0.5: Ego vehicle is moving (default for heading_toward).
+ego_approaching_barrels = heading_toward(
+    track_candidates=ego_vehicle,
+    related_candidates=construction_barrels,
+    log_dir=log_dir,
+    max_distance=50,  # Barrels are within 50 meters
+    minimum_speed=0.5 # Ego vehicle is moving
+)
+
+# Now, from the instances where the ego is approaching barrels,
+# find those that also have a vehicle turning right ahead of them.
+# 'has_objects_in_relative_direction' will filter 'ego_approaching_barrels'.
+# The keys of the resulting dictionary will be the UUIDs of the ego_vehicle.
+# direction='forward': The turning vehicle is in front of the ego.
+# min_number=1: At least one such vehicle.
+# max_number=1: We are interested in "a vehicle"; if multiple, the closest one is fine.
+# within_distance=40: The turning vehicle is within 40 meters ahead of the ego.
+# lateral_thresh=3.0: The turning vehicle is within 3 meters laterally from the ego's side,
+#                     suggesting it's in an adjacent lane or the ego's direct path.
+ego_with_turning_vehicle_ahead = has_objects_in_relative_direction(
+    track_candidates=ego_approaching_barrels,
+    related_candidates=vehicles_turning_right,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=1,
+    within_distance=40,
+    lateral_thresh=3.0
+)
+
+# The final scenario 'ego_with_turning_vehicle_ahead' contains instances of the ego vehicle
+# meeting all specified conditions: approaching construction barrels AND having a
+# vehicle turning right ahead.
+output_scenario(
+    ego_with_turning_vehicle_ahead,
+    description, # The description variable is assumed to be predefined
+    log_dir,
+    output_dir
+)

@@ -1,0 +1,24 @@
+# Scenario: pedestrian near stop sign
+# -------------------------------------------------------------
+# 1. Get all pedestrians in the scenario.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# 2. Get every annotated stop-sign in the scenario.
+stop_signs = get_objects_of_category(log_dir, category='STOP_SIGN')
+
+# 3. Select the pedestrians that come within 5 m of any stop-sign.
+#    • `track_candidates`  -> pedestrians we are interested in
+#    • `candidate_uuids`   -> stop-signs to be “near”
+#    • `distance_thresh`   -> 5 m feels tight enough to avoid distant false positives
+#    • `min_objects`       -> 1 stop sign is sufficient
+peds_near_stop_sign = near_objects(
+    pedestrians,          # track_candidates
+    stop_signs,           # candidate_uuids
+    log_dir,
+    distance_thresh=5,    # meters
+    min_objects=1
+)
+
+# 4. Output the filtered scenario for evaluation / visualization.
+description = 'pedestrian near stop sign'
+output_scenario(peds_near_stop_sign, description, log_dir, output_dir)

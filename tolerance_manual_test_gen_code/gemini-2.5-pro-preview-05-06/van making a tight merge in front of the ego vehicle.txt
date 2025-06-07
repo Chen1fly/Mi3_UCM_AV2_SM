@@ -1,0 +1,43 @@
+# The user wants to find scenarios where a van performs a tight merge in front of the ego vehicle.
+# This can be broken down into several conditions:
+# 1. The object is a van. The 'REGULAR_VEHICLE' category includes vans.
+# 2. The object is merging, which means it is changing lanes. The `changing_lanes` function can identify this.
+# 3. The merge is "tight" and "in front of the ego vehicle". This can be captured by finding a vehicle
+#    that is very close in front of the ego vehicle. The `get_objects_in_relative_direction` function
+#    is suitable for this, with a small `within_distance` and `lateral_thresh`.
+#
+# The final scenario will be the intersection of vans that are changing lanes and vans that are
+# simultaneously in a tight position in front of the ego vehicle.
+
+description = 'van making a tight merge in front of the ego vehicle'
+
+# Get the ego vehicle, which is the reference point.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Get all regular vehicles, as this category includes vans.
+# We are only interested in vehicles that are actively moving, not parked ones.
+all_vans = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+moving_vans = scenario_not(stationary)(all_vans, log_dir)
+
+# Identify the vans that are in the process of changing lanes.
+# The direction is not specified, so it can be a merge from the left or the right.
+merging_vans = changing_lanes(moving_vans, log_dir)
+
+# Identify vans that are in a "tight" position in front of the ego vehicle.
+# "Tight" is defined as being within 10 meters ahead (longitudinally) and within 2 meters
+# to the side (laterally). This ensures the van is cutting in closely.
+vans_in_front_of_ego = get_objects_in_relative_direction(
+    track_candidates=ego_vehicle,
+    related_candidates=moving_vans,
+    log_dir=log_dir,
+    direction='forward',
+    within_distance=10,
+    lateral_thresh=2
+)
+
+# The final scenario requires both conditions to be true at the same time:
+# The van must be changing lanes AND be in that tight spot in front of the ego.
+# `scenario_and` finds the objects present in both scenarios.
+tight_merge_in_front = scenario_and([merging_vans, vans_in_front_of_ego])
+
+output_scenario(tight_merge_in_front, description, log_dir, output_dir)

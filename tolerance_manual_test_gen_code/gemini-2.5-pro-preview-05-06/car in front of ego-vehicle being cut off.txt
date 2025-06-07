@@ -1,0 +1,38 @@
+description = "car in front of ego-vehicle being cut off"
+
+# Get the ego vehicle and all other vehicles in the scenario.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify the single vehicle that is directly in front of the ego vehicle.
+# We limit the search to a reasonable distance of 50 meters.
+car_in_front_of_ego = get_objects_in_relative_direction(
+    ego_vehicle,
+    vehicles,
+    log_dir,
+    direction='forward',
+    max_number=1,
+    within_distance=50
+)
+
+# Ensure the identified vehicle is in the same lane as the ego vehicle to confirm a following situation.
+car_being_followed = in_same_lane(car_in_front_of_ego, ego_vehicle, log_dir)
+
+# A "cut off" event is performed by a vehicle that is changing lanes.
+# So, we identify all vehicles that are performing a lane change.
+lane_changing_vehicles = changing_lanes(vehicles, log_dir)
+
+# The scenario occurs when the car being followed by the ego vehicle is crossed by one of the lane-changing vehicles.
+# The 'being_crossed_by' function with direction='forward' captures this interaction,
+# where a lane-changing vehicle moves into the space directly in front of the followed car.
+# A small 'forward_thresh' of 5 meters ensures the cut-off is close and potentially unsafe.
+car_being_cut_off = being_crossed_by(
+    car_being_followed,
+    lane_changing_vehicles,
+    log_dir,
+    direction="forward",
+    forward_thresh=5
+)
+
+# Output the scenario, which contains the vehicle that was in front of the ego and was cut off.
+output_scenario(car_being_cut_off, description, log_dir, output_dir)

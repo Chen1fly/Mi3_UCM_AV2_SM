@@ -1,0 +1,52 @@
+description = "bicycle behind a bus"
+
+# Get all buses from the dataset
+all_buses = get_objects_of_category(log_dir, category='BUS')
+# Filter for buses that are on a road, as this interaction typically occurs on roads
+buses_on_road = on_road(all_buses, log_dir)
+
+# Get all bicycles from the dataset
+all_bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+# Filter for bicycles that are on a road
+bicycles_on_road = on_road(all_bicycles, log_dir)
+
+# We want to identify the "bicycle" as the primary object of the scenario.
+# The function `has_objects_in_relative_direction` identifies `track_candidates` (here, buses)
+# that have `related_candidates` (here, bicycles) in a specific relative direction.
+# We then use `reverse_relationship` to make the bicycle the primary key in the output dictionary.
+
+# Parameters for has_objects_in_relative_direction:
+# - track_candidates: `buses_on_road`. We are looking from the bus's perspective.
+# - related_candidates: `bicycles_on_road`. We are looking for bicycles.
+# - direction="backward": The bicycle should be behind the bus.
+# - min_number=1: There must be at least one bicycle behind the bus for the condition to be met for that bus.
+# - max_number=np.inf: If a bus has multiple bicycles behind it meeting the criteria,
+#   all such relationships should be formed. This ensures all relevant bicycles are captured.
+# - within_distance=15.0: The bicycle should be within 15 meters longitudinally from the bus.
+#   This distance is chosen to represent a relatively close "behind" condition.
+# - lateral_thresh=0.5: The bicycle's center should be within 0.5 meters laterally
+#   from the sides of the bus. A bus is approximately 2.5m wide (so its sides are at +/- 1.25m
+#   from its centerline). This means the bicycle's center must be within the track
+#   [-1.25m - 0.5m, 1.25m + 0.5m] = [-1.75m, 1.75m] relative to the bus's centerline.
+#   This keeps the bicycle roughly within the same lane as the bus (assuming a lane width of ~3.5m),
+#   which is important for being "directly behind" and avoiding false positives from adjacent lanes.
+
+# The call `has_objects_in_relative_direction(...)` would return:
+#   {bus_uuid: {bicycle_uuid1: [timestamps], bicycle_uuid2: [timestamps], ...}}
+# `reverse_relationship` transforms this into:
+#   {bicycle_uuid: {bus_uuid: [timestamps]}}
+# This makes the bicycle the primary tracked object in the output scenario.
+bicycle_behind_bus = reverse_relationship(has_objects_in_relative_direction)(
+    track_candidates=buses_on_road,
+    related_candidates=bicycles_on_road,
+    log_dir=log_dir,
+    direction="backward",
+    min_number=1,
+    max_number=np.inf,
+    within_distance=15.0,
+    lateral_thresh=0.5
+)
+
+# Output the scenario, which contains bicycles that were found behind a bus
+# under the specified conditions.
+output_scenario(bicycle_behind_bus, description, log_dir, output_dir)

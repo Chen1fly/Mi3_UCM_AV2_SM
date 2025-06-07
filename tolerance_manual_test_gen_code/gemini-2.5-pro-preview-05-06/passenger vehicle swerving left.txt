@@ -1,0 +1,47 @@
+# Assume log_dir and output_dir are predefined variables.
+# Assume necessary imports like numpy and Path are available in the execution environment of these functions.
+
+description = 'passenger vehicle swerving left'
+
+# Step 1: Identify passenger vehicles.
+# Based on the provided categories, "REGULAR_VEHICLE" is the most appropriate type for "passenger vehicle".
+# This category includes conventionally sized passenger vehicles like cars, vans, pickup trucks, SUVs, etc.
+passenger_vehicles = get_objects_of_category(log_dir, category='REGULAR_VEHICLE')
+
+# Step 2: Filter out vehicles that are performing a standard, deliberate left turn.
+# A "swerve" is typically a more abrupt, possibly reactive, maneuver, distinct from a planned, controlled turn.
+# By excluding vehicles that the 'turning' function identifies as making a left turn at a given timestamp,
+# we aim to focus on lateral movements that are not part of such a deliberate turning action.
+# This helps in being more precise to the "swerving" characteristic and avoiding false positives from normal turns.
+vehicles_not_in_deliberate_left_turn = scenario_not(turning)(
+    passenger_vehicles,
+    log_dir,
+    direction='left'  # We are interested in "swerving left", so we exclude "turning left".
+)
+
+# Step 3: From the remaining vehicles (those not in a deliberate left turn),
+# find those exhibiting significant lateral acceleration to the left.
+# "Swerving left" implies a sharp or forceful movement towards the left.
+# The 'has_lateral_acceleration' function can identify this.
+# According to its documentation, positive values for acceleration indicate movement to the left.
+# We set 'min_accel' to 2.0 m/s^2. This threshold is chosen to represent "significant"
+# lateral acceleration, characteristic of a swerve or jerk, rather than a gentle or minor adjustment.
+# 'max_accel' is set to infinity (np.inf) as there's no upper limit defined for how sharply a vehicle might swerve left.
+passenger_vehicles_swerving_left = has_lateral_acceleration(
+    vehicles_not_in_deliberate_left_turn,
+    log_dir,
+    min_accel=2.0,      # Minimum lateral acceleration to the left (positive value).
+    max_accel=np.inf    # No upper bound for this acceleration to the left.
+)
+
+# Step 4: Output the scenario.
+# The 'passenger_vehicles_swerving_left' dictionary will contain the track UUIDs of
+# passenger vehicles that meet the "swerving left" criteria (not deliberately turning left AND
+# having high lateral acceleration to the left), along with the
+# lists of timestamps when this behavior is observed for each vehicle.
+output_scenario(
+    passenger_vehicles_swerving_left,
+    description,
+    log_dir,
+    output_dir
+)

@@ -1,0 +1,22 @@
+# The user is asking to find a scooter that is lying on the side of the road.
+# A scooter can be categorized as a 'WHEELED_DEVICE'.
+# A scooter that is lying down would be stationary.
+# "Side of the road" can be interpreted as being on the road but not in a traffic lane, or more simply, just being stationary on the road.
+# Since a moving object cannot be 'lying down', finding stationary scooters on a road is a good way to identify this scenario.
+
+description = "scooter lying down on the side of the road"
+
+# Get all wheeled devices, which include scooters.
+wheeled_devices = get_objects_of_category(log_dir, category='WHEELED_DEVICE')
+
+# Identify which of these wheeled devices are stationary.
+# The stationary() function is suitable for objects that are not temporarily stopped but are stationary for a significant duration.
+# This aligns with the idea of a scooter 'lying down' or being abandoned.
+stationary_wheeled_devices = stationary(wheeled_devices, log_dir)
+
+# Identify which of the stationary wheeled devices are on a road or bike lane.
+# This places the stationary scooter in the context of the road environment.
+stationary_scooters_on_road = on_road(stationary_wheeled_devices, log_dir)
+
+# The final scenario is a wheeled device that is both stationary and on the road.
+output_scenario(stationary_scooters_on_road, description, log_dir, output_dir)

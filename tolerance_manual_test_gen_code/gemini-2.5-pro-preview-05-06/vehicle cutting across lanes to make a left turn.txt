@@ -1,0 +1,20 @@
+# Defines a scenario for a vehicle that is cutting across one or more lanes to make a left turn.
+description = "vehicle cutting across lanes to make a left turn"
+
+# Get all vehicles in the scene.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Identify all vehicles that are in the process of turning left.
+left_turning_vehicles = turning(vehicles, log_dir, direction='left')
+
+# Identify all vehicles that are in the process of changing lanes.
+# We don't specify a direction for the lane change to be general,
+# as a vehicle might make multiple lane changes before the turn.
+lane_changing_vehicles = changing_lanes(vehicles, log_dir)
+
+# The target scenario is a vehicle that is both changing lanes and turning left.
+# We can find this by taking the intersection of the two scenarios defined above.
+vehicle_cutting_across_lanes_for_left_turn = scenario_and([left_turning_vehicles, lane_changing_vehicles])
+
+# Output the final scenario.
+output_scenario(vehicle_cutting_across_lanes_for_left_turn, description, log_dir, output_dir)

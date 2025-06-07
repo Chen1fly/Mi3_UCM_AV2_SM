@@ -1,0 +1,24 @@
+description = 'ego vehicle driving at dusk or dawn'
+
+# Get the EGO_VEHICLE. The EGO_VEHICLE is the vehicle collecting the data.
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Determine if the ego vehicle is "driving".
+# We interpret "driving" as the ego vehicle being active (not parked).
+# The `stationary` function is intended to separate parked from active vehicles.
+# `scenario_not(stationary)` will return the ego_vehicle with timestamps where it is considered active.
+# According to the documentation for `stationary`:
+# "Returns objects that moved less than 2m over their length of observation in the scneario.
+# This object is only intended to separate parked from active vehicles.
+# Use has_velocity() with thresholding if you want to indicate vehicles that are temporarily stopped."
+# Thus, `scenario_not(stationary)` should give us vehicles that are part of traffic,
+# potentially including those temporarily stopped (e.g., at a light), which aligns with "driving".
+driving_ego_vehicle = scenario_not(stationary)(ego_vehicle, log_dir)
+
+# The part "at dusk or dawn" cannot be determined with the provided functions,
+# as there are no functions to ascertain the time of day, lighting conditions,
+# or related indicators (e.g., headlights status).
+# The scenario will therefore identify instances of "ego vehicle driving"
+# without filtering for dusk/dawn conditions.
+
+output_scenario(driving_ego_vehicle, description, log_dir, output_dir)

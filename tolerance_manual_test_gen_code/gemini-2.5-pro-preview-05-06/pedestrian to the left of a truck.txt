@@ -1,0 +1,61 @@
+# Description: pedestrian to the left of a truck
+
+# Get all pedestrian objects from the dataset.
+# PEDESTRIAN category: Person that is not driving or riding in/on a vehicle.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get all objects that can be considered "a truck".
+# The problem asks for "a truck", which can encompass various types. We include:
+# - "TRUCK": Common delivery vehicles (UPS, FedEx), mail trucks, garbage trucks, utility trucks, ambulances, dump trucks, etc.
+# - "BOX_TRUCK": Chassis cab truck with an enclosed cube-shaped cargo area.
+# - "TRUCK_CAB": Heavy truck commonly known as Semi cab, Tractor, or Lorry (referring to the cab part).
+generic_trucks = get_objects_of_category(log_dir, category='TRUCK')
+box_trucks = get_objects_of_category(log_dir, category='BOX_TRUCK')
+truck_cabs = get_objects_of_category(log_dir, category='TRUCK_CAB')
+
+# Combine these different truck categories into a single scenario dictionary.
+# The scenario_or function will create a dictionary containing all objects from these categories.
+all_truck_types = scenario_or([generic_trucks, box_trucks, truck_cabs])
+
+# Find pedestrians that are to the left of any of these truck objects.
+# We use the 'get_objects_in_relative_direction' function.
+# - 'track_candidates' are set to 'all_truck_types'. The direction 'left' will be relative to these trucks.
+# - 'related_candidates' are set to 'pedestrians'. These are the objects we are searching for.
+#
+# To ensure that the output scenario focuses on the "pedestrian" as the referred object (i.e., pedestrian UUIDs
+# are the primary keys in the resulting dictionary), we wrap the call to 'get_objects_in_relative_direction'
+# with 'reverse_relationship'. If 'get_objects_in_relative_direction(trucks, peds, ...)' would normally
+# return a dictionary like {truck_id: {ped_id: [timestamps]}}, applying 'reverse_relationship'
+# will restructure this to {ped_id: {truck_id: [timestamps]}}.
+#
+# Parameters for 'get_objects_in_relative_direction' are chosen to be precise and avoid false positives:
+# - direction='left': Specifies that the pedestrian should be to the truck's left.
+# - min_number=1: Ensures that at least one pedestrian is found to the left of a truck at a given timestamp
+#   for the relationship to be included.
+# - within_distance=10.0 (meters): The pedestrian must be within a 10-meter radius of the truck's center.
+#   This limits the overall distance, primarily how far away the pedestrian can be in the 'left' direction.
+# - lateral_thresh=7.0 (meters): The pedestrian's position along the truck's longitudinal axis
+#   (i.e., forward or backward relative to the truck's direction of travel) must be within +/- 7 meters
+#   from the truck's center. This helps ensure the pedestrian is reasonably "beside" the truck,
+#   rather than far in front of its nose or far behind its tail, to be considered "to its left".
+
+pedestrian_to_left_of_truck = reverse_relationship(get_objects_in_relative_direction)(
+    track_candidates=all_truck_types,  # Trucks are the reference objects for determining 'left'
+    related_candidates=pedestrians,    # We are looking for pedestrians in relation to these trucks
+    log_dir=log_dir,
+    direction='left',                  # The specified relative direction from the truck's viewpoint
+    min_number=1,                      # At least one pedestrian must satisfy the condition
+    within_distance=10.0,              # Maximum radial distance from truck center to pedestrian center
+    lateral_thresh=7.0                 # Maximum longitudinal offset of pedestrian from truck center
+)
+
+# Output the resulting scenario.
+# The 'pedestrian_to_left_of_truck' dictionary will have pedestrian UUIDs as its main keys.
+# The corresponding values will be dictionaries mapping truck UUIDs (that the pedestrian is to the left of)
+# to lists of timestamps when this condition holds true.
+output_scenario(
+    scenario=pedestrian_to_left_of_truck,
+    description="pedestrian to the left of a truck",
+    log_dir=log_dir,
+    output_dir=output_dir
+)

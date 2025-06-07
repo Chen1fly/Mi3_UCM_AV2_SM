@@ -1,0 +1,24 @@
+# Find all instances of a person walking two dogs.
+# The description implies a person who is actively moving with two dogs nearby.
+
+
+# Get all pedestrians from the dataset.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+
+# Get all dogs from the dataset.
+dogs = get_objects_of_category(log_dir, category='DOG')
+
+
+# Filter for pedestrians that are actually moving, as "walking" implies motion.
+# We use a minimum velocity of 0.5 m/s to filter out stationary or very slow-moving pedestrians.
+moving_pedestrians = has_velocity(pedestrians, log_dir, min_velocity=0.5)
+
+
+# Find moving pedestrians who are near at least two dogs.
+# We set a distance threshold of 5 meters to ensure the dogs are close to the person.
+person_walking_two_dogs = near_objects(moving_pedestrians, dogs, log_dir, distance_thresh=5, min_objects=2)
+
+
+# Output the resulting scenario.
+output_scenario(person_walking_two_dogs, "person walking two dogs", log_dir, output_dir)

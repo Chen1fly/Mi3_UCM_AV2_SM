@@ -1,0 +1,56 @@
+# Scenario: vehicle braking near jaywalking pedestrian or stroller
+description = 'vehicle braking near jaywalking pedestrian or stroller'
+
+# ---------------------------------------------------------------------
+# 1) Identify vehicles that are braking on the roadway
+# ---------------------------------------------------------------------
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# A forward acceleration less than -1 m/s² is a strong indicator of braking
+braking_vehicles = accelerating(
+    vehicles, 
+    log_dir, 
+    min_accel=float('-inf'),   # allow any negative acceleration
+    max_accel=-1               # upper bound selects only pronounced braking events
+)
+
+# Keep only those braking vehicles that are actually on the road
+braking_vehicles_on_road = on_road(braking_vehicles, log_dir)
+
+# ---------------------------------------------------------------------
+# 2) Collect jaywalking pedestrians and strollers (on road but not on a crossing)
+# ---------------------------------------------------------------------
+# Pedestrians
+peds = get_objects_of_category(log_dir, category='PEDESTRIAN')
+peds_on_road = on_road(peds, log_dir)
+jaywalking_peds = scenario_not(at_pedestrian_crossing)(peds_on_road, log_dir)
+
+# Strollers
+strollers = get_objects_of_category(log_dir, category='STROLLER')
+strollers_on_road = on_road(strollers, log_dir)
+jaywalking_strollers = scenario_not(at_pedestrian_crossing)(strollers_on_road, log_dir)
+
+# Combine both jaywalking classes into one set of related objects
+jaywalkers = scenario_or([jaywalking_peds, jaywalking_strollers])
+
+# ---------------------------------------------------------------------
+# 3) Select braking vehicles that are close to a jaywalker
+#    (within 10 m — tight enough to avoid distant false-positives)
+# ---------------------------------------------------------------------
+braking_vehicles_near_jaywalkers = near_objects(
+    braking_vehicles_on_road,   # track_candidates
+    jaywalkers,                 # related_candidates
+    log_dir,
+    distance_thresh=10,         # proximity threshold in metres
+    min_objects=1               # at least one jaywalker nearby
+)
+
+# ---------------------------------------------------------------------
+# 4) Output the final scenario
+# ---------------------------------------------------------------------
+output_scenario(
+    braking_vehicles_near_jaywalkers,
+    description,
+    log_dir,
+    output_dir
+)

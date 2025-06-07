@@ -1,0 +1,58 @@
+description = 'vehicle passing school bus at stop'
+
+# Get all school bus objects from the logs
+school_buses = get_objects_of_category(log_dir, category='SCHOOL_BUS')
+
+# Get all vehicle objects from the logs.
+# The 'VEHICLE' supercategory includes: REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB,
+# BOX_TRUCK, BUS, SCHOOL_BUS, ARTICULATED_BUS, TRUCK, and RAILED_VEHICLE.
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# Filter out school buses from the general vehicle category to get "other vehicles".
+# This is to ensure we are looking for a non-school bus vehicle passing a school bus.
+# is_category(all_vehicles, ..., 'SCHOOL_BUS') would return school buses from the all_vehicles set.
+# scenario_not(...) negates this, returning vehicles that are NOT school buses.
+other_vehicles = scenario_not(is_category)(all_vehicles, log_dir, category='SCHOOL_BUS')
+
+# Identify school buses that are stopped or moving very slowly.
+# A velocity up to 0.5 m/s can be considered stationary due to annotation jitter.
+stopped_school_buses = has_velocity(school_buses, log_dir, min_velocity=0.0, max_velocity=0.5)
+
+# Identify "other vehicles" (non-school buses) that are actively moving.
+# A minimum velocity (e.g., 1.0 m/s) ensures they are indeed in motion, suitable for "passing".
+moving_other_vehicles = has_velocity(other_vehicles, log_dir, min_velocity=1.0)
+
+# Identify instances where a moving "other vehicle" passes a "stopped school bus".
+# "Passing" is defined as the centroid of the moving vehicle (related_candidate)
+# crossing a side midplane of the stopped school bus (track_candidate).
+
+# Case 1: The moving vehicle passes on the left side of the stopped school bus.
+# `being_crossed_by` identifies the school buses (track_candidates) that are crossed.
+# `reverse_relationship` is used to make the passing vehicles (related_candidates)
+# the primary keys in the resulting scenario dictionary.
+# `direction="left"` means the left midplane of the school bus is crossed.
+vehicles_passing_bus_on_its_left = reverse_relationship(being_crossed_by)(
+    track_candidates=stopped_school_buses,
+    related_candidates=moving_other_vehicles,
+    log_dir=log_dir,
+    direction="left"  # School bus's left side is being crossed
+)
+
+# Case 2: The moving vehicle passes on the right side of the stopped school bus.
+# `direction="right"` means the right midplane of the school bus is crossed.
+vehicles_passing_bus_on_its_right = reverse_relationship(being_crossed_by)(
+    track_candidates=stopped_school_buses,
+    related_candidates=moving_other_vehicles,
+    log_dir=log_dir,
+    direction="right"  # School bus's right side is being crossed
+)
+
+# Combine both passing scenarios (passing on left OR passing on right).
+# The resulting scenario will contain the UUIDs of the vehicles that passed a stopped school bus.
+vehicles_passing_stopped_bus = scenario_or([
+    vehicles_passing_bus_on_its_left,
+    vehicles_passing_bus_on_its_right
+])
+
+# Output the final scenario.
+output_scenario(vehicles_passing_stopped_bus, description, log_dir, output_dir)

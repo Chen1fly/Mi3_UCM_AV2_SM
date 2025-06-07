@@ -1,0 +1,64 @@
+description = "vehicle two vehicles ahead is being crossed by a pedestrian"
+
+# 1. Get all relevant objects categories
+all_vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# 2. Filter for active (non-stationary) vehicles.
+# "stationary" typically means parked or not part of active traffic flow.
+# "active_vehicles" will include vehicles moving or temporarily stopped (e.g., at a light).
+active_vehicles = scenario_not(stationary)(all_vehicles, log_dir)
+
+# 3. Identify V2: these are active vehicles that are being crossed by a pedestrian.
+# The pedestrian is crossing in front of V2's forward path.
+# We use default thresholds for `being_crossed_by` (forward_thresh=10m, lateral_thresh=5m).
+# `direction="forward"` means the pedestrian crosses the vehicle's front.
+v2_vehicles_being_crossed_by_pedestrian = being_crossed_by(
+    track_candidates=active_vehicles,
+    related_candidates=pedestrians,
+    log_dir=log_dir,
+    direction="forward"
+)
+# `v2_vehicles_being_crossed_by_pedestrian` is a scenario dictionary where keys are UUIDs of these V2 vehicles.
+
+# 4. Identify V1: these are active vehicles that have one of the V2 vehicles (identified above) directly ahead of them.
+# `track_candidates` are potential V1s (all active vehicles).
+# `related_candidates` are the V2s (vehicles being crossed by pedestrians).
+# `min_number=1, max_number=1` ensures we find V1s that have exactly one such V2 considered (the closest one).
+# `within_distance=50` sets a 50m range for "ahead".
+# `lateral_thresh=1.5` helps ensure V2 is somewhat aligned with V1's path (not too far to the side).
+# (Vehicle width ~2m, so its side is ~1m from centerline. V2's center can be up to 1m + 1.5m = 2.5m from V1's centerline).
+v1_vehicles_with_v2_ahead = has_objects_in_relative_direction(
+    track_candidates=active_vehicles,
+    related_candidates=v2_vehicles_being_crossed_by_pedestrian,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=1,
+    within_distance=50,
+    lateral_thresh=1.5
+)
+# `v1_vehicles_with_v2_ahead` is a scenario dictionary where keys are UUIDs of these V1 vehicles.
+
+# 5. Identify Subject Vehicles (V_subj): these are active vehicles that have one of the V1 vehicles (identified above) directly ahead of them.
+# These are the vehicles the query "vehicle two vehicles ahead..." refers to.
+# `track_candidates` are potential V_subj (all active vehicles).
+# `related_candidates` are the V1s (which have a V2 being crossed by a ped ahead of them).
+# Parameters for "ahead" are kept consistent.
+subject_vehicles = has_objects_in_relative_direction(
+    track_candidates=active_vehicles,
+    related_candidates=v1_vehicles_with_v2_ahead,
+    log_dir=log_dir,
+    direction='forward',
+    min_number=1,
+    max_number=1,
+    within_distance=50,
+    lateral_thresh=1.5
+)
+# `subject_vehicles` is a scenario dictionary where keys are UUIDs of the vehicles matching the full description.
+
+# 6. Output the scenario
+# This will save the `subject_vehicles` dictionary, containing the UUIDs (and timestamps)
+# of vehicles for which there is a vehicle (V1) ahead, which in turn has another vehicle (V2) ahead of it,
+# and V2 is being crossed by a pedestrian.
+output_scenario(subject_vehicles, description, log_dir, output_dir)

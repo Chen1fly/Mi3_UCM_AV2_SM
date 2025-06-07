@@ -1,0 +1,27 @@
+# Scenario: pedestrian near construction cone
+description = 'pedestrian near construction cone'
+
+# --------------------------------------------------------------------
+# 1) Gather all pedestrians and construction cones present in the log
+# --------------------------------------------------------------------
+peds  = get_objects_of_category(log_dir, category='PEDESTRIAN')
+cones = get_objects_of_category(log_dir, category='CONSTRUCTION_CONE')
+
+# --------------------------------------------------------------------
+# 2) Find pedestrians that come very close to at least one cone.
+#    • distance_thresh = 2 m keeps the matches tight, reducing false positives
+#    • min_objects     = 1 means “near at least one cone”
+# --------------------------------------------------------------------
+peds_near_cones = near_objects(
+    peds,                     # track_candidates: pedestrians to examine
+    cones,                    # candidate_uuids: construction cones to compare against
+    log_dir,
+    distance_thresh=2,        # metres
+    min_objects=1,
+    include_self=False        # pedestrians themselves are not in candidate set
+)
+
+# --------------------------------------------------------------------
+# 3) Export the result
+# --------------------------------------------------------------------
+output_scenario(peds_near_cones, description, log_dir, output_dir)

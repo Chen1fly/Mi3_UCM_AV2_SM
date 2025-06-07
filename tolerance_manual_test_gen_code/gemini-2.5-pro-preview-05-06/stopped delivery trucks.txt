@@ -1,0 +1,29 @@
+#
+# Find instances of stopped delivery trucks.
+#
+# This script identifies vehicles that are likely delivery trucks (Box Trucks or regular Trucks)
+# and are currently stopped on a road.
+#
+
+# First, we get all objects that could be considered delivery trucks.
+# The 'TRUCK' and 'BOX_TRUCK' categories are the most suitable for this.
+trucks = get_objects_of_category(log_dir, category='TRUCK')
+box_trucks = get_objects_of_category(log_dir, category='BOX_TRUCK')
+
+# We combine these two categories into a single scenario dictionary of potential delivery trucks.
+delivery_trucks = scenario_or([trucks, box_trucks])
+
+# Next, we identify the trucks from the list that are stationary.
+# For a delivery, a truck is temporarily stopped. According to the function documentation,
+# `has_velocity` with a low maximum threshold is the correct function to use for this,
+# as `stationary()` is for permanently parked vehicles. We use a threshold of 0.5 m/s
+# to account for potential sensor and annotation jitter.
+stopped_trucks = has_velocity(delivery_trucks, log_dir, max_velocity=0.5)
+
+# A delivery truck is typically stopped on a road. We filter for trucks that are on a road surface.
+on_road_trucks = on_road(stopped_trucks, log_dir)
+
+# The final scenario consists of objects that meet all the above criteria:
+# they are a type of delivery truck, they are stopped, and they are on a road.
+# `on_road_trucks` already represents this combination of filters.
+output_scenario(on_road_trucks, "stopped delivery trucks", log_dir, output_dir)

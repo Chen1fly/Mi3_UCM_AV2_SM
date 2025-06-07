@@ -1,0 +1,59 @@
+# Description for the scenario we want to output
+description = 'ego vehicle following bicycle closely'
+
+# ---------------------------------------------
+# 1. Obtain the ego vehicle and bicycle objects
+# ---------------------------------------------
+ego_vehicle = get_objects_of_category(log_dir, category='EGO_VEHICLE')
+
+# Capture both the bicycle *object* (BICYCLE) and a rider-annotated bicycle (BICYCLIST)
+bicycle_objs     = get_objects_of_category(log_dir, category='BICYCLE')
+bicyclist_objs   = get_objects_of_category(log_dir, category='BICYCLIST')
+bicycles         = scenario_or([bicycle_objs, bicyclist_objs])          # all annotated bicycles
+
+# ------------------------------------------------------
+# 2. Keep only *moving* ego vehicle and *moving* bicycles
+# ------------------------------------------------------
+moving_ego       = scenario_not(stationary)(ego_vehicle, log_dir)       # ego must be in motion
+moving_bicycles  = has_velocity(bicycles, log_dir, min_velocity=1)      # filter out parked bikes
+
+# -------------------------------------------------------------
+# 3. Core logic: ego *following* a bicycle at close distance
+# -------------------------------------------------------------
+# 3-a: ego is formally “following” the bicycle (same lane & direction)
+ego_following_bike = following(moving_ego, moving_bicycles, log_dir)
+
+# 3-b: ensure the bicycle is *in front* of ego and within ~12 m
+bike_in_front_close = get_objects_in_relative_direction(
+    moving_ego,
+    moving_bicycles,
+    log_dir,
+    direction='forward',      # bicycle must be ahead of ego
+    min_number=1,
+    max_number=1,             # only need the nearest one
+    within_distance=12,       # “closely” – adjust if needed
+    lateral_thresh=2          # roughly in-lane (≈ vehicle width)
+)
+
+# 3-c: extra guard – ego must actually be *near* the bicycle
+ego_near_bike = near_objects(
+    moving_ego,
+    moving_bicycles,
+    log_dir,
+    distance_thresh=12,
+    min_objects=1
+)
+
+# ----------------------------------------------
+# 4. Combine all constraints for high precision
+# ----------------------------------------------
+close_following_bicycle = scenario_and([
+    ego_following_bike,       # ego is following
+    bike_in_front_close,      # bicycle is directly ahead & close
+    ego_near_bike             # distance guard (helps filter noise)
+])
+
+# ----------------------------
+# 5. Output the final scenario
+# ----------------------------
+output_scenario(close_following_bicycle, description, log_dir, output_dir)

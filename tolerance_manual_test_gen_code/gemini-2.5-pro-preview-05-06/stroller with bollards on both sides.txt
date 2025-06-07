@@ -1,0 +1,36 @@
+# Define the description of the scenario
+description = "stroller with bollards on both sides"
+
+# Get all stroller and bollard objects from the dataset
+strollers = get_objects_of_category(log_dir, category='STROLLER')
+bollards = get_objects_of_category(log_dir, category='BOLLARD')
+
+# Find strollers that have at least one bollard to their left within a 5-meter distance
+# and a lateral threshold of 2 meters to ensure the bollard is truly to the side.
+strollers_with_bollard_on_left = has_objects_in_relative_direction(
+    strollers,
+    bollards,
+    log_dir,
+    direction='left',
+    min_number=1,
+    within_distance=5,
+    lateral_thresh=2
+)
+
+# Find strollers that have at least one bollard to their right within a 5-meter distance
+# and a lateral threshold of 2 meters.
+strollers_with_bollard_on_right = has_objects_in_relative_direction(
+    strollers,
+    bollards,
+    log_dir,
+    direction='right',
+    min_number=1,
+    within_distance=5,
+    lateral_thresh=2
+)
+
+# Find the intersection of the two previous scenarios to get strollers that have bollards on both sides simultaneously.
+stroller_between_bollards = scenario_and([strollers_with_bollard_on_left, strollers_with_bollard_on_right])
+
+# Output the final scenario
+output_scenario(stroller_between_bollards, description, log_dir, output_dir)

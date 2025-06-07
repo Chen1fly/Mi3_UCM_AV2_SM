@@ -1,0 +1,8 @@
+description = 'dog near an intersection'
+# Get all objects of category DOG
+dogs = get_objects_of_category(log_dir, category='DOG')
+# Filter dogs to find those near an intersection
+# The default threshold for near_intersection is 5 meters, which should be suitable for "near".
+dogs_near_intersection = near_intersection(dogs, log_dir)
+# Output the scenario
+output_scenario(dogs_near_intersection, description, log_dir, output_dir)

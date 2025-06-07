@@ -1,0 +1,29 @@
+description = 'pedestrian near bollard'
+
+# Get all pedestrian objects from the logs.
+# 'PEDESTRIAN': Person that is not driving or riding in/on a vehicle.
+pedestrians = get_objects_of_category(log_dir, category='PEDESTRIAN')
+
+# Get all bollard objects from the logs.
+# 'BOLLARD': Bollards are short, sturdy posts installed in the roadway or sidewalk.
+bollards = get_objects_of_category(log_dir, category='BOLLARD')
+
+# Find pedestrians that are near at least one bollard.
+# The `near_objects` function identifies track_candidates (pedestrians in this case)
+# that are within a specified distance (`distance_thresh`) of a minimum number
+# (`min_objects`) of related_candidates (bollards).
+# We'll set `distance_thresh` to 3.0 meters. This is a reasonable distance to consider
+# a pedestrian "near" a bollard, which are relatively small objects. A larger distance
+# might lead to false positives (e.g., pedestrian on the other side of a wide path).
+# `min_objects` is set to 1, as the description is "pedestrian near *a* bollard".
+pedestrians_near_bollard = near_objects(
+    track_candidates=pedestrians,
+    related_candidates=bollards,
+    log_dir=log_dir,
+    distance_thresh=3.0,  # Maximum distance in meters for a pedestrian to be considered "near" a bollard.
+    min_objects=1         # The pedestrian must be near at least one bollard.
+)
+
+# Output the resulting scenario.
+# This will save the instances of pedestrians found to be near bollards.
+output_scenario(pedestrians_near_bollard, description, log_dir, output_dir)

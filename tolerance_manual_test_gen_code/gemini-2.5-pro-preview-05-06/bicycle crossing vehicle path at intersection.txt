@@ -1,0 +1,59 @@
+# Define the description for the scenario
+description = 'bicycle crossing vehicle path at intersection'
+
+# 1. Get all bicycle objects from the logs
+# Category 'BICYCLE' includes non-motorized vehicles with two wheels.
+bicycles = get_objects_of_category(log_dir, category='BICYCLE')
+
+# 2. Get all vehicle objects from the logs
+# Category 'VEHICLE' is a superclass including cars, trucks, buses, etc.
+vehicles = get_objects_of_category(log_dir, category='VEHICLE')
+
+# 3. Filter for bicycles that are located on an intersection
+# 'on_intersection' identifies objects whose bounding box is on top of a road intersection area.
+# This ensures the bicycle is at the intersection during the relevant timestamps.
+bicycles_at_intersection = on_intersection(bicycles, log_dir)
+
+# 4. Filter for vehicles that are located on an intersection
+# This ensures the vehicle involved in the interaction is also at the intersection
+# during the relevant timestamps.
+vehicles_at_intersection = on_intersection(vehicles, log_dir)
+
+# 5. Identify bicycles that are crossing the forward path of vehicles, with both at an intersection.
+# We use `being_crossed_by` to find instances where a vehicle's path is crossed by a bicycle.
+# - `track_candidates` (first argument to `being_crossed_by`) are the vehicles (objects being crossed).
+# - `related_candidates` (second argument to `being_crossed_by`) are the bicycles (objects doing the crossing).
+#
+# `reverse_relationship` is applied to `being_crossed_by`. This makes the `related_candidates` (bicycles)
+# the primary keys in the output dictionary. This aligns with the description "bicycle crossing...",
+# focusing on the bicycle as the actor.
+#
+# Parameters for `being_crossed_by`:
+# - `direction="forward"`: Specifies that the bicycle must cross the vehicle's forward midplane.
+#   This means the bicycle is moving across the front of the vehicle.
+# - `forward_thresh=7.0`: This parameter, in the context of `direction="forward"`, defines how far
+#   in front of the vehicle the crossing detection extends. A value of 7.0 meters is chosen
+#   to capture crossings that are relatively close to the vehicle's immediate path, enhancing precision.
+# - `lateral_thresh=3.0`: This parameter defines the lateral extent of the crossing zone.
+#   Assuming it means half-width from the vehicle's centerline, a value of 3.0 meters creates
+#   a 6-meter wide sensitive "path" area in front of the vehicle. This width can accommodate
+#   typical vehicle dimensions and some lateral path variations.
+# - `in_direction='either'` (default for `being_crossed_by`): The bicycle can cross from left-to-right or
+#   right-to-left in front of the vehicle. This is generally desired for "crossing path".
+#
+# The `being_crossed_by` function will only find crossings at timestamps where both the specific vehicle
+# (from `vehicles_at_intersection`) and the specific bicycle (from `bicycles_at_intersection`)
+# are active and satisfy their `on_intersection` condition. Thus, the resulting scenario captures
+# bicycles crossing vehicle paths specifically *at* an intersection.
+bicycles_crossing_vehicle_path_at_intersection = reverse_relationship(being_crossed_by)(
+    track_candidates=vehicles_at_intersection,
+    related_candidates=bicycles_at_intersection,
+    log_dir=log_dir,
+    direction="forward",
+    forward_thresh=7.0,
+    lateral_thresh=3.0
+)
+
+# Output the identified scenario instances.
+# This function will format and save the results for evaluation or further use.
+output_scenario(bicycles_crossing_vehicle_path_at_intersection, description, log_dir, output_dir)

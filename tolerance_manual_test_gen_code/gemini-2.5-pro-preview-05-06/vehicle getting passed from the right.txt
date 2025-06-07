@@ -1,0 +1,55 @@
+# Description of the scenario
+description = 'vehicle getting passed from the right'
+
+# Get all objects categorized as "VEHICLE"
+# The "VEHICLE" superclass includes REGULAR_VEHICLE, LARGE_VEHICLE, TRUCK_CAB, BOX_TRUCK, BUS, SCHOOL_BUS, ARTICULATED_BUS, TRUCK, and RAILED_VEHICLE.
+# Note: This superclass does not include MOTORCYCLE or BICYCLE.
+all_vehicles = get_objects_of_category(log_dir, category="VEHICLE")
+
+# Filter for vehicles that are not "stationary" as defined by the `stationary` function
+# (i.e., not parked or inactive for long durations, typically meaning they moved less than 2m over their observation period).
+# These "active" vehicles can be either the ones being passed or the ones doing the passing.
+# They might be moving or temporarily stopped (e.g., at a traffic light).
+active_vehicles = scenario_not(stationary)(all_vehicles, log_dir)
+
+# Identify instances where an active vehicle (track_candidate) is being passed on its right side
+# by another active vehicle (related_candidate).
+# The function `being_crossed_by` identifies track_candidates whose specified half-midplane
+# is crossed by a related_candidate's centroid.
+
+# - `track_candidates=active_vehicles`: These are the vehicles that are potentially being passed.
+# - `related_candidates=active_vehicles`: These are the vehicles that are potentially doing the passing.
+#   This assumes a vehicle is passed by another object also classified as "VEHICLE".
+# - `direction="right"`: Specifies that we are interested in the half-midplane extending to the right
+#   of the track_candidate. A "pass from the right" involves this midplane.
+# - `in_direction="counterclockwise"`: This parameter specifies the required direction of the crossing.
+#   For a vehicle being passed on its right, the passing vehicle typically moves from the rear-right
+#   to the front-right relative to the passed vehicle. When viewed from above, the vector from the
+#   passed vehicle's center to the passing vehicle's center would rotate counterclockwise.
+#   This is analogous to the example `overtaking_on_left` which uses `in_direction="clockwise"`.
+#   Using this specific directionality helps ensure it's a passing maneuver rather than other movements.
+# - `forward_thresh=5.0`: This parameter defines "how far the midplane extends from the edge of the tracked object".
+#   Assuming this means the midplane (which is longitudinal for a "right" direction pass) extends
+#   5.0 meters beyond both the front and rear edges of the tracked vehicle, the total longitudinal
+#   length of the interaction zone would be `vehicle_length + 2 * 5.0m`. This provides a reasonable
+#   zone for a passing event to occur.
+# - `lateral_thresh=4.0`: This parameter, according to the doc "If an related candidate crosses the midplane, it will
+#   continue being considered crossing until it goes past the lateral_thresh." This suggests it defines
+#   the extent of the interaction zone outwards from the midplane. A value of 4.0 meters should be
+#   sufficient to capture a vehicle passing in an immediately adjacent lane (typical lane width is ~3.5m),
+#   aiming for precision and avoiding false positives from vehicles further away.
+
+vehicles_getting_passed_from_right = being_crossed_by(
+    track_candidates=active_vehicles,
+    related_candidates=active_vehicles,
+    log_dir=log_dir,
+    direction="right",
+    in_direction="counterclockwise",
+    forward_thresh=5.0,
+    lateral_thresh=4.0
+)
+
+# Output the identified scenario instances.
+# The resulting `vehicles_getting_passed_from_right` dictionary will contain the UUIDs of vehicles
+# that were passed from the right by another vehicle, along with the timestamps of such events.
+output_scenario(vehicles_getting_passed_from_right, description, log_dir, output_dir)
