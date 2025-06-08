@@ -22,9 +22,8 @@ import refAV.paths as paths
 
 def evaluate_baseline(description,
                       log_id,
-                      baseline_pred_dir:Path,
+                      baseline_pred_dir: Path,
                       gt_pkl_dir, scenario_pred_dir):
-    
     gt_pkl = gt_pkl_dir / log_id / f'{description}_{log_id[:8]}_ref_gt.pkl'
     pred_pkl = baseline_pred_dir / log_id / f'{description}_predictions.pkl'
 
@@ -34,32 +33,32 @@ def evaluate_baseline(description,
     evaluate(pred_pkl, gt_pkl, objective_metric='HOTA', max_range_m=50, dataset_dir=paths.AV2_DATA_DIR, out=str('eval'))
 
 
-def execute_scenario(scenario, description, log_dir, output_dir:Path, is_gt=False):
+def execute_scenario(scenario, description, log_dir, output_dir: Path, is_gt=False):
     """Executes string as a python script in a local namespace."""
     exec(scenario)
 
 
-def create_baseline_prediction(description:str, log_id:str, llm_name, tracker_name, experiment_name):
-
+def create_baseline_prediction(description: str, log_id: str, llm_name, tracker_name, experiment_name, err: str = '', code: str = ''):
     split = get_log_split(log_id)
     pred_path = (paths.SM_PRED_DIR / experiment_name / split / log_id / f'{description}_predictions.pkl').resolve()
     if pred_path.exists():
         print(f'Cached prediction pkl exists.')
         return pred_path
 
-    #Used in exec(scenario) code
-    output_dir:Path = paths.SM_PRED_DIR / experiment_name / split
+    # Used in exec(scenario) code
+    output_dir: Path = paths.SM_PRED_DIR / experiment_name / split
 
-    log_dir:Path = paths.TRACKER_PRED_DIR / tracker_name / split / log_id
-    #log_dir:Path = paths.TRACKER_PRED_DIR / tracker_name / split / log_id
-    
+    log_dir: Path = paths.TRACKER_PRED_DIR / tracker_name / split / log_id
+    # log_dir:Path = paths.TRACKER_PRED_DIR / tracker_name / split / log_id
+
     try:
         scenario_filename = paths.LLM_PRED_DIR / llm_name / f'{description}.txt'
         if scenario_filename.exists():
             print(f'Cached scenario definition for {description} found')
         else:
-            scenario_filename = predict_scenario_from_description(description, output_dir=paths.LLM_PRED_DIR, model_name=llm_name)
-        
+            scenario_filename = predict_scenario_from_description(description, output_dir=paths.LLM_PRED_DIR,
+                                                                  model_name=llm_name, err=err, code=code)
+
         with open(scenario_filename, 'r') as f:
             scenario = f.read()
             execute_scenario(scenario, description, log_dir, output_dir)
@@ -70,18 +69,19 @@ def create_baseline_prediction(description:str, log_id:str, llm_name, tracker_na
 
         error_path = output_dir.parent / 'results' / 'errors'
         error_path.mkdir(parents=True, exist_ok=True)
-        with open(error_path/f'{description}.txt', 'w') as file:
+        with open(error_path / f'{description}.txt', 'w') as file:
             traceback.print_exc(file=file)
 
         print(f"Error predicting {description} for log_id {log_id}: {e}")
-        traceback.print_exc()
-        pred_path = create_default_prediction(description, log_dir, output_dir)
+        error = str(e)
+        create_baseline_prediction(description, log_id, llm_name, tracker_name, experiment_name, err=error, code=scenario)
+        # traceback.print_exc()
+        # pred_path = create_default_prediction(description, log_dir, output_dir)
 
     return pred_path
 
 
-def create_default_prediction(description:str, log_dir:Path, output_dir:Path):
-    
+def create_default_prediction(description: str, log_dir: Path, output_dir: Path):
     empty_set = {}
     output_scenario(empty_set, description, log_dir, output_dir, visualize=True)
 
@@ -106,7 +106,8 @@ def evaluate_pkls(pred_pkl, gt_pkl, experiment_dir):
         break
 
     output_dir = str(experiment_dir / 'results')
-    metrics = evaluate(predictions, labels, objective_metric='HOTA', max_range_m=50, dataset_dir=paths.AV2_DATA_DIR/split, out=output_dir)
+    metrics = evaluate(predictions, labels, objective_metric='HOTA', max_range_m=50,
+                       dataset_dir=paths.AV2_DATA_DIR / split, out=output_dir)
 
     metrics_dict = {
         'HOTA-Temporal': float(metrics[0]),
@@ -126,40 +127,39 @@ def evaluate_pkls(pred_pkl, gt_pkl, experiment_dir):
 def combine_matching_pkls(gt_base_dir, pred_base_dir, output_dir, method_name='ref'):
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
-    
+
     # Get all log_ids from both directories
     gt_log_ids = {d.name: d for d in Path(gt_base_dir).iterdir() if d.is_dir()}
     pred_log_ids = {d.name: d for d in Path(pred_base_dir).iterdir() if d.is_dir()}
-    
+
     # Find matching log_ids
     matching_log_ids = set(gt_log_ids.keys()) & set(pred_log_ids.keys())
-    
+
     # Initialize combined dictionaries
     combined_gt = {}
     combined_pred = {}
-    
+
     # For each matching log_id
     for log_id in tqdm(matching_log_ids):
 
         gt_log_dir = gt_log_ids[log_id]
         pred_log_dir = pred_log_ids[log_id]
-        
+
         # Get all PKL files in these directories
-        gt_files = {f.stem.replace('_ref_gt', ''): f 
-                   for f in gt_log_dir.glob('*_ref_gt.pkl')}
-        pred_files = {f.stem.replace(f'_{method_name}_predictions', ''): f 
-                     for f in pred_log_dir.glob(f'*_{method_name}_predictions.pkl')}
-        
+        gt_files = {f.stem.replace('_ref_gt', ''): f
+                    for f in gt_log_dir.glob('*_ref_gt.pkl')}
+        pred_files = {f.stem.replace(f'_{method_name}_predictions', ''): f
+                      for f in pred_log_dir.glob(f'*_{method_name}_predictions.pkl')}
+
         # Find matching files within this log_id
         matching_keys = set(gt_files.keys()) & set(pred_files.keys())
         # Combine matching files
         for key in matching_keys:
-
             # Load GT file
             with open(gt_files[key], 'rb') as f:
                 gt_data = pickle.load(f)
                 combined_gt.update(copy.deepcopy(gt_data))
-                
+
             # Load prediction file
             with open(pred_files[key], 'rb') as f:
                 pred_data = pickle.load(f)
@@ -168,40 +168,40 @@ def combine_matching_pkls(gt_base_dir, pred_base_dir, output_dir, method_name='r
         # Report unmatched files for this log_id
         unmatched_gt = set(gt_files.keys()) - matching_keys
         unmatched_pred = set(pred_files.keys()) - matching_keys
-        
+
         if unmatched_gt:
             print(f"\nUnmatched GT files in log_id {log_id}:")
             for name in unmatched_gt:
                 print(f"- {name}")
-        
+
         if unmatched_pred:
             print(f"\nUnmatched prediction files in log_id {log_id}:")
             for name in unmatched_pred:
                 print(f"- {name}")
-    
+
     # Save combined files
     if combined_gt:
         with open(os.path.join(output_dir, 'combined_gt.pkl'), 'wb') as f:
             pickle.dump(combined_gt, f)
-    
+
     if combined_pred:
         with open(os.path.join(output_dir, f'{method_name}_predictions.pkl'), 'wb') as f:
             pickle.dump(combined_pred, f)
-    
+
     # Print statistics
     print(f"\nFound {len(matching_log_ids)} matching log_ids")
     print(f"Combined GT file contains {len(combined_gt)} entries")
     print(f"Combined predictions file contains {len(combined_pred)} entries")
-    
+
     # Report unmatched log_ids
     unmatched_gt_logs = set(gt_log_ids.keys()) - matching_log_ids
     unmatched_pred_logs = set(pred_log_ids.keys()) - matching_log_ids
-    
+
     if unmatched_gt_logs:
         print("\nLog IDs in GT without matching predictions directory:")
         for log_id in unmatched_gt_logs:
             print(f"- {log_id}")
-    
+
     if unmatched_pred_logs:
         print("\nLog IDs in predictions without matching GT directory:")
         for log_id in unmatched_pred_logs:
@@ -266,8 +266,8 @@ def combine_pkls_pred(experiment_dir: Path, lpp_path: Path) -> Path:
                     track_predictions = pickle.load(file)
                     combined_predictions.update(track_predictions)
             except Exception as e:
-                    print(f"读取 {target_pkl} 失败：{e}")
-                    traceback.print_exc()
+                print(f"读取 {target_pkl} 失败：{e}")
+                traceback.print_exc()
         # combined_predictions.update(track_predictions)
 
     print(f'Combined predictions for {len(combined_predictions)} log-prompt pairs.')
@@ -277,6 +277,7 @@ def combine_pkls_pred(experiment_dir: Path, lpp_path: Path) -> Path:
         pickle.dump(combined_predictions, file)
 
     return output_pkl
+
 
 def combine_pkls(experiment_dir: Path, lpp_path: Path) -> Path:
     """
@@ -293,7 +294,7 @@ def combine_pkls(experiment_dir: Path, lpp_path: Path) -> Path:
     with open(lpp_path, "r", encoding="utf-8") as f:
         log_prompt_pairs: dict[str, list[str]] = json.load(f)
 
-    split = lpp_path.stem.split("_")[-1]          # e.g. train / val / test
+    split = lpp_path.stem.split("_")[-1]  # e.g. train / val / test
     combined_predictions: dict = {}
     skipped = 0
 
@@ -322,6 +323,7 @@ def combine_pkls(experiment_dir: Path, lpp_path: Path) -> Path:
 
     return output_pkl
 
+
 def combine_pkls_stream(experiment_dir: Path,
                         lpp_path: Path,
                         out_pkl: Path,
@@ -345,7 +347,7 @@ def combine_pkls_stream(experiment_dir: Path,
         log_prompt_pairs: dict[str, list[str]] = json.load(f)
 
     split = lpp_path.stem.split("_")[-1]
-    tgt_open = gzip.open if compress else open          # .pkl.gz 可读写
+    tgt_open = gzip.open if compress else open  # .pkl.gz 可读写
     out_pkl = out_pkl.with_suffix(out_pkl.suffix + (".gz" if compress else ""))
 
     # --- 2. 逐个 append ---------------------------
@@ -373,6 +375,7 @@ def combine_pkls_stream(experiment_dir: Path,
 
     return out_pkl
 
+
 def compile_results(experiment_dir: Path):
     for experiment in experiment_dir.iterdir():
         if 'exp' not in experiment.name:
@@ -380,15 +383,18 @@ def compile_results(experiment_dir: Path):
         results_folder = experiment / 'results'
         if results_folder.exists():
             dest = experiment_dir.parent / 'compiled_results' / experiment.name
-            #dest.mkdir(parents=True, exist_ok=True)
+            # dest.mkdir(parents=True, exist_ok=True)
 
             shutil.copytree(results_folder, dest, ignore=shutil.ignore_patterns('*.pkl', '*.pdf'))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Example script with arguments")
-    parser.add_argument("--num_processes", type=int, help="Number of parallel processes you want to use for computation", default=max(int(0.9 * os.cpu_count()), 1))
-    parser.add_argument("--log_prompt_pairs", type=str, required=True, help="String path to the log-prompt pairs json file")
+    parser.add_argument("--num_processes", type=int,
+                        help="Number of parallel processes you want to use for computation",
+                        default=max(int(0.9 * os.cpu_count()), 1))
+    parser.add_argument("--log_prompt_pairs", type=str, required=True,
+                        help="String path to the log-prompt pairs json file")
     parser.add_argument("--exp_name", type=str, required=True)
 
     args = parser.parse_args()
@@ -397,17 +403,17 @@ if __name__ == '__main__':
         exp_config = yaml.safe_load(file)
 
     exp_name = exp_config[args.exp_name]['name']
-    tracker_name= exp_config[args.exp_name]['tracker']
+    tracker_name = exp_config[args.exp_name]['tracker']
     llm_name = exp_config[args.exp_name]['LLM']
     split = exp_config[args.exp_name]['split']
 
     faulthandler.enable()
     logging.basicConfig(
-    filename=r'E:\AV2_code\RefAV\output\evaluation_errors.log',
-    level=logging.ERROR,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        filename=r'E:\AV2_code\RefAV\output\evaluation_errors.log',
+        level=logging.ERROR,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-    
+
     cache_manager.num_processes = args.num_processes
     log_prompt_input_path = Path(args.log_prompt_pairs)
     eval_output_dir = Path(f'output/evaluation/{exp_name}/{split}')
